@@ -125,109 +125,240 @@ function Authorizate() {
     }
 
     return (
-        <div className="flex flex-col gap-4 max-w-[1550] mx-auto min-h-screen items-center">
-            <Link href="/" className="text-5xl font-bold" >
-                vseti<span className="text-main-green">.by</span>
-            </Link>
-            <div className="text-main-gray">Социльная сеть для своих</div>
-            <div className="text-3xl font-bold">{isLogin ? "Вход в аккаунт" : "Создание аккаунта"}</div>
-            <div className="">{isLogin ? "Добро пожаловать обратно! Пожалуйста, войдите в свой аккаунт" : "Присоединяйтесь к vseti.by и общайтесь с друзьями и близкими"}</div>
-            <form
-                key={isLogin ? "login" : "register"}
-                onSubmit={handleSubmit}
-                className="flex flex-col gap-4 flex-wrap w-full"
-                noValidate
-            >
-                {!isLogin && (
-                    <>
-                        <div className="flex gap-2">
-                            <label className="flex flex-wrap gap-3 border border-border-gray rounded-xl px-4 py-2 items-center focus-within:border-black">
-                                <div className="bg-bg-green p-2 rounded-xl">
-                                    <UserRound color="green" />
+        <div className="min-h-dvh bg-white px-4 py-6 sm:bg-[#f7f8f7] sm:px-6 sm:py-10">
+            <div className="mx-auto flex min-h-[calc(100dvh-48px)] w-full max-w-[560] flex-col items-center">
+
+                <Link
+                    href="/"
+                    className="text-4xl font-bold tracking-tight sm:text-5xl"
+                >
+                    vseti
+                    <span className="text-main-green">.by</span>
+                </Link>
+
+                <div className="mt-2 text-center text-sm text-main-gray sm:text-base">
+                    Социальная сеть для своих
+                </div>
+
+                <div className="mt-8 text-center text-2xl font-bold sm:text-3xl">
+                    {isLogin
+                        ? "Вход в аккаунт"
+                        : "Создание аккаунта"}
+                </div>
+
+                <div className="mt-2 max-w-[420] text-center text-sm leading-6 text-main-gray sm:text-base">
+                    {isLogin
+                        ? "Добро пожаловать обратно! Пожалуйста, войдите в свой аккаунт"
+                        : "Присоединяйтесь к vseti.by и общайтесь с друзьями и близкими"}
+                </div>
+
+                <form
+                    key={isLogin ? "login" : "register"}
+                    onSubmit={handleSubmit}
+                    className="mt-8 flex w-full flex-col gap-4"
+                    noValidate
+                >
+                    {!isLogin && (
+                        <div className="flex flex-col gap-4 sm:flex-row sm:gap-3">
+                            <label className="
+                            flex w-full min-w-0 items-center gap-3
+                            rounded-xl border border-border-gray
+                            px-3 py-2.5
+                            transition-colors
+                            focus-within:border-main-green
+                            sm:flex-1
+                        ">
+                                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-bg-green">
+                                    <UserRound className="size-5 text-main-green" />
                                 </div>
-                                <input placeholder="Имя" name="name" type="text" className="flex-1 outline-0" onChange={handleClearInput} autoComplete="given-name" />
+
+                                <input
+                                    placeholder="Имя"
+                                    name="name"
+                                    type="text"
+                                    className="min-w-0 flex-1 bg-transparent text-base outline-none"
+                                    onChange={handleClearInput}
+                                    autoComplete="given-name"
+                                />
                             </label>
-                            <label className="flex flex-wrap gap-3 border border-border-gray rounded-xl px-4 py-2 items-center focus-within:border-black">
-                                <div className="bg-bg-green p-2 rounded-xl">
-                                    <UserRound color="green" />
+
+                            <label className="
+                            flex w-full min-w-0 items-center gap-3
+                            rounded-xl border border-border-gray
+                            px-3 py-2.5
+                            transition-colors
+                            focus-within:border-main-green
+                            sm:flex-1
+                        ">
+                                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-bg-green">
+                                    <UserRound className="size-5 text-main-green" />
                                 </div>
-                                <input placeholder="Фамилия" name="surname" type="text" className="flex-1 outline-0" onChange={handleClearInput} autoComplete="family-name" />
+
+                                <input
+                                    placeholder="Фамилия"
+                                    name="surname"
+                                    type="text"
+                                    className="min-w-0 flex-1 bg-transparent text-base outline-none"
+                                    onChange={handleClearInput}
+                                    autoComplete="family-name"
+                                />
                             </label>
                         </div>
+                    )}
 
-                    </>
-                )}
-
-                <label className="flex flex-wrap gap-3 border border-border-gray rounded-xl px-4 py-2 items-center focus-within:border-black">
-                    <div className="bg-bg-green p-2 rounded-xl">
-                        <Mail color="green" />
-                    </div>
-                    <input placeholder="Email" name="email" type="email" className="flex-1 outline-0 " onChange={handleClearInput} autoComplete="email" />
-                </label>
-                <label className="flex border border-border-gray rounded-xl px-4 py-2 gap-3 flex-wrap items-center focus-within:border-black">
-                    <div className="bg-bg-green p-2 rounded-xl">
-                        <LockKeyhole color="green" />
-                    </div>
-                    <input
-                        type={showPassword ? "password" : "text"}
-                        className="flex-1 outline-0 "
-                        placeholder="Пароль"
-                        name="password"
-                        onChange={handleClearInput}
-                        autoComplete={isLogin ? "current-password" : "new-password"}
-                    />
-                    <div
-                        className="cursor-pointer"
-                        onClick={() => setShowPassword((prev) => !prev)}>
-                        <Eye />
-                    </div>
-                </label>
-                {!isLogin && (
-                    <label className="flex border border-border-gray rounded-xl px-4 py-2 gap-3 flex-wrap items-center focus-within:border-black">
-                        <div className="bg-bg-green p-2 rounded-xl">
-                            <LockKeyhole color="green" />
+                    <label className="
+                    flex w-full items-center gap-3
+                    rounded-xl border border-border-gray
+                    px-3 py-2.5
+                    transition-colors
+                    focus-within:border-main-green
+                ">
+                        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-bg-green">
+                            <Mail className="size-5 text-main-green" />
                         </div>
+
                         <input
-                            type={showRepeatPassword ? "password" : "text"}
-                            className="flex-1 outline-0 "
-                            placeholder="Повторите пароль"
-                            name="repeatPassword"
+                            placeholder="Email"
+                            name="email"
+                            type="email"
+                            className="min-w-0 flex-1 bg-transparent text-base outline-none"
                             onChange={handleClearInput}
-                            autoComplete="new-password"
+                            autoComplete="email"
                         />
-                        <div
-                            className="cursor-pointer"
-                            onClick={() => setShowRepeatPassword((prev) => !prev)}>
-                            <Eye />
-                        </div>
                     </label>
-                )}
 
-                {isLogin && <button type="button" className="text-text-green cursor-pointer self-end hover:text-hover-green transition-colors">Забыли пароль?</button>}
-                {error && (<div className="rounded-xl bg-red-500 border border-red-200 px-4 py-3 text-white">{error}</div>)}
-                <button
-                    disabled={isPending}
-                    className="bg-main-green text-white py-3 rounded-xl cursor-pointer hover:bg-hover-green transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                    {isPending ? "Подождите..." : isLogin ? "Войти" : "Регистрация"}
-                </button>
-                <div className="flex items-center w-full text-main-gray">
-                    <span className="border-b-2  flex-1" ></span>
-                    <span className="whitespace-nowrap px-4">{isLogin ? "или войдите через" : "или зарегистрируйтесь через"}</span>
-                    <span className="border-b-2  flex-1" ></span>
-                </div>
-                <div>{isLogin ? "Ещё нет аккаунта?" : "Уже есть аккаунт?"}
+                    <label className="
+                    flex w-full items-center gap-3
+                    rounded-xl border border-border-gray
+                    px-3 py-2.5
+                    transition-colors
+                    focus-within:border-main-green
+                ">
+                        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-bg-green">
+                            <LockKeyhole className="size-5 text-main-green" />
+                        </div>
+
+                        <input
+                            type={showPassword ? "password" : "text"}
+                            className="min-w-0 flex-1 bg-transparent text-base outline-none"
+                            placeholder="Пароль"
+                            name="password"
+                            onChange={handleClearInput}
+                            autoComplete={isLogin ? "current-password" : "new-password"}
+                        />
+
+                        <button
+                            type="button"
+                            aria-label={showPassword ? "Показать пароль" : "Скрыть пароль"}
+                            className="shrink-0 rounded-lg p-2 text-main-gray transition-colors hover:text-black cursor-pointer"
+                            onClick={() => setShowPassword((prev) => !prev)}
+                        >
+                            <Eye className="size-5" />
+                        </button>
+                    </label>
+
+                    {!isLogin && (
+                        <label className="
+                        flex w-full items-center gap-3
+                        rounded-xl border border-border-gray
+                        px-3 py-2.5
+                        transition-colors
+                        focus-within:border-main-green
+                    ">
+                            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-bg-green">
+                                <LockKeyhole className="size-5 text-main-green" />
+                            </div>
+
+                            <input
+                                type={showRepeatPassword ? "password" : "text"}
+                                className="min-w-0 flex-1 bg-transparent text-base outline-none"
+                                placeholder="Повторите пароль"
+                                name="repeatPassword"
+                                onChange={handleClearInput}
+                                autoComplete="new-password"
+                            />
+
+                            <button
+                                type="button"
+                                aria-label={showRepeatPassword ? "Показать пароль" : "Скрыть пароль"}
+                                className="shrink-0 rounded-lg p-2 text-main-gray transition-colors hover:text-black cursor-pointer"
+                                onClick={() => setShowRepeatPassword((prev) => !prev)}
+                            >
+                                <Eye className="size-5" />
+                            </button>
+                        </label>
+                    )}
+
+                    {isLogin && (
+                        <button
+                            type="button"
+                            className="self-end text-sm text-text-green transition-colors hover:text-hover-green cursor-pointer"
+                        >
+                            Забыли пароль?
+                        </button>
+                    )}
+
+                    {error && (
+                        <div className="w-full wrap-break-words rounded-xl border border-red-200 bg-red-500 px-4 py-3 text-sm text-white">
+                            {error}
+                        </div>
+                    )}
+
                     <button
-                        type="button"
-                        className="text-text-green cursor-pointer hover:text-hover-green transition-colors"
-                        onClick={() => setIsLogin((prev) => !prev)}
-                    >&nbsp;
-                        {isLogin ? "Зарегистрируйтесь" : "Войти"}
+                        type="submit"
+                        disabled={isPending}
+                        className="
+                        flex h-12 w-full items-center justify-center
+                        rounded-xl bg-main-green
+                        text-base font-medium text-white
+                        transition-colors cursor-pointer
+                        hover:bg-hover-green 
+                        disabled:cursor-not-allowed
+                        disabled:opacity-50
+                    "
+                    >
+                        {isPending
+                            ? "Подождите..."
+                            : isLogin
+                                ? "Войти"
+                                : "Регистрация"}
                     </button>
-                </div>
-            </form>
-            <footer className="mt-auto pb-5">
-                ©2026&nbsp;vseti.by&nbsp;—&nbsp;все права защищены
-            </footer>
+
+                    <div className="flex w-full items-center text-main-gray">
+                        <span className="h-px flex-1 bg-border-gray" />
+
+                        <span className="px-3 text-center text-xs sm:px-4 sm:text-sm">
+                            {isLogin
+                                ? "или войдите через"
+                                : "или зарегистрируйтесь через"}
+                        </span>
+
+                        <span className="h-px flex-1 bg-border-gray" />
+                    </div>
+
+                    <div className="text-center text-sm sm:text-left">
+                        {isLogin
+                            ? "Ещё нет аккаунта?"
+                            : "Уже есть аккаунт?"}
+
+                        <button
+                            type="button"
+                            className="text-text-green transition-colors hover:text-hover-green cursor-pointer"
+                            onClick={() => { setIsLogin((prev) => !prev); setError("") }}
+                        >
+                            &nbsp;
+                            {isLogin
+                                ? "Зарегистрируйтесь"
+                                : "Войти"}
+                        </button>
+                    </div>
+                </form>
+
+                <footer className="mt-auto pt-10 text-center text-xs text-main-gray sm:text-sm">
+                    ©2026&nbsp;vseti.by&nbsp;—&nbsp;все права защищены
+                </footer>
+
+            </div>
         </div>
     )
 }
