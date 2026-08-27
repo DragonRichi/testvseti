@@ -96,6 +96,13 @@ export async function registerUser({ email, displayName, password, repeatPasswor
         })
 
         if (authError) {
+            if (authError.message === "User already registered") {
+                return {
+                    success: false,
+                    error:"Данный Email уже зарегистрирован"
+                }
+            }
+
             console.error("SIGNUP ERROR: ", authError)
             return {
                 success: false,
