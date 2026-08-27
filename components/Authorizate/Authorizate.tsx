@@ -142,7 +142,7 @@ function Authorizate() {
                     Социальная сеть для своих
                 </div>
 
-                <div className="mt-8 text-center text-2xl font-bold sm:text-3xl">
+                <div className="mt-3 text-center text-2xl font-bold sm:text-3xl sm:mt-8">
                     {isLogin
                         ? "Вход в аккаунт"
                         : "Создание аккаунта"}
