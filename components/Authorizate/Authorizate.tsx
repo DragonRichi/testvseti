@@ -26,12 +26,20 @@ function Authorizate() {
         const email = String(formData.get("email") ?? "").trim()
         const password = String(formData.get("password") ?? "")
 
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
         if (isLogin) {
 
             if (!email || !password) {
                 setError("Заполните все поля")
                 return
             }
+
+            if (!emailRegex.test(email)) {
+                setError("Введите корректный Email")
+                return
+            }
+
             setIsPending(true)
 
 
@@ -75,6 +83,11 @@ function Authorizate() {
 
             if (password !== repeatPassword) {
                 setError("Пароли не совпадают")
+                return
+            }
+
+            if (!emailRegex.test(email)) {
+                setError("Введите корректный Email")
                 return
             }
 
@@ -123,6 +136,7 @@ function Authorizate() {
                 key={isLogin ? "login" : "register"}
                 onSubmit={handleSubmit}
                 className="flex flex-col gap-4 flex-wrap w-full"
+                noValidate
             >
                 {!isLogin && (
                     <>
@@ -131,13 +145,13 @@ function Authorizate() {
                                 <div className="bg-bg-green p-2 rounded-xl">
                                     <UserRound color="green" />
                                 </div>
-                                <input placeholder="Имя" name="name" type="text" className="flex-1 outline-0" onChange={handleClearInput} />
+                                <input placeholder="Имя" name="name" type="text" className="flex-1 outline-0" onChange={handleClearInput} autoComplete="given-name" />
                             </label>
                             <label className="flex flex-wrap gap-3 border border-border-gray rounded-xl px-4 py-2 items-center focus-within:border-black">
                                 <div className="bg-bg-green p-2 rounded-xl">
                                     <UserRound color="green" />
                                 </div>
-                                <input placeholder="Фамилия" name="surname" type="text" className="flex-1 outline-0" onChange={handleClearInput} />
+                                <input placeholder="Фамилия" name="surname" type="text" className="flex-1 outline-0" onChange={handleClearInput} autoComplete="family-name" />
                             </label>
                         </div>
 
@@ -148,7 +162,7 @@ function Authorizate() {
                     <div className="bg-bg-green p-2 rounded-xl">
                         <Mail color="green" />
                     </div>
-                    <input placeholder="Email" name="email" type="email" className="flex-1 outline-0 " onChange={handleClearInput} />
+                    <input placeholder="Email" name="email" type="email" className="flex-1 outline-0 " onChange={handleClearInput} autoComplete="email" />
                 </label>
                 <label className="flex border border-border-gray rounded-xl px-4 py-2 gap-3 flex-wrap items-center focus-within:border-black">
                     <div className="bg-bg-green p-2 rounded-xl">
@@ -160,6 +174,7 @@ function Authorizate() {
                         placeholder="Пароль"
                         name="password"
                         onChange={handleClearInput}
+                        autoComplete={isLogin ? "current-password" : "new-password"}
                     />
                     <div
                         className="cursor-pointer"
@@ -178,6 +193,7 @@ function Authorizate() {
                             placeholder="Повторите пароль"
                             name="repeatPassword"
                             onChange={handleClearInput}
+                            autoComplete="new-password"
                         />
                         <div
                             className="cursor-pointer"
