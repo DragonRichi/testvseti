@@ -63,16 +63,18 @@ function Authorizate() {
             }
             return
         } else {
-            const name = String(formData.get("name") ?? "").trim()
-            const surname = String(formData.get("surname") ?? "").trim()
+            const displayName = String(formData.get("displayName") ?? "").trim()
+            const username = String(formData.get("username") ?? "").trim()
             const repeatPassword = String(formData.get("repeatPassword") ?? "")
 
-            if (name.trim().length < 2) {
-                setError("Имя должно содержать минимум 2 символа")
+            const usernameRegex = /^[a-z0-9_]{3,20}$/
+
+            if (displayName.trim().length < 2) {
+                setError("Отображаемое имя должно содержать минимум 2 символа")
                 return
             }
-            if (surname.trim().length < 3) {
-                setError("Фамилия должна содержать минимум 3 символа")
+            if (!usernameRegex.test(username)) {
+                setError("Имя пользователя: от 3 до 20 символов, только латинские буквы, цифры и _")
                 return
             }
 
@@ -95,10 +97,10 @@ function Authorizate() {
             try {
                 const { error: signUpError, success, user } = await registerUser({
                     email: email,
-                    name: name,
+                    displayName: displayName,
                     password: password,
                     repeatPassword: repeatPassword,
-                    surname: surname
+                    username: username
                 })
 
                 if (!success) {
@@ -173,8 +175,8 @@ function Authorizate() {
                                 </div>
 
                                 <input
-                                    placeholder="Имя"
-                                    name="name"
+                                    placeholder="Отображаемое имя"
+                                    name="displayName"
                                     type="text"
                                     className="min-w-0 flex-1 bg-transparent text-base outline-none"
                                     onChange={handleClearInput}
@@ -193,14 +195,15 @@ function Authorizate() {
                                 <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-bg-green">
                                     <UserRound className="size-5 text-main-green" />
                                 </div>
+                                <span className="text-main-gray">@</span>
 
                                 <input
-                                    placeholder="Фамилия"
-                                    name="surname"
+                                    placeholder="Никнейм"
+                                    name="username"
                                     type="text"
                                     className="min-w-0 flex-1 bg-transparent text-base outline-none"
                                     onChange={handleClearInput}
-                                    autoComplete="family-name"
+                                    autoComplete="username"
                                 />
                             </label>
                         </div>
