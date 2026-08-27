@@ -1,23 +1,40 @@
 import { logoutUser } from "@/actions/logoutUser"
+import FeedHeader from "@/components/Feed/FeedHeader"
+import FeedRightSidebar from "@/components/Feed/FeedRightSidebar"
+import FeedSidebar from "@/components/Feed/FeedSidebar"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 
 async function page() {
     const supabase = await createClient()
 
-    const { data } = await supabase.auth.getClaims()
+    const { data: { user } } = await supabase.auth.getUser()
 
-    if (!data?.claims) {
-        redirect("/auth")
+    if (!user) redirect("/auth")
+
+    const { data: profile, error } = await supabase.from("profiles").select(`id,username,display_name,avatar_url`).eq("id", user.id).single()
+    console.log("profile ==> ", profile);
+
+    if (error) {
+        console.error("PROFILE LOAD ERROR: ", error)
     }
 
     return (
-        <div>
-            Главная страница vseti.by
-            <div>
-                Вы авторизованы как {String(data.claims.email ?? "")}
+        <div className="min-h-screen bg-[#f7faf7]">
+            <div className="mx-auto grid min-h-screen w-full max-w-[1550] lg:grid-cols-[250px_minmax(0,1fr)] xl:grid-cols-[250px_minmax(0,1fr)_320px]">
+                <aside className="hidden border-r border-green-100 bg-white lg:block">
+                    <FeedSidebar />
+                </aside>
+                <main className="min-w-0 px-4 py-4 sm:px-6 lg:px-8">
+                    <FeedHeader />
+                    <div className="flex min-h-[400] items-center justify-center rounded-2xl border border-green-100 bg-white text-main-gray">
+                        Здесь будет лента
+                    </div>
+                </main>
+                <aside className="hidden border-l border-green-100 bg-[#fbfdfb] xl:block">
+                    <FeedRightSidebar />
+                </aside>
             </div>
-            <button onClick={logoutUser} type="submit">Выйти из аккаунта</button>
         </div>
     )
 }
