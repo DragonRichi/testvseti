@@ -23,9 +23,9 @@ async function page() {
         <div className="min-h-screen bg-[#f7faf7]">
             <div className="mx-auto grid min-h-screen w-full max-w-[1550] lg:grid-cols-[250px_minmax(0,1fr)] xl:grid-cols-[250px_minmax(0,1fr)_320px]">
                 <aside className="hidden border-r border-green-100 bg-white lg:block">
-                    <FeedSidebar />
+                    <FeedSidebar profile={profile}/>
                 </aside>
-                <main className="min-w-0 px-4 py-4 sm:px-6 lg:px-8">
+                <main className="min-w-0 px-4 py-4 pt-20 md:pt-4 sm:px-6 lg:px-8">
                     <FeedHeader />
                     <div className="flex min-h-[400] items-center justify-center rounded-2xl border border-green-100 bg-white text-main-gray">
                         Здесь будет лента
