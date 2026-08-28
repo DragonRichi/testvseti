@@ -121,14 +121,14 @@ function FeedSidebar({ profile }: Props) {
 
     return (
         <>
-            <aside className="sticky top-0 h-screen flex-col px-4 py-5 md:flex">
+            <aside className="sticky top-0 hidden h-screen flex-col px-4 py-5 lg:flex">
                 <Logo />
                 {renderMenu()}
             </aside>
-            <div className="fixed left-0 right-0 top-0 z-40 flex h-16 items-center justify-between border-b border-black/5 bg-white/95 px-4 backdrop-blur-md md:hidden">
+            <div className="fixed left-0 right-0 top-0 z-40 flex h-16 items-center justify-between border-b border-black/5 bg-white/95 px-4 backdrop-blur-md lg:hidden">
                 <Logo />
                 <button
-                    type="submit"
+                    type="button"
                     onClick={() => setIsOpen(true)}
                     aria-label="Открыть меню"
                     className="flex size-10 cursor-pointer items-center justify-center rounded-xl text-gray-700 transition-colors hover:bg-green-50 hover:text-main-green"
@@ -138,7 +138,7 @@ function FeedSidebar({ profile }: Props) {
             </div>
             <div
                 onClick={() => setIsOpen(false)}
-                className={`fixed inset-0 z-50 bg-black/25 backdrop-blur-[2px] transition-all duration-300 md:hidden ${isOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}>
+                className={`fixed inset-0 z-50 bg-black/25 backdrop-blur-[2px] transition-all duration-300 lg:hidden ${isOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}>
                 <aside onClick={(e) => e.stopPropagation()} className={`absolute left-0 top-0 flex h-full w-[290] flex-col bg-white px-4 py-5 shadow-2xl transition-transform duration-300 ease-out ${isOpen ? "translate-x-0" : "-translate-x-full"}`}>
                     <div className="flex items-center justify-between">
                         <Logo />
