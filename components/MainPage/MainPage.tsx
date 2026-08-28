@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useState } from "react"
 import AuthModal from "../Auth/AuthModal"
 import { useRouter } from "next/navigation"
+import Logo from "../ui/Logo"
 
 type Props = {
     isAuthenticated: boolean
@@ -40,24 +41,7 @@ function MainPage({ isAuthenticated }: Props) {
                         backdrop-blur-md
                     "
                 >
-                    <Link
-                        href="/"
-                        className="flex shrink-0 items-center gap-2"
-                    >
-                        <Image
-                            src="/logo.svg"
-                            alt="logo"
-                            width={40}
-                            height={40}
-                            unoptimized
-                            priority
-                            className="size-9 sm:size-10"
-                        />
-
-                        <span className="text-xl font-bold sm:text-2xl">
-                            ВСети
-                        </span>
-                    </Link>
+                    <Logo />
 
                     <nav className="hidden items-center gap-4 text-sm text-main-gray sm:flex">
                         <Link

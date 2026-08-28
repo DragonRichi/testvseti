@@ -1,5 +1,6 @@
 import { Bell, Bookmark, Home, MessageCircle, Search, Settings, UserRound, UsersRound } from "lucide-react"
 import Link from "next/link"
+import Logo from "../ui/Logo"
 
 type Profile = {
     id: string,
@@ -58,14 +59,9 @@ const menuItems = [
 function FeedSidebar() {
     return (
         <div className="sticky top-0 flex h-screen flex-col px-4 py-5">
-            <Link href="/feed" className="mb-8 px-3 text-3xl font-bold tracking-tight">
-                vseti
-                <span className="text-main-green">
-                    .by
-                </span>
-            </Link>
+            <Logo />
 
-            <nav className="flex flex-col gap-1">
+            <nav className="flex flex-col gap-1 mt-5">
                 {menuItems.map((item) => {
                     const Icon = item.icon
                     const isActive = item.href === "/feed"
