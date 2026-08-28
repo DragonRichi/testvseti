@@ -1,7 +1,9 @@
 import MainPage from "@/components/MainPage/MainPage";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 
-export default function Home() {
+export default async function Home() {
+  const user = await getCurrentUser()
   return (
-    <MainPage />
+    <MainPage isAuthenticated={Boolean(user)} />
   );
 }

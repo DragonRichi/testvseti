@@ -10,7 +10,7 @@ async function page() {
 
     const { data: { user } } = await supabase.auth.getUser()
 
-    if (!user) redirect("/auth")
+    if (!user) redirect("/")
 
     const { data: profile, error } = await supabase.from("profiles").select(`id,username,display_name,avatar_url`).eq("id", user.id).single()
     console.log("profile ==> ", profile);

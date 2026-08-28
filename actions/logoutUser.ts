@@ -17,5 +17,5 @@ export async function logoutUser() {
             error: "Не удалось выйти из аккаунта"
         })
     }
-    redirect("/auth")
+    redirect("/")
 }

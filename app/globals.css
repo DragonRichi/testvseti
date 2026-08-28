@@ -3,7 +3,7 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
-  --main-green: #2ca72c;
+  --main-green: #24c33d;
   --text-green: #36ca36;
   --hover-green: #2ed62e;
   --bg-green: #d3f3d3;
@@ -22,7 +22,7 @@
   --color-border-gray: var(--border-gray);
   --color-hover-green: var(--hover-green);
 
-
+  --background-image-people: url('/bg-main_page.svg');
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
@@ -40,4 +40,45 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-roboto);
+}
+
+@keyframes backgroundZoom {
+
+  0%,
+  100% {
+    background-size: 58% auto;
+  }
+
+  50% {
+    background-size: 63% auto;
+  }
+}
+
+.bg-zoom {
+  position: relative;
+  overflow: hidden;
+}
+
+.bg-zoom::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--background-image-people);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 60% auto;
+
+  transform: scale(1);
+  animation: backgroundZoom 15s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+@keyframes backgroundZoom {
+  from {
+    transform: scale(1) rotate(0deg);
+  }
+
+  to {
+    transform: scale(1.06) rotate(8deg);
+  }
 }

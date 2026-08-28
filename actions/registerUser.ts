@@ -2,33 +2,25 @@
 
 import { supabaseAdmin } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
+import { redirect } from "next/navigation"
 
 type Props = {
-    displayName: string,
-    username: string,
-    email: string,
-    password: string,
+    displayName: string
+    username: string
+    email: string
+    password: string
     repeatPassword: string
 }
 
-export async function registerUser({ email, displayName, password, repeatPassword, username }: Props) {
+export async function registerUser({ displayName, username, email, password, repeatPassword }: Props) {
     const usernameRegex = /^[a-z0-9_]{3,20}$/
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
     const normalizedDisplayName = displayName.trim()
-
     const normalizedUsername = username.trim().replace(/^@+/, "").toLowerCase()
-
     const normalizedEmail = email.trim().toLowerCase()
 
-    if (!emailRegex.test(normalizedEmail)) {
-        return {
-            success: false,
-            error: "Введите корректный Email"
-        }
-    }
-
-    if (!normalizedDisplayName || !normalizedEmail || !normalizedUsername || !password || !repeatPassword) {
+    if (!normalizedDisplayName || !normalizedUsername || !normalizedEmail || !password || !repeatPassword) {
         return {
             success: false,
             error: "Заполните все поля"
@@ -42,10 +34,24 @@ export async function registerUser({ email, displayName, password, repeatPasswor
         }
     }
 
+    if (normalizedDisplayName.length > 20) {
+        return {
+            success: false,
+            error: "Отображаемое имя не должно превышать 20 символов"
+        }
+    }
+
     if (!usernameRegex.test(normalizedUsername)) {
         return {
             success: false,
             error: "Имя пользователя: 3–20 символов, только латинские буквы, цифры и _"
+        }
+    }
+
+    if (!emailRegex.test(normalizedEmail)) {
+        return {
+            success: false,
+            error: "Введите корректный Email"
         }
     }
 
@@ -65,17 +71,22 @@ export async function registerUser({ email, displayName, password, repeatPasswor
 
     try {
 
-        const { data: existingProfile, error: usernameCheckError } = await supabaseAdmin.from("profiles").select("id").eq("username", normalizedUsername).maybeSingle()
+        const { data: existingUsername, error: usernameCheckError } = await supabaseAdmin
+            .from("profiles")
+            .select("id")
+            .eq("username", normalizedUsername)
+            .maybeSingle()
 
         if (usernameCheckError) {
-            console.error("USERNAME CHECK ERROR: ", usernameCheckError)
+            console.error("USERNAME CHECK ERROR:", usernameCheckError)
+
             return {
                 success: false,
                 error: "Не удалось проверить имя пользователя"
             }
         }
 
-        if (existingProfile) {
+        if (existingUsername) {
             return {
                 success: false,
                 error: "Это имя пользователя уже занято"
@@ -96,17 +107,21 @@ export async function registerUser({ email, displayName, password, repeatPasswor
         })
 
         if (authError) {
-            if (authError.message === "User already registered") {
+            console.error("SIGNUP ERROR:", authError)
+
+            if (
+                authError.message.toLowerCase().includes("already registered") ||
+                authError.message.toLowerCase().includes("already exists")
+            ) {
                 return {
                     success: false,
-                    error:"Данный Email уже зарегистрирован"
+                    error: "Аккаунт с таким Email уже существует"
                 }
             }
 
-            console.error("SIGNUP ERROR: ", authError)
             return {
                 success: false,
-                error: authError.message
+                error: authError.message || "Ошибка регистрации"
             }
         }
 
@@ -117,30 +132,69 @@ export async function registerUser({ email, displayName, password, repeatPasswor
             }
         }
 
-        const { error: profileError } = await supabaseAdmin.from("profiles").insert({
-            id: data.user.id,
-            username: normalizedUsername,
-            display_name: normalizedDisplayName,
-            monthly_views: 0
-        })
+        const { data: existingProfile, error: profileCheckError } = await supabaseAdmin
+            .from("profiles")
+            .select("id, username")
+            .eq("id", data.user.id)
+            .maybeSingle()
+
+        if (profileCheckError) {
+            console.error("PROFILE CHECK ERROR:", profileCheckError)
+
+            return {
+                success: false,
+                error: "Не удалось проверить профиль"
+            }
+        }
+
+        if (existingProfile) {
+            return {
+                success: false,
+                error: "Аккаунт с таким Email уже существует"
+            }
+        }
+
+        const { error: profileError } = await supabaseAdmin
+            .from("profiles")
+            .insert({
+                id: data.user.id,
+                username: normalizedUsername,
+                display_name: normalizedDisplayName,
+                monthly_views: 0
+            })
 
         if (profileError) {
-            console.error("PROFILE CREATE ERROR: ", profileError)
+            console.error("PROFILE CREATE ERROR:", profileError)
+            if (profileError.code === "23505") {
+                const details = profileError.details ?? ""
+                const message = profileError.message ?? ""
 
-            const isUsernameToken = profileError.code === "23505"
+                if (
+                    details.includes("Key (username)=") ||
+                    message.includes("username")
+                ) {
+                    return {
+                        success: false,
+                        error: "Это имя пользователя уже занято"
+                    }
+                }
 
-            const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(data.user.id)
+                if (
+                    details.includes("Key (id)=") ||
+                    message.includes("profiles_pkey")
+                ) {
+                    return {
+                        success: false,
+                        error: "Аккаунт с таким Email уже существует"
+                    }
+                }
 
-            if (deleteError) {
-                console.error("AUTH CLEANUP ERROR: ", deleteError)
-            }
-
-            if (isUsernameToken) {
                 return {
                     success: false,
-                    error: "Это имя уже занято"
+                    error: "Аккаунт с такими данными уже существует"
                 }
             }
+
             return {
                 success: false,
                 error: "Не удалось создать профиль"
@@ -158,12 +212,13 @@ export async function registerUser({ email, displayName, password, repeatPasswor
             },
             needsEmailConfirmation: data.session === null
         }
+
     } catch (error) {
-        console.error("REGISTER ERROR: ", error)
+        console.error("REGISTER ERROR:", error)
+
         return {
             success: false,
             error: "Ошибка создания аккаунта"
         }
     }
-
 }
