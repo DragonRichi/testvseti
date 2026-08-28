@@ -42,18 +42,6 @@ body {
   font-family: var(--font-roboto);
 }
 
-@keyframes backgroundZoom {
-
-  0%,
-  100% {
-    background-size: 58% auto;
-  }
-
-  50% {
-    background-size: 63% auto;
-  }
-}
-
 .bg-zoom {
   position: relative;
   overflow: hidden;
@@ -62,15 +50,15 @@ body {
 .bg-zoom::before {
   content: "";
   position: absolute;
-  inset: 0;
+  inset: -10%;
   background-image: var(--background-image-people);
   background-position: center;
   background-repeat: no-repeat;
   background-size: 60% auto;
-
-  transform: scale(1);
+  transform: scale(1) rotate(0deg);
   animation: backgroundZoom 15s ease-in-out infinite alternate;
   will-change: transform;
+  pointer-events: none;
 }
 
 @keyframes backgroundZoom {
@@ -80,5 +68,12 @@ body {
 
   to {
     transform: scale(1.06) rotate(8deg);
+  }
+}
+
+@media (max-width: 640px) {
+  .bg-zoom::before {
+    inset: -20%;
+    background-size: auto 75%;
   }
 }
