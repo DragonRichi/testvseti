@@ -63,7 +63,7 @@ const menuItems = [
 function FeedSidebar({ profile }: Props) {
     const [isOpen, setIsOpen] = useState<boolean>(false)
     const pathName = usePathname()
-    const profileHref = profile ? `/profile/${profile.id}` : "#"
+    const profileHref = profile ? `/profile/${profile.username}` : "#"
 
     const renderMenu = (mobile = false) => (
         <>
