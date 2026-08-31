@@ -1,5 +1,6 @@
 import FeedSidebar from "@/components/Feed/FeedSidebar"
 import ProfileHeader from "@/components/Profile/ProfileHeader"
+import ProfileRightSidebar from "@/components/Profile/ProfileRightSidebar"
 import { createClient } from "@/lib/supabase/server"
 import { notFound, redirect } from "next/navigation"
 
@@ -23,7 +24,7 @@ async function Page({ params }: Props) {
         console.error("CURRENT PROFILE LOAD ERROR: ", currentProfileError)
     }
 
-    const { data: profile, error: profileError } = await supabase.from("profiles").select("id,username,display_name,avatar_url,cover_url,bio,birth_date,location_label,website_url,subscriber_count,is_verified,badge_title").eq("username", username.toLowerCase()).single()
+    const { data: profile, error: profileError } = await supabase.from("profiles").select("id,username,display_name,avatar_url,cover_url,bio,birth_date,location_label,website_url,subscriber_count,is_verified,badge_title,interests").eq("username", username.toLowerCase()).single()
 
     if (profileError || !profile) {
         console.error("PROFILE LOAD ERROR: ", profileError)
@@ -45,9 +46,7 @@ async function Page({ params }: Props) {
                     </div>
                 </main>
                 <aside className="hidden border-l border-green-100 bg-[#fbfdfb] xl:block">
-                    <div className="sticky top-0 p-5">
-                        Правая часть профиля
-                    </div>
+                    <ProfileRightSidebar profile={profile} />
 
                 </aside>
             </div>
