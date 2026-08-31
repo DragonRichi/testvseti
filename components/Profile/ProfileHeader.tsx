@@ -21,23 +21,12 @@ type Props = {
     profile: Profile
     isOwnProfile: boolean
 }
-
 const PROFILE_LINKS = [
-    {
-        title: "Публикации"
-    },
-    {
-        title: "Сохранённое"
-    },
-    {
-        title: "Друзья"
-    },
-    {
-        title: "Группы"
-    },
-    {
-        title: "Информация"
-    }
+    { title: "Публикации" },
+    { title: "Сохранённое" },
+    { title: "Друзья" },
+    { title: "Группы" },
+    { title: "Информация" }
 ]
 
 function ProfileHeader({ isOwnProfile, profile }: Props) {
@@ -153,32 +142,12 @@ function ProfileHeader({ isOwnProfile, profile }: Props) {
                     </div>
                 </div>
 
-                <div className="mt-5 border-b border-gray-100">
-                    <div className="grid grid-cols-4 sm:hidden">
-                        <button type="button" className="cursor-pointer border-b-2 border-main-green px-1 pb-3 text-sm font-medium text-main-green">
-                            Публикации
+                <div className="mt-5 flex overflow-x-auto border-b border-gray-100">
+                    {PROFILE_LINKS.map((item, index) => (
+                        <button key={item.title} type="button" className={`shrink-0 cursor-pointer border-b-2 px-4 pb-3 text-sm transition-colors ${index === 0 ? "border-main-green font-medium text-main-green" : "border-transparent text-main-gray hover:text-black"}`}>
+                            {item.title}
                         </button>
-
-                        <button type="button" className="cursor-pointer border-b-2 border-transparent px-1 pb-3 text-sm text-main-gray transition-colors hover:text-black">
-                            Сохранённое
-                        </button>
-
-                        <button type="button" className="cursor-pointer border-b-2 border-transparent px-1 pb-3 text-sm text-main-gray transition-colors hover:text-black">
-                            Друзья
-                        </button>
-
-                        <button type="button" className="cursor-pointer border-b-2 border-transparent px-1 pb-3 text-sm text-main-gray transition-colors hover:text-black">
-                            Ещё
-                        </button>
-                    </div>
-
-                    <div className="hidden sm:flex">
-                        {PROFILE_LINKS.map((item, index) => (
-                            <button key={item.title} type="button" className={`shrink-0 cursor-pointer border-b-2 px-4 pb-3 text-sm transition-colors ${index === 0 ? "border-main-green font-medium text-main-green" : "border-transparent text-main-gray hover:text-black"}`}>
-                                {item.title}
-                            </button>
-                        ))}
-                    </div>
+                    ))}
                 </div>
             </div>
         </section>
