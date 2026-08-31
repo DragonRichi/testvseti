@@ -54,34 +54,34 @@ function ProfileHeader({ isOwnProfile, profile }: Props) {
             </div>
 
             <div className="px-5 pb-5 sm:px-7 sm:pb-7">
-                <div className="flex h-[70] items-start justify-between">
-                    <div className="relative -translate-y-1/2 shrink-0">
-                        <div className="relative size-[116] overflow-hidden rounded-full border-4 border-white bg-bg-green sm:size-[140]">
+                <div className="flex flex-col items-center sm:flex-row sm:items-start sm:justify-between">
+                    <div className="relative mt-[-62] shrink-0 sm:mt-[-70]">
+                        <div className="relative size-[112] overflow-hidden rounded-full border-4 border-white bg-bg-green sm:size-[140]">
                             <Image src={profile.avatar_url ?? "/user-avatar.svg"} alt={profile.display_name} fill priority className="object-cover" />
                         </div>
 
-                        <span className="absolute bottom-2 right-2 size-5 rounded-full border-4 border-white bg-main-green sm:bottom-3 sm:right-3" />
+                        <span className="absolute bottom-1 right-1 size-5 rounded-full border-4 border-white bg-main-green sm:bottom-3 sm:right-3" />
                     </div>
 
-                    <div className="mt-4 flex items-center gap-2">
+                    <div className="mt-3 flex w-full items-center justify-center gap-2 sm:mt-4 sm:w-auto sm:justify-end">
                         {isOwnProfile ? (
-                            <Link href="/settings/profile" className="flex h-10 items-center justify-center rounded-xl bg-main-green px-4 text-sm font-medium text-white transition-colors hover:bg-hover-green">
+                            <Link href="/settings/profile" className="flex h-10 w-full max-w-[210] items-center justify-center rounded-xl bg-main-green px-4 text-sm font-medium text-white transition-colors hover:bg-hover-green sm:w-auto sm:max-w-none">
                                 Редактировать профиль
                             </Link>
                         ) : (
-                            <button type="button" className="flex h-10 cursor-pointer items-center justify-center rounded-xl bg-main-green px-5 text-sm font-medium text-white transition-colors hover:bg-hover-green">
+                            <button type="button" className="flex h-10 w-full max-w-[210] cursor-pointer items-center justify-center rounded-xl bg-main-green px-5 text-sm font-medium text-white transition-colors hover:bg-hover-green sm:w-auto sm:max-w-none">
                                 Подписаться
                             </button>
                         )}
 
-                        <button type="button" className="flex size-10 cursor-pointer items-center justify-center rounded-xl border border-gray-200 text-main-gray transition-colors hover:bg-gray-50 hover:text-black">
+                        <button type="button" className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-gray-200 text-main-gray transition-colors hover:bg-gray-50 hover:text-black">
                             <MoreHorizontal className="size-5" />
                         </button>
                     </div>
                 </div>
 
-                <div className="mt-4">
-                    <div className="flex items-center gap-2">
+                <div className="mt-4 text-center sm:text-left">
+                    <div className="flex items-center justify-center gap-2 sm:justify-start">
                         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
                             {profile.display_name}
                         </h1>
@@ -102,12 +102,12 @@ function ProfileHeader({ isOwnProfile, profile }: Props) {
                     )}
 
                     {profile.bio && (
-                        <div className="mt-4 max-w-[650] text-[15px] leading-6 text-gray-700">
+                        <div className="mx-auto mt-4 max-w-[650] text-sm leading-6 text-gray-700 sm:mx-0">
                             {profile.bio}
                         </div>
                     )}
 
-                    <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-3 text-sm text-main-gray">
+                    <div className="mt-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-sm text-main-gray sm:justify-start">
                         {profile.location_label && (
                             <div className="flex items-center gap-1.5">
                                 <MapPin className="size-4" />
@@ -131,18 +131,18 @@ function ProfileHeader({ isOwnProfile, profile }: Props) {
                     </div>
                 </div>
 
-                <div className="mt-6 grid grid-cols-2 divide-x divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-100 sm:grid-cols-4 sm:divide-y-0">
-                    <div className="px-2 py-4 text-center">
+                <div className="mt-5 grid grid-cols-2 overflow-hidden rounded-2xl border border-gray-100 sm:mt-6 sm:grid-cols-4">
+                    <div className="border-b border-r border-gray-100 px-2 py-4 text-center sm:border-b-0">
                         <div className="text-lg font-bold">0</div>
                         <div className="mt-1 text-xs text-main-gray">публикаций</div>
                     </div>
 
-                    <div className="px-2 py-4 text-center">
+                    <div className="border-b border-gray-100 px-2 py-4 text-center sm:border-b-0 sm:border-r">
                         <div className="text-lg font-bold">{profile.subscriber_count ?? 0}</div>
                         <div className="mt-1 text-xs text-main-gray">подписчиков</div>
                     </div>
 
-                    <div className="px-2 py-4 text-center">
+                    <div className="border-r border-gray-100 px-2 py-4 text-center">
                         <div className="text-lg font-bold">0</div>
                         <div className="mt-1 text-xs text-main-gray">подписок</div>
                     </div>
@@ -153,12 +153,32 @@ function ProfileHeader({ isOwnProfile, profile }: Props) {
                     </div>
                 </div>
 
-                <div className="mt-5 flex overflow-x-auto border-b border-gray-100">
-                    {PROFILE_LINKS.map((item, index) => (
-                        <button key={item.title} type="button" className={`shrink-0 cursor-pointer border-b-2 px-4 pb-3 text-sm transition-colors ${index === 0 ? "border-main-green font-medium text-main-green" : "border-transparent text-main-gray hover:text-black"}`}>
-                            {item.title}
+                <div className="mt-5 border-b border-gray-100">
+                    <div className="grid grid-cols-4 sm:hidden">
+                        <button type="button" className="cursor-pointer border-b-2 border-main-green px-1 pb-3 text-sm font-medium text-main-green">
+                            Публикации
                         </button>
-                    ))}
+
+                        <button type="button" className="cursor-pointer border-b-2 border-transparent px-1 pb-3 text-sm text-main-gray transition-colors hover:text-black">
+                            Сохранённое
+                        </button>
+
+                        <button type="button" className="cursor-pointer border-b-2 border-transparent px-1 pb-3 text-sm text-main-gray transition-colors hover:text-black">
+                            Друзья
+                        </button>
+
+                        <button type="button" className="cursor-pointer border-b-2 border-transparent px-1 pb-3 text-sm text-main-gray transition-colors hover:text-black">
+                            Ещё
+                        </button>
+                    </div>
+
+                    <div className="hidden sm:flex">
+                        {PROFILE_LINKS.map((item, index) => (
+                            <button key={item.title} type="button" className={`shrink-0 cursor-pointer border-b-2 px-4 pb-3 text-sm transition-colors ${index === 0 ? "border-main-green font-medium text-main-green" : "border-transparent text-main-gray hover:text-black"}`}>
+                                {item.title}
+                            </button>
+                        ))}
+                    </div>
                 </div>
             </div>
         </section>
