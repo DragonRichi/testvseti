@@ -34,13 +34,20 @@ async function Page({ params }: Props) {
 
     const isOwnProfile = user.id === profile.id
 
+    const { data: posts, count: postsCount, error: postsError } = await supabase.from("posts").select("id,user_id,content,media_urls,comment_count,like_count,view_count,share_count,created_at,visibility", { count: "exact" }).eq("user_id", profile.id).eq("visibility", "all").order("created_at", { ascending: false })
+
+
+    if (postsError) {
+        console.error("POSTS LOAD ERROR: ", postsError)
+    }
+
     return (
         <div className="min-h-screen bg-[#f7faf7]">
             <div className="mx-auto grid min-h-screen w-full max-w-[1550] lg:grid-cols-[250px_minmax(0,1fr)] xl:grid-cols-[250px_minmax(0,1fr)_320px]">
                 <FeedSidebar profile={currentProfile} />
                 <main className="min-w-0 px-4 pb-10 pt-20 sm:px-6 lg:px-8 lg:pt-4">
-                    <ProfileHeader profile={profile} isOwnProfile={isOwnProfile} />
-                    <ProfileFeed isOwnProfile={isOwnProfile} profile={profile} />
+                    <ProfileHeader postsCount={postsCount ?? 0} profile={profile} isOwnProfile={isOwnProfile} />
+                    <ProfileFeed posts={posts ?? []} isOwnProfile={isOwnProfile} profile={profile} />
                 </main>
                 <aside className="hidden border-l border-green-100 bg-[#fbfdfb] xl:block">
                     <ProfileRightSidebar profile={profile} />

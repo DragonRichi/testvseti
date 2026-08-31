@@ -21,10 +21,11 @@ type Profile = {
 type Props = {
     profile: Profile
     isOwnProfile: boolean
+    postsCount: number
 }
 
 
-function ProfileHeader({ isOwnProfile, profile }: Props) {
+function ProfileHeader({ isOwnProfile, profile, postsCount }: Props) {
     const formattedBirthDate = profile.birth_date ? new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric" }).format(new Date(profile.birth_date)) : null
 
     return (
@@ -117,7 +118,7 @@ function ProfileHeader({ isOwnProfile, profile }: Props) {
 
                 <div className="mt-5 grid grid-cols-2 overflow-hidden rounded-2xl border border-gray-100 sm:mt-6 sm:grid-cols-4">
                     <div className="border-b border-r border-gray-100 px-2 py-4 text-center sm:border-b-0">
-                        <div className="text-lg font-bold">0</div>
+                        <div className="text-lg font-bold">{postsCount}</div>
                         <div className="mt-1 text-xs text-main-gray">публикаций</div>
                     </div>
 

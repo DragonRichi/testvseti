@@ -50,7 +50,7 @@ function ProfileTabs() {
                 ))}
             </div>
 
-            <div className={`pointer-events-none absolute right-0 top-0 flex h-12 w-12 items-center justify-end bg-linear-to-l from-white via-white/90 to-transparent pr-1 transition-opacity duration-200 sm:hidden ${canScrollRight ? "opacity-100" : "opacity-0"}`}>
+            <div className={`pointer-events-none absolute right-[-3] top-[-1] flex h-12 w-12 items-center justify-end bg-linear-to-l from-white via-white/90 to-transparent pr-1 transition-opacity duration-200 sm:hidden ${canScrollRight ? "opacity-100" : "opacity-0"}`}>
                 <ChevronRight className="size-5 text-main-gray" />
             </div>
         </div>

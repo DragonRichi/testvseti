@@ -3,7 +3,7 @@ import { Bell, Bookmark, Home, Menu, MessageCircle, Search, Settings, UserRound,
 import Link from "next/link"
 import Logo from "../ui/Logo"
 import Image from "next/image"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { usePathname } from "next/navigation"
 
 type Profile = {
@@ -64,6 +64,32 @@ function FeedSidebar({ profile }: Props) {
     const [isOpen, setIsOpen] = useState<boolean>(false)
     const pathName = usePathname()
     const profileHref = profile ? `/profile/${profile.username}` : "#"
+
+    useEffect(() => {
+        if (!isOpen) return
+
+        const scrollY = window.scrollY
+
+        document.body.style.position = "fixed"
+        document.body.style.top = `-${scrollY}px`
+        document.body.style.left = "0"
+        document.body.style.right = "0"
+        document.body.style.width = "100%"
+        document.body.style.overflow = "hidden"
+        document.documentElement.style.overflow = "hidden"
+
+        return () => {
+            document.body.style.position = ""
+            document.body.style.top = ""
+            document.body.style.left = ""
+            document.body.style.right = ""
+            document.body.style.width = ""
+            document.body.style.overflow = ""
+            document.documentElement.style.overflow = ""
+
+            window.scrollTo(0, scrollY)
+        }
+    }, [isOpen])
 
     const renderMenu = (mobile = false) => (
         <>
@@ -139,8 +165,8 @@ function FeedSidebar({ profile }: Props) {
             </div>
             <div
                 onClick={() => setIsOpen(false)}
-                className={`fixed inset-0 z-50 bg-black/25 backdrop-blur-[2px] transition-all duration-300 lg:hidden ${isOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}>
-                <aside onClick={(e) => e.stopPropagation()} className={`absolute left-0 top-0 flex h-full w-[290] flex-col bg-white px-4 py-5 shadow-2xl transition-transform duration-300 ease-out ${isOpen ? "translate-x-0" : "-translate-x-full"}`}>
+                className={`fixed inset-0 z-50 overscroll-none bg-black/25 backdrop-blur-[2px] transition-all duration-300 lg:hidden ${isOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}>
+                <aside onClick={(e) => e.stopPropagation()} className={`absolute left-0 top-0 flex h-full w-[290] flex-col overflow-y-auto overscroll-contain bg-white px-4 py-5 shadow-2xl transition-transform duration-300 ease-out ${isOpen ? "translate-x-0" : "-translate-x-full"}`}>
                     <div className="flex items-center justify-between">
                         <Logo />
 
