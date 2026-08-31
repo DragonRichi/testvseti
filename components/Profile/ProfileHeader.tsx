@@ -54,8 +54,8 @@ function ProfileHeader({ isOwnProfile, profile }: Props) {
             </div>
 
             <div className="px-5 pb-5 sm:px-7 sm:pb-7">
-                <div className="flex items-start justify-between">
-                    <div className="relative mt-[58] shrink-0 sm:mt-[70]">
+                <div className="flex h-[70] items-start justify-between">
+                    <div className="relative -translate-y-1/2 shrink-0">
                         <div className="relative size-[116] overflow-hidden rounded-full border-4 border-white bg-bg-green sm:size-[140]">
                             <Image src={profile.avatar_url ?? "/user-avatar.svg"} alt={profile.display_name} fill priority className="object-cover" />
                         </div>
