@@ -1,10 +1,14 @@
+"use client"
 import Image from "next/image"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 
 function Logo() {
+    const pathname = usePathname()
+    const isHome = pathname === "/"
     return (
         <Link
-            href="/"
+            href={isHome ? "/" : "/feed"}
             className="flex shrink-0 items-center gap-2"
         >
             <Image
