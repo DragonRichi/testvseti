@@ -35,15 +35,15 @@ function ProfileFeed({ profile, isOwnProfile }: Props) {
                             Что у вас нового?
                         </button>
                     </div>
-                    <div className="mt-4 flex items-center gap-1 border-t border-gray-100 pt-3 sm:gap-2">
+                    <div className="mt-4 grid grid-cols-4 gap-1 border-t border-gray-100 pt-3">
                         {PROFILE_BUTTON.map((item) => (
                             <button
                                 key={item.title}
                                 type="button"
-                                className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl py-2.5 text-sm text-main-gray transition-colors hover:bg-green-50 hover:text-main-green"
+                                className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl py-2.5 text-main-gray transition-colors hover:bg-green-50 hover:text-main-green sm:flex-row sm:gap-2"
                             >
                                 <ImagePlus className="size-5" />
-                                <span className="hidden sm:inline">{item.title}</span>
+                                <span className="text-xs sm:text-sm">{item.title}</span>
                             </button>
                         ))}
                     </div>
