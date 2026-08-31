@@ -1,6 +1,7 @@
-import { MessageCircle, MoreHorizontal, PenLine, Share2, ThumbsUp } from "lucide-react"
+import { MessageCircle, PenLine, Share2, ThumbsUp } from "lucide-react"
 import Image from "next/image"
 import CreatePostCard from "./CreatePostCard"
+import PostActions from "./PostActions"
 
 type Profile = {
     id: string
@@ -79,9 +80,9 @@ function ProfileFeed({ profile, isOwnProfile, posts }: Props) {
                                         </div>
                                     </div>
 
-                                    <button type="button" className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-xl text-main-gray transition-colors hover:bg-gray-50 hover:text-black">
-                                        <MoreHorizontal className="size-5" />
-                                    </button>
+                                    {isOwnProfile && (
+                                        <PostActions postId={post.id} username={profile.username} />
+                                    )}
                                 </div>
 
                                 {post.content && (
