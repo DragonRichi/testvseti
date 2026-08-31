@@ -36,7 +36,7 @@ function ProfileHeader({ isOwnProfile, profile }: Props) {
         <section className="overflow-hidden rounded-3xl border border-green-100 bg-white">
             <div className="relative h-[180] overflow-hidden bg-bg-green sm:h-[230]">
                 {profile.cover_url ? (
-                    <Image src={profile.cover_url} alt="Обложка профиля" fill priority className="object-cover" />
+                    <Image src={profile.cover_url} alt="Обложка профиля" fill priority sizes="(max-width: 1024px) 100vw, 900px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
                 ) : (
                     <div className="absolute inset-0 bg-linear-to-br from-green-100 via-[#eaf7ed] to-green-50" />
                 )}
@@ -46,7 +46,7 @@ function ProfileHeader({ isOwnProfile, profile }: Props) {
                 <div className="flex flex-col items-center sm:flex-row sm:items-start sm:justify-between">
                     <div className="relative mt-[-62] shrink-0 sm:mt-[-70]">
                         <div className="relative size-[112] overflow-hidden rounded-full border-4 border-white bg-bg-green sm:size-[140]">
-                            <Image src={profile.avatar_url ?? "/user-avatar.svg"} alt={profile.display_name} fill priority className="object-cover" />
+                            <Image src={profile.avatar_url ?? "/user-avatar.svg"} alt={profile.display_name} fill priority sizes="(max-width: 640px) 112px, 140px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
                         </div>
 
                         <span className="absolute bottom-1 right-1 size-5 rounded-full border-4 border-white bg-main-green sm:bottom-3 sm:right-3" />

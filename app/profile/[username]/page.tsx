@@ -1,4 +1,5 @@
 import FeedSidebar from "@/components/Feed/FeedSidebar"
+import ProfileFeed from "@/components/Profile/ProfileFeed"
 import ProfileHeader from "@/components/Profile/ProfileHeader"
 import ProfileRightSidebar from "@/components/Profile/ProfileRightSidebar"
 import { createClient } from "@/lib/supabase/server"
@@ -39,11 +40,7 @@ async function Page({ params }: Props) {
                 <FeedSidebar profile={currentProfile} />
                 <main className="min-w-0 px-4 pb-10 pt-20 sm:px-6 lg:px-8 lg:pt-4">
                     <ProfileHeader profile={profile} isOwnProfile={isOwnProfile} />
-                    <div className="mt-4 min-h-[500] rounded-2xl border border-green-100 bg-white">
-                        <div className="flex h-[300] items-center justify-center text-main-gray">
-                            Здесь будут публикации
-                        </div>
-                    </div>
+                    <ProfileFeed isOwnProfile={isOwnProfile} profile={profile} />
                 </main>
                 <aside className="hidden border-l border-green-100 bg-[#fbfdfb] xl:block">
                     <ProfileRightSidebar profile={profile} />
