@@ -104,6 +104,7 @@ function FeedSidebar({ profile }: Props) {
                     width={42}
                     height={42}
                     className="size-11 rounded-full object-cover"
+                    loading="eager"
                 />
                 <div className="min-w-0 flex flex-col">
                     <div className="truncate text-base font-bold">

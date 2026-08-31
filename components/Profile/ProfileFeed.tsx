@@ -27,7 +27,7 @@ function ProfileFeed({ profile, isOwnProfile }: Props) {
                 <div className="rounded-2xl border border-green-100 bg-white p-4">
                     <div className="flex items-center gap-3">
                         <div className="relative size-11 shrink-0 overflow-hidden rounded-full bg-bg-green">
-                            <Image src={profile.avatar_url ?? "/user-avatar.svg"} alt={profile.display_name} fill sizes="44px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
+                            <Image src={profile.avatar_url ?? "/user-avatar.svg"} alt={profile.display_name} fill sizes="44px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" loading="eager"/>
                         </div>
                         <button
                             type="button"

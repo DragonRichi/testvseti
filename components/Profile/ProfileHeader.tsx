@@ -1,6 +1,7 @@
 import { BadgeCheck, CalendarDays, Link2, MapPin, MoreHorizontal } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
+import ProfileTabs from "./ProfileTabs"
 
 type Profile = {
     id: string
@@ -21,13 +22,7 @@ type Props = {
     profile: Profile
     isOwnProfile: boolean
 }
-const PROFILE_LINKS = [
-    { title: "Публикации" },
-    { title: "Сохранённое" },
-    { title: "Друзья" },
-    { title: "Группы" },
-    { title: "Информация" }
-]
+
 
 function ProfileHeader({ isOwnProfile, profile }: Props) {
     const formattedBirthDate = profile.birth_date ? new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric" }).format(new Date(profile.birth_date)) : null
@@ -46,7 +41,7 @@ function ProfileHeader({ isOwnProfile, profile }: Props) {
                 <div className="flex flex-col items-center sm:flex-row sm:items-start sm:justify-between">
                     <div className="relative mt-[-62] shrink-0 sm:mt-[-70]">
                         <div className="relative size-[112] overflow-hidden rounded-full border-4 border-white bg-bg-green sm:size-[140]">
-                            <Image src={profile.avatar_url ?? "/user-avatar.svg"} alt={profile.display_name} fill priority sizes="(max-width: 640px) 112px, 140px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
+                            <Image src={profile.avatar_url ?? "/user-avatar.svg"} alt={profile.display_name} fill priority sizes="(max-width: 640px) 112px, 140px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" loading="eager" />
                         </div>
 
                         <span className="absolute bottom-1 right-1 size-5 rounded-full border-4 border-white bg-main-green sm:bottom-3 sm:right-3" />
@@ -141,14 +136,7 @@ function ProfileHeader({ isOwnProfile, profile }: Props) {
                         <div className="mt-1 text-xs text-main-gray">сохранено</div>
                     </div>
                 </div>
-
-                <div className="mt-5 flex overflow-x-auto border-b border-gray-100">
-                    {PROFILE_LINKS.map((item, index) => (
-                        <button key={item.title} type="button" className={`shrink-0 cursor-pointer border-b-2 px-4 pb-3 text-sm transition-colors ${index === 0 ? "border-main-green font-medium text-main-green" : "border-transparent text-main-gray hover:text-black"}`}>
-                            {item.title}
-                        </button>
-                    ))}
-                </div>
+                <ProfileTabs />
             </div>
         </section>
     )
