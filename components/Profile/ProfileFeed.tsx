@@ -1,7 +1,6 @@
-import { MessageCircle, PenLine, Share2, ThumbsUp } from "lucide-react"
-import Image from "next/image"
+import { PenLine } from "lucide-react"
 import CreatePostCard from "./CreatePostCard"
-import PostActions from "./PostActions"
+import PostCard from "./PostCard"
 
 type Profile = {
     id: string
@@ -25,22 +24,15 @@ type Post = {
 
 type Props = {
     profile: Profile
-    isOwnProfile: boolean
     posts: Post[]
+    isOwnProfile: boolean
 }
 
-const PROFILE_BUTTON = [
-    { title: "Фото" },
-    { title: "Видео" },
-    { title: "Опрос" },
-    { title: "Настроение" },
-]
-
-function ProfileFeed({ profile, isOwnProfile, posts }: Props) {
+function ProfileFeed({ profile, posts, isOwnProfile }: Props) {
     return (
         <div className="mt-4 flex flex-col gap-4">
             {isOwnProfile && (
-                <CreatePostCard username={profile.username} displayName={profile.display_name} avatarUrl={profile.avatar_url ?? "/user-avatar.svg"} />
+                <CreatePostCard username={profile.username} displayName={profile.display_name} avatarUrl={profile.avatar_url} />
             )}
 
             {posts.length === 0 ? (
@@ -59,57 +51,7 @@ function ProfileFeed({ profile, isOwnProfile, posts }: Props) {
                 </div>
             ) : (
                 posts.map((post) => (
-                    <article key={post.id} className="rounded-2xl border border-green-100 bg-white p-4">
-                        <div className="flex items-start gap-3">
-                            <div className="relative size-11 shrink-0 overflow-hidden rounded-full bg-bg-green">
-                                <Image src={profile.avatar_url ?? "/user-avatar.svg"} alt={profile.display_name} fill sizes="44px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
-                            </div>
-
-                            <div className="min-w-0 flex-1">
-                                <div className="flex items-start justify-between gap-3">
-                                    <div>
-                                        <div className="font-bold">
-                                            {profile.display_name}
-                                        </div>
-
-                                        <div className="mt-0.5 text-xs text-main-gray">
-                                            @{profile.username}
-                                            {post.created_at && (
-                                                <> · {new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(post.created_at))}</>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {isOwnProfile && (
-                                        <PostActions postId={post.id} username={profile.username} />
-                                    )}
-                                </div>
-
-                                {post.content && (
-                                    <p className="mt-3 whitespace-pre-wrap wrap-break-word text-sm leading-6 text-gray-800">
-                                        {post.content}
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="mt-4 flex items-center gap-6 border-t border-gray-100 pt-3 text-main-gray">
-                            <button type="button" className="flex cursor-pointer items-center gap-1.5 text-sm transition-colors hover:text-main-green">
-                                <ThumbsUp className="size-5" />
-                                <span>{post.like_count ?? 0}</span>
-                            </button>
-
-                            <button type="button" className="flex cursor-pointer items-center gap-1.5 text-sm transition-colors hover:text-main-green">
-                                <MessageCircle className="size-5" />
-                                <span>{post.comment_count ?? 0}</span>
-                            </button>
-
-                            <button type="button" className="flex cursor-pointer items-center gap-1.5 text-sm transition-colors hover:text-main-green">
-                                <Share2 className="size-5" />
-                                <span>{post.share_count ?? 0}</span>
-                            </button>
-                        </div>
-                    </article>
+                    <PostCard key={post.id} profile={profile} post={post} isOwnProfile={isOwnProfile} />
                 ))
             )}
         </div>
