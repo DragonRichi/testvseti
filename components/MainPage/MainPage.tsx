@@ -12,7 +12,6 @@ type Props = {
 
 function MainPage({ isAuthenticated }: Props) {
     const [isAuthOpen, setIsAuthOpen] = useState(false)
-    const [isCheckingAuth, setIsCheckingAuth] = useState(false)
     const router = useRouter()
 
     const handleEnterNetwork = () => {

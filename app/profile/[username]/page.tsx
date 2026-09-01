@@ -1,7 +1,6 @@
 import FeedSidebar from "@/components/Feed/FeedSidebar"
 import ProfileFeed from "@/components/Profile/ProfileFeed"
 import ProfileHeader from "@/components/Profile/ProfileHeader"
-import ProfileRightSidebar from "@/components/Profile/ProfileRightSidebar"
 import { createClient } from "@/lib/supabase/server"
 import type { CommentsByPostId, PostCommentNode } from "@/types/social"
 import { notFound, redirect } from "next/navigation"
@@ -124,25 +123,16 @@ async function Page({ params }: Props) {
 
     return (
         <div className="min-h-screen bg-[#f7faf7]">
-            <div className="mx-auto grid min-h-screen w-full max-w-[1550] lg:grid-cols-[250px_minmax(0,1fr)] xl:grid-cols-[250px_minmax(0,1fr)_320px]">
+            <div className="mx-auto grid min-h-screen w-full max-w-[1050] lg:grid-cols-[250px_minmax(0,800px)]">
                 <FeedSidebar profile={currentProfile} />
 
-                <main className="min-w-0 px-4 pb-10 pt-20 sm:px-6 lg:px-8 lg:pt-4">
-                    <ProfileHeader postsCount={postsCount ?? 0} profile={profile} isOwnProfile={isOwnProfile} />
+                <main className="min-w-0 px-4 pb-10 pt-20 sm:px-6 lg:pt-4">
+                    <div className="mx-auto w-full max-w-[800]">
+                        <ProfileHeader postsCount={postsCount ?? 0} profile={profile} isOwnProfile={isOwnProfile} />
 
-                    <ProfileFeed
-                        posts={posts ?? []}
-                        isOwnProfile={isOwnProfile}
-                        profile={profile}
-                        likedPostIds={likedPostIds}
-                        likedCommentIds={likedCommentIds}
-                        currentProfile={currentProfile}
-                        commentsByPostId={commentsByPostId} />
+                        <ProfileFeed posts={posts ?? []} isOwnProfile={isOwnProfile} profile={profile} likedPostIds={likedPostIds} likedCommentIds={likedCommentIds} currentProfile={currentProfile} commentsByPostId={commentsByPostId} />
+                    </div>
                 </main>
-
-                <aside className="hidden border-l border-green-100 bg-[#fbfdfb] xl:block">
-                    <ProfileRightSidebar profile={profile} />
-                </aside>
             </div>
         </div>
     )
