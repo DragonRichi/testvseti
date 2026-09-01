@@ -1,6 +1,7 @@
 "use server"
 
 import { getCurrentUser } from "@/lib/auth/getCurrentUser"
+import { supabaseAdmin } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 
@@ -9,7 +10,30 @@ type Props = {
     username: string
 }
 
-export async function deletePost({ postId, username }: Props) {
+type DeletePostResult =
+    | {
+        success: true
+        error: null
+    }
+    | {
+        success: false
+        error: string
+    }
+
+function getStoragePath(url: string) {
+    const marker = "/storage/v1/object/public/post-media/"
+    const markerIndex = url.indexOf(marker)
+
+    if (markerIndex === -1) return null
+
+    const path = url.slice(markerIndex + marker.length)
+
+    if (!path) return null
+
+    return decodeURIComponent(path)
+}
+
+export async function deletePost({ postId, username }: Props): Promise<DeletePostResult> {
     if (!postId) {
         return {
             success: false,
@@ -29,25 +53,36 @@ export async function deletePost({ postId, username }: Props) {
 
         const supabase = await createClient()
 
-        const { data: post, error: postError } = await supabase.from("posts").select("id,user_id").eq("id", postId).eq("user_id", user.id).maybeSingle()
+        const { data: post, error: postError } = await supabase.from("posts").select("id,user_id,media_urls").eq("id", postId).maybeSingle()
 
         if (postError) {
-            console.error("POST CHECK ERROR:", postError)
+            console.error("POST LOAD ERROR:", postError)
 
             return {
                 success: false,
-                error: "Не удалось проверить публикацию"
+                error: "Не удалось получить публикацию"
             }
         }
 
         if (!post) {
             return {
                 success: false,
-                error: "Публикация не найдена или у вас нет прав на её удаление"
+                error: "Публикация не найдена"
             }
         }
 
-        const { error: deleteError } = await supabase.from("posts").delete().eq("id", post.id).eq("user_id", user.id)
+        if (post.user_id !== user.id) {
+            return {
+                success: false,
+                error: "Нет прав на удаление публикации"
+            }
+        }
+
+        const mediaUrls: string[] = Array.isArray(post.media_urls) ? post.media_urls : []
+
+        const mediaPaths = mediaUrls.map((url: string) => getStoragePath(url)).filter((path: string | null): path is string => path !== null)
+
+        const { error: deleteError } = await supabase.from("posts").delete().eq("id", postId).eq("user_id", user.id)
 
         if (deleteError) {
             console.error("POST DELETE ERROR:", deleteError)
@@ -55,6 +90,16 @@ export async function deletePost({ postId, username }: Props) {
             return {
                 success: false,
                 error: "Не удалось удалить публикацию"
+            }
+        }
+
+        if (mediaPaths.length > 0) {
+            const { data: removedFiles, error: storageError } = await supabaseAdmin.storage.from("post-media").remove(mediaPaths)
+
+            if (storageError) {
+                console.error("POST MEDIA DELETE ERROR:", storageError)
+            } else {
+                console.log("POST MEDIA DELETE SUCCESS:", removedFiles)
             }
         }
 

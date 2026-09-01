@@ -9,6 +9,7 @@ import PostActions from "./PostActions"
 import { togglePostLike } from "@/actions/togglePostLike"
 import CommentsSection from "./CommentsSection"
 import type { Post, PostCommentNode, Profile } from "@/types/social"
+import PostMediaGrid from "./PostMediaGrid"
 
 type Props = {
     profile: Profile
@@ -184,6 +185,9 @@ function PostCard({ profile, post, isOwnProfile, initialLiked, currentProfile, i
                                 {post.content}
                             </p>
                         )
+                    )}
+                    {!isEditing && post.media_urls && post.media_urls.length > 0 && (
+                        <PostMediaGrid mediaUrls={post.media_urls} />
                     )}
                 </div>
             </div>

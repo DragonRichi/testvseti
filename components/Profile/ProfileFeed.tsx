@@ -17,7 +17,7 @@ function ProfileFeed({ profile, posts, isOwnProfile, likedPostIds, currentProfil
     return (
         <div className="mt-4 flex flex-col gap-4">
             {isOwnProfile && (
-                <CreatePostCard username={profile.username} displayName={profile.display_name} avatarUrl={profile.avatar_url} />
+                <CreatePostCard userId={currentProfile.id} username={profile.username} displayName={profile.display_name} avatarUrl={profile.avatar_url} />
             )}
 
             {posts.length === 0 ? (

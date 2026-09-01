@@ -1,4 +1,5 @@
 "use server"
+
 import { getCurrentUser } from "@/lib/auth/getCurrentUser"
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
@@ -6,16 +7,17 @@ import { revalidatePath } from "next/cache"
 type Props = {
     content: string
     username: string
+    mediaUrls?: string[]
 }
 
-export async function createPost({ content, username }: Props) {
-
+export async function createPost({ content, username, mediaUrls = [] }: Props) {
     const normalizedContent = content.trim()
+    const normalizedMediaUrls = mediaUrls.filter((url) => url.trim().length > 0)
 
-    if (!normalizedContent) {
+    if (!normalizedContent && normalizedMediaUrls.length === 0) {
         return {
             success: false,
-            error: "Введите текст публикации"
+            error: "Добавьте текст или фотографию"
         }
     }
 
@@ -26,6 +28,12 @@ export async function createPost({ content, username }: Props) {
         }
     }
 
+    if (normalizedMediaUrls.length > 10) {
+        return {
+            success: false,
+            error: "Можно добавить не более 10 фотографий"
+        }
+    }
 
     try {
         const user = await getCurrentUser()
@@ -41,12 +49,13 @@ export async function createPost({ content, username }: Props) {
 
         const { data, error } = await supabase.from("posts").insert({
             user_id: user.id,
-            content: normalizedContent,
+            content: normalizedContent || null,
+            media_urls: normalizedMediaUrls.length > 0 ? normalizedMediaUrls : null,
             visibility: "all"
         }).select("id,user_id,content,media_urls,comment_count,like_count,view_count,share_count,created_at,visibility").single()
 
         if (error) {
-            console.error("POST CREATE ERROR: ", error)
+            console.error("POST CREATE ERROR:", error)
 
             return {
                 success: false,
@@ -62,14 +71,12 @@ export async function createPost({ content, username }: Props) {
             error: null,
             post: data
         }
-
     } catch (error) {
-        console.error("POST CREATE ERROR: ", error)
+        console.error("POST CREATE ERROR:", error)
 
         return {
             success: false,
             error: "Ошибка создания публикации"
         }
     }
-
 }

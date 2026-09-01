@@ -23,8 +23,12 @@ function CommentsSection({ currentProfile, onCommentCreated, onCommentDeleted, p
     const [error, setError] = useState<string>("")
     const [isPending, setIsPending] = useState<boolean>(false)
 
+    const [isExpanded, setIsExpanded] = useState<boolean>(false)
+
     const submitLock = useRef(false)
     const textareaRef = useRef<HTMLTextAreaElement>(null)
+    const visibleComments = isExpanded ? comments : comments.slice(-3)
+    const hasMoreComments = comments.length > 3
 
     const handleSubmit = async () => {
         if (submitLock.current) return
@@ -88,17 +92,31 @@ function CommentsSection({ currentProfile, onCommentCreated, onCommentDeleted, p
                     {error}
                 </div>
             )}
-
+            
             {comments.length === 0 ? (
                 <div className="py-5 text-center text-sm text-main-gray">
                     Комментариев пока нет
                 </div>
             ) : (
-                <div className="mt-4 flex flex-col gap-4">
-                    {comments.map((comment) => (
-                        <CommentItem key={comment.id} comment={comment} postId={postId} username={username} currentProfile={currentProfile} initialLiked={likedCommentIds.includes(comment.id)} likedCommentIds={likedCommentIds} onCommentCreated={onCommentCreated} onCommentDeleted={onCommentDeleted} onRemove={(commentId) => setComments((prev) => prev.filter((item) => item.id !== commentId))} />
-                    ))}
-                </div>
+                <>
+                    {!isExpanded && hasMoreComments && (
+                        <button type="button" onClick={() => setIsExpanded(true)} className="mt-4 cursor-pointer text-sm font-medium text-main-gray transition-colors hover:text-main-green">
+                            Показать все комментарии
+                        </button>
+                    )}
+
+                    <div className="mt-4 flex flex-col gap-4">
+                        {visibleComments.map((comment) => (
+                            <CommentItem key={comment.id} comment={comment} postId={postId} username={username} currentProfile={currentProfile} initialLiked={likedCommentIds.includes(comment.id)} likedCommentIds={likedCommentIds} onCommentCreated={onCommentCreated} onCommentDeleted={onCommentDeleted} onRemove={(commentId) => setComments((prev) => prev.filter((item) => item.id !== commentId))} />
+                        ))}
+                    </div>
+
+                    {isExpanded && hasMoreComments && (
+                        <button type="button" onClick={() => setIsExpanded(false)} className="mt-4 cursor-pointer text-sm font-medium text-main-gray transition-colors hover:text-main-green">
+                            Свернуть комментарии
+                        </button>
+                    )}
+                </>
             )}
         </div>
     )
