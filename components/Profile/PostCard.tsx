@@ -120,7 +120,14 @@ function PostCard({ profile, post, isOwnProfile, initialLiked, currentProfile, i
         <article className="rounded-2xl border border-green-100 bg-white p-4">
             <div className="flex items-start gap-3">
                 <div className="relative size-11 shrink-0 overflow-hidden rounded-full bg-bg-green">
-                    <Image src={profile.avatar_url ?? "/user-avatar.svg"} alt={profile.display_name} fill sizes="44px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
+                    <Image
+                        src={profile.avatar_url ?? "/user-avatar.svg"}
+                        alt={profile.display_name}
+                        fill
+                        loading="eager"
+                        sizes="44px"
+                        unoptimized={process.env.NODE_ENV === "development"}
+                        className="object-cover" />
                 </div>
 
                 <div className="min-w-0 flex-1">
@@ -205,7 +212,7 @@ function PostCard({ profile, post, isOwnProfile, initialLiked, currentProfile, i
                             currentProfile={currentProfile}
                             onCommentCreated={() => setCommentCount((prev) => prev + 1)}
                             initialComments={initialComments}
-                            onCommentDeleted={(newCount)=>setCommentCount(newCount)}
+                            onCommentDeleted={(newCount) => setCommentCount(newCount)}
                         />
                     </div>
 

@@ -38,4 +38,8 @@ export type PostComment = {
     author: CommentAuthor | null
 }
 
-export type CommentsByPostId = Record<string, PostComment[]>
+export type PostCommentNode = PostComment & {
+    replies: PostCommentNode[]
+}
+
+export type CommentsByPostId = Record<string, PostCommentNode[]>

@@ -1,0 +1,233 @@
+"use client"
+
+import { createComment } from "@/actions/createComment"
+import { updateComment } from "@/actions/updateComment"
+import type { PostCommentNode, Profile } from "@/types/social"
+import { Send } from "lucide-react"
+import Image from "next/image"
+import { useRef, useState } from "react"
+import CommentActions from "./CommentActions"
+
+type Props = {
+    comment: PostCommentNode
+    postId: string
+    username: string
+    currentProfile: Profile
+    onCommentCreated: () => void
+    onCommentDeleted: (commentCount: number) => void
+    onRemove: (commentId: string) => void
+}
+
+function CommentItem({ comment, postId, username, currentProfile, onCommentCreated, onCommentDeleted, onRemove }: Props) {
+    const [isEditing, setIsEditing] = useState<boolean>(false)
+    const [content, setContent] = useState<string>(comment.content)
+    const [updatedAt, setUpdatedAt] = useState<string>(comment.updated_at)
+    const [replies, setReplies] = useState<PostCommentNode[]>(comment.replies ?? [])
+    const [isReplying, setIsReplying] = useState<boolean>(false)
+    const [replyContent, setReplyContent] = useState<string>("")
+    const [error, setError] = useState<string>("")
+    const [replyError, setReplyError] = useState<string>("")
+    const [isPending, setIsPending] = useState<boolean>(false)
+    const [isReplyPending, setIsReplyPending] = useState<boolean>(false)
+
+    const updateLock = useRef(false)
+    const replyLock = useRef(false)
+
+    const isEdited = new Date(updatedAt).getTime() > new Date(comment.created_at).getTime() + 1000
+
+    const handleCancel = () => {
+        setContent(comment.content)
+        setError("")
+        setIsEditing(false)
+    }
+
+    const handleUpdate = async () => {
+        if (updateLock.current) return
+
+        const normalizedContent = content.trim()
+
+        if (!normalizedContent) {
+            setError("Введите комментарий")
+            return
+        }
+
+        if (normalizedContent.length > 2000) {
+            setError("Комментарий не должен превышать 2000 символов")
+            return
+        }
+
+        updateLock.current = true
+        setIsPending(true)
+        setError("")
+
+        try {
+            const result = await updateComment({ commentId: comment.id, content: normalizedContent, username })
+
+            if (result.success === false) {
+                setError(result.error)
+                return
+            }
+
+            setContent(result.comment.content)
+            setUpdatedAt(result.comment.updated_at)
+            setIsEditing(false)
+        } catch (error) {
+            console.error("COMMENT UPDATE ERROR:", error)
+            setError("Не удалось изменить комментарий")
+        } finally {
+            updateLock.current = false
+            setIsPending(false)
+        }
+    }
+
+    const handleReply = async () => {
+        if (replyLock.current) return
+
+        const normalizedContent = replyContent.trim()
+
+        if (!normalizedContent) return
+
+        replyLock.current = true
+        setIsReplyPending(true)
+        setReplyError("")
+
+        try {
+            const result = await createComment({ postId, content: normalizedContent, username, parentId: comment.id })
+
+            if (result.success === false) {
+                setReplyError(result.error)
+                return
+            }
+
+            const newReply: PostCommentNode = {
+                ...result.comment,
+                author: currentProfile,
+                replies: []
+            }
+
+            setReplies((prev) => [...prev, newReply])
+            setReplyContent("")
+            setIsReplying(false)
+            onCommentCreated()
+        } catch (error) {
+            console.error("COMMENT REPLY ERROR:", error)
+            setReplyError("Не удалось отправить ответ")
+        } finally {
+            replyLock.current = false
+            setIsReplyPending(false)
+        }
+    }
+
+    return (
+        <div>
+            <div className="flex items-start gap-3">
+                <div className="relative size-9 shrink-0 overflow-hidden rounded-full bg-bg-green">
+                    <Image src={comment.author?.avatar_url ?? "/user-avatar.svg"} alt={comment.author?.display_name ?? "Пользователь"} fill sizes="36px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
+                </div>
+
+                <div className="min-w-0 flex-1">
+                    <div className="rounded-2xl bg-[#f7f9f7] px-3.5 py-2.5">
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0 truncate text-sm font-semibold">
+                                {comment.author?.display_name ?? "Пользователь"}
+                            </div>
+
+                            {comment.user_id === currentProfile.id && !isEditing && (
+                                <CommentActions commentId={comment.id} postId={postId} username={username} onEdit={() => setIsEditing(true)} onDeleted={(commentCount) => { onRemove(comment.id); onCommentDeleted(commentCount) }} />
+                            )}
+                        </div>
+
+                        {isEditing ? (
+                            <div className="mt-2">
+                                <textarea value={content} onChange={(e) => { setContent(e.target.value); setError("") }} maxLength={2000} autoFocus className="min-h-[90] w-full resize-none rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm outline-none transition-colors focus:border-main-green/40" />
+
+                                <div className="mt-2 flex items-center justify-between gap-3">
+                                    <span className="text-xs text-main-gray">
+                                        {content.length}/2000
+                                    </span>
+
+                                    <div className="flex items-center gap-2">
+                                        <button type="button" disabled={isPending} onClick={handleCancel} className="h-8 cursor-pointer rounded-lg border border-gray-200 px-3 text-xs transition-colors hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-50">
+                                            Отмена
+                                        </button>
+
+                                        <button type="button" disabled={isPending || !content.trim()} onClick={handleUpdate} className="h-8 cursor-pointer rounded-lg bg-main-green px-3 text-xs font-medium text-white transition-colors hover:bg-hover-green disabled:pointer-events-none disabled:opacity-50">
+                                            {isPending ? "Сохраняем..." : "Сохранить"}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {error && (
+                                    <div className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
+                                        {error}
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="mt-1 whitespace-pre-wrap wrap-break-word text-sm leading-5 text-gray-800">
+                                {content}
+                            </div>
+                        )}
+                    </div>
+
+                    {!isEditing && (
+                        <div className="mt-1 flex items-center gap-3 px-2 text-xs text-main-gray">
+                            <span>
+                                {new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(comment.created_at))}
+
+                                {isEdited && (
+                                    <>
+                                        {" · "}
+                                        <span title={`Изменено ${new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(updatedAt))}`} className="cursor-default">
+                                            изменено
+                                        </span>
+                                    </>
+                                )}
+                            </span>
+
+                            <button type="button" onClick={() => setIsReplying((prev) => !prev)} className="cursor-pointer font-medium transition-colors hover:text-main-green">
+                                Ответить
+                            </button>
+                        </div>
+                    )}
+
+                    {isReplying && (
+                        <div className="mt-3 flex items-start gap-2">
+                            <div className="relative size-8 shrink-0 overflow-hidden rounded-full bg-bg-green">
+                                <Image src={currentProfile.avatar_url ?? "/user-avatar.svg"} alt={currentProfile.display_name} fill sizes="32px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                                <div className="flex items-end gap-2">
+                                    <textarea value={replyContent} onChange={(e) => { setReplyContent(e.target.value); setReplyError("") }} placeholder={`Ответить ${comment.author?.display_name ?? "пользователю"}...`} maxLength={2000} rows={1} autoFocus className="min-h-9 max-h-[120] flex-1 resize-none rounded-xl border border-gray-100 bg-[#f8faf8] px-3 py-2 text-sm outline-none transition-colors placeholder:text-main-gray focus:border-main-green/40 focus:bg-white" />
+
+                                    <button type="button" onClick={handleReply} disabled={isReplyPending || !replyContent.trim()} className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-main-green text-white transition-colors hover:bg-hover-green disabled:pointer-events-none disabled:opacity-50">
+                                        <Send className="size-4" />
+                                    </button>
+                                </div>
+
+                                {replyError && (
+                                    <div className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
+                                        {replyError}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {replies.length > 0 && (
+                <div className="ml-5 mt-3 border-l border-green-100 pl-4 sm:ml-8">
+                    <div className="flex flex-col gap-3">
+                        {replies.map((reply) => (
+                            <CommentItem key={reply.id} comment={reply} postId={postId} username={username} currentProfile={currentProfile} onCommentCreated={onCommentCreated} onCommentDeleted={onCommentDeleted} onRemove={(commentId) => setReplies((prev) => prev.filter((item) => item.id !== commentId))} />
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    )
+}
+
+export default CommentItem

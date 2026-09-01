@@ -1,7 +1,7 @@
 "use client"
 
 import { deleteComment } from "@/actions/deleteComment"
-import { MoreHorizontal, Trash2, X } from "lucide-react"
+import { MoreHorizontal, Pencil, Trash2, X } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 
 type Props = {
@@ -9,9 +9,10 @@ type Props = {
     postId: string
     username: string
     onDeleted: (commentCount: number) => void
+    onEdit: () => void
 }
 
-function CommentActions({ commentId, postId, username, onDeleted }: Props) {
+function CommentActions({ commentId, postId, username, onDeleted, onEdit }: Props) {
     const [isOpen, setIsOpen] = useState<boolean>(false)
     const [isConfirmOpen, setIsConfirmOpen] = useState<boolean>(false)
     const [isPending, setIsPending] = useState<boolean>(false)
@@ -83,6 +84,10 @@ function CommentActions({ commentId, postId, username, onDeleted }: Props) {
                         <button type="button" onClick={() => setIsOpen(false)} className="fixed inset-0 z-40 cursor-default" aria-label="Закрыть меню" />
 
                         <div className="absolute right-0 top-8 z-50 w-[190] rounded-xl border border-gray-100 bg-white p-1 shadow-lg">
+                            <button type="button" onClick={() => { setIsOpen(false); onEdit() }} className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-gray-700 transition-colors hover:bg-green-50 hover:text-main-green">
+                                <Pencil className="size-4" />
+                                Редактировать
+                            </button>
                             <button type="button" onClick={() => { setIsOpen(false); setIsConfirmOpen(true) }} className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-red-600 transition-colors hover:bg-red-50">
                                 <Trash2 className="size-4" />
                                 Удалить
