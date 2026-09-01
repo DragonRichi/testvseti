@@ -1,6 +1,7 @@
 "use client"
 
 import { createComment } from "@/actions/createComment"
+import { toggleCommentLike } from "@/actions/toggleCommentLike"
 import { updateComment } from "@/actions/updateComment"
 import type { PostCommentNode, Profile } from "@/types/social"
 import { Send } from "lucide-react"
@@ -13,17 +14,21 @@ type Props = {
     postId: string
     username: string
     currentProfile: Profile
+    initialLiked: boolean
+    likedCommentIds: string[]
     onCommentCreated: () => void
     onCommentDeleted: (commentCount: number) => void
     onRemove: (commentId: string) => void
 }
 
-function CommentItem({ comment, postId, username, currentProfile, onCommentCreated, onCommentDeleted, onRemove }: Props) {
+function CommentItem({ comment, postId, username, currentProfile, initialLiked, likedCommentIds, onCommentCreated, onCommentDeleted, onRemove }: Props) {
     const [isEditing, setIsEditing] = useState<boolean>(false)
     const [content, setContent] = useState<string>(comment.content)
     const [updatedAt, setUpdatedAt] = useState<string>(comment.updated_at)
     const [replies, setReplies] = useState<PostCommentNode[]>(comment.replies ?? [])
     const [isReplying, setIsReplying] = useState<boolean>(false)
+    const [isLiked, setIsLiked] = useState<boolean>(initialLiked)
+    const [likesCount, setLikesCount] = useState<number>(Number(comment.likes_count ?? 0))
     const [replyContent, setReplyContent] = useState<string>("")
     const [error, setError] = useState<string>("")
     const [replyError, setReplyError] = useState<string>("")
@@ -32,6 +37,7 @@ function CommentItem({ comment, postId, username, currentProfile, onCommentCreat
 
     const updateLock = useRef(false)
     const replyLock = useRef(false)
+    const likeLock = useRef(false)
 
     const isEdited = new Date(updatedAt).getTime() > new Date(comment.created_at).getTime() + 1000
 
@@ -118,6 +124,38 @@ function CommentItem({ comment, postId, username, currentProfile, onCommentCreat
         }
     }
 
+    const handleLike = async () => {
+        if (likeLock.current) return
+
+        likeLock.current = true
+
+        const previousLiked = isLiked
+        const previousLikesCount = likesCount
+        const nextLiked = !isLiked
+
+        setIsLiked(nextLiked)
+        setLikesCount(Math.max(0, previousLikesCount + (nextLiked ? 1 : -1)))
+
+        try {
+            const result = await toggleCommentLike({ commentId: comment.id, username })
+
+            if (result.success === false) {
+                setIsLiked(previousLiked)
+                setLikesCount(previousLikesCount)
+                return
+            }
+
+            setIsLiked(result.liked)
+            setLikesCount(result.likesCount)
+        } catch (error) {
+            console.error("COMMENT LIKE ERROR:", error)
+            setIsLiked(previousLiked)
+            setLikesCount(previousLikesCount)
+        } finally {
+            likeLock.current = false
+        }
+    }
+
     return (
         <div>
             <div className="flex items-start gap-3">
@@ -185,6 +223,10 @@ function CommentItem({ comment, postId, username, currentProfile, onCommentCreat
                                 )}
                             </span>
 
+                            <button type="button" onClick={handleLike} className={`cursor-pointer font-medium transition-colors ${isLiked ? "text-main-green" : "hover:text-main-green"}`}>
+                                Нравится&nbsp;{likesCount > 0 && ` ${likesCount}`}
+                            </button>
+
                             <button type="button" onClick={() => setIsReplying((prev) => !prev)} className="cursor-pointer font-medium transition-colors hover:text-main-green">
                                 Ответить
                             </button>
@@ -221,7 +263,7 @@ function CommentItem({ comment, postId, username, currentProfile, onCommentCreat
                 <div className="ml-5 mt-3 border-l border-green-100 pl-4 sm:ml-8">
                     <div className="flex flex-col gap-3">
                         {replies.map((reply) => (
-                            <CommentItem key={reply.id} comment={reply} postId={postId} username={username} currentProfile={currentProfile} onCommentCreated={onCommentCreated} onCommentDeleted={onCommentDeleted} onRemove={(commentId) => setReplies((prev) => prev.filter((item) => item.id !== commentId))} />
+                            <CommentItem key={reply.id} comment={reply} postId={postId} username={username} currentProfile={currentProfile} initialLiked={likedCommentIds.includes(reply.id)} likedCommentIds={likedCommentIds} onCommentCreated={onCommentCreated} onCommentDeleted={onCommentDeleted} onRemove={(commentId) => setReplies((prev) => prev.filter((item) => item.id !== commentId))} />
                         ))}
                     </div>
                 </div>

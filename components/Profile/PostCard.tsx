@@ -8,7 +8,7 @@ import { useRef, useState } from "react"
 import PostActions from "./PostActions"
 import { togglePostLike } from "@/actions/togglePostLike"
 import CommentsSection from "./CommentsSection"
-import { Post, PostCommentNode, Profile } from "@/types/social"
+import type { Post, PostCommentNode, Profile } from "@/types/social"
 
 type Props = {
     profile: Profile
@@ -17,9 +17,10 @@ type Props = {
     initialLiked: boolean
     currentProfile: Profile
     initialComments: PostCommentNode[]
+    likedCommentIds: string[]
 }
 
-function PostCard({ profile, post, isOwnProfile, initialLiked, currentProfile, initialComments }: Props) {
+function PostCard({ profile, post, isOwnProfile, initialLiked, currentProfile, initialComments, likedCommentIds }: Props) {
     const [isEditing, setIsEditing] = useState<boolean>(false)
     const [content, setContent] = useState<string>(post.content ?? "")
     const [error, setError] = useState<string>("")
@@ -213,6 +214,7 @@ function PostCard({ profile, post, isOwnProfile, initialLiked, currentProfile, i
                             onCommentCreated={() => setCommentCount((prev) => prev + 1)}
                             initialComments={initialComments}
                             onCommentDeleted={(newCount) => setCommentCount(newCount)}
+                            likedCommentIds={likedCommentIds}
                         />
                     </div>
 

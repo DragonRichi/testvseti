@@ -14,9 +14,10 @@ type Props = {
     onCommentCreated: () => void
     onCommentDeleted: (commentCount: number) => void
     initialComments: PostCommentNode[]
+    likedCommentIds: string[]
 }
 
-function CommentsSection({ currentProfile, onCommentCreated, onCommentDeleted, postId, username, initialComments }: Props) {
+function CommentsSection({ currentProfile, onCommentCreated, onCommentDeleted, postId, username, initialComments, likedCommentIds }: Props) {
     const [comments, setComments] = useState<PostCommentNode[]>(initialComments)
     const [content, setContent] = useState<string>("")
     const [error, setError] = useState<string>("")
@@ -62,7 +63,7 @@ function CommentsSection({ currentProfile, onCommentCreated, onCommentDeleted, p
     }
 
     return (
-        <div className="mt-3 border-t border-gray-100 pt-4">
+        <div className="mt-3 rounded-2xl border border-green-200 bg-[#fbfdfb] p-3">
             <div className="flex items-start gap-3">
                 <div className="relative size-9 shrink-0 overflow-hidden rounded-full bg-bg-green">
                     <Image src={currentProfile.avatar_url ?? "/user-avatar.svg"} alt={currentProfile.display_name} fill sizes="36px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
@@ -88,9 +89,21 @@ function CommentsSection({ currentProfile, onCommentCreated, onCommentDeleted, p
                     Комментариев пока нет
                 </div>
             ) : (
-                <div className="mt-4 flex flex-col gap-4">
+                <div className="mt-4 border-t border-green-100">
                     {comments.map((comment) => (
-                        <CommentItem key={comment.id} comment={comment} postId={postId} username={username} currentProfile={currentProfile} onCommentCreated={onCommentCreated} onCommentDeleted={onCommentDeleted} onRemove={(commentId) => setComments((prev) => prev.filter((item) => item.id !== commentId))} />
+                        <div key={comment.id} className="border-b border-green-100 py-4 last:border-b-0 last:pb-1">
+                            <CommentItem
+                                comment={comment}
+                                postId={postId}
+                                username={username}
+                                currentProfile={currentProfile}
+                                initialLiked={likedCommentIds.includes(comment.id)}
+                                likedCommentIds={likedCommentIds}
+                                onCommentCreated={onCommentCreated}
+                                onCommentDeleted={onCommentDeleted}
+                                onRemove={(commentId) => setComments((prev) => prev.filter((item) => item.id !== commentId))}
+                            />
+                        </div>
                     ))}
                 </div>
             )}
