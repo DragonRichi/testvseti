@@ -5,16 +5,18 @@ import { PostComment, Profile } from "@/types/social"
 import { Send } from "lucide-react"
 import Image from "next/image"
 import { useRef, useState } from "react"
+import CommentActions from "./CommentActions"
 
 type Props = {
     postId: string
     username: string
     currentProfile: Profile
     onCommentCreated: () => void
+    onCommentDeleted: (commentCount: number) => void
     initialComments: PostComment[]
 }
 
-function CommentsSection({ currentProfile, onCommentCreated, postId, username, initialComments }: Props) {
+function CommentsSection({ currentProfile, onCommentCreated, postId, username, initialComments, onCommentDeleted }: Props) {
     const [comments, setComments] = useState<PostComment[]>(initialComments)
     const [content, setContent] = useState<string>("")
     const [error, setError] = useState<string>("")
@@ -94,8 +96,14 @@ function CommentsSection({ currentProfile, onCommentCreated, postId, username, i
 
                             <div className="min-w-0 flex-1">
                                 <div className="rounded-2xl bg-[#f7f9f7] px-3.5 py-2.5">
-                                    <div className="text-sm font-semibold">
-                                        {comment.author?.display_name ?? "Пользователь"}
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="text-sm font-semibold">
+                                            {comment.author?.display_name ?? "Пользователь"}
+                                        </div>
+
+                                        {comment.user_id === currentProfile.id && (
+                                            <CommentActions commentId={comment.id} postId={postId} username={username} onDeleted={(commentCount) => { setComments((prev) => prev.filter((item) => item.id !== comment.id)); onCommentDeleted(commentCount) }} />
+                                        )}
                                     </div>
 
                                     <div className="mt-1 whitespace-pre-wrap wrap-break-word text-sm leading-5 text-gray-800">

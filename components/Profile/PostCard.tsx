@@ -205,6 +205,7 @@ function PostCard({ profile, post, isOwnProfile, initialLiked, currentProfile, i
                             currentProfile={currentProfile}
                             onCommentCreated={() => setCommentCount((prev) => prev + 1)}
                             initialComments={initialComments}
+                            onCommentDeleted={(newCount)=>setCommentCount(newCount)}
                         />
                     </div>
 
