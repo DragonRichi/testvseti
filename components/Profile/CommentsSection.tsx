@@ -24,6 +24,7 @@ function CommentsSection({ currentProfile, onCommentCreated, onCommentDeleted, p
     const [isPending, setIsPending] = useState<boolean>(false)
 
     const submitLock = useRef(false)
+    const textareaRef = useRef<HTMLTextAreaElement>(null)
 
     const handleSubmit = async () => {
         if (submitLock.current) return
@@ -52,6 +53,12 @@ function CommentsSection({ currentProfile, onCommentCreated, onCommentDeleted, p
 
             setComments((prev) => [...prev, newComment])
             setContent("")
+
+            if (textareaRef.current) {
+                textareaRef.current.style.height = "40px"
+                textareaRef.current.style.overflowY = "hidden"
+            }
+
             onCommentCreated()
         } catch (error) {
             console.error("COMMENT CREATE ERROR:", error)
@@ -63,19 +70,17 @@ function CommentsSection({ currentProfile, onCommentCreated, onCommentDeleted, p
     }
 
     return (
-        <div className="mt-3 rounded-2xl border border-green-200 bg-[#fbfdfb] p-3">
-            <div className="flex items-start gap-3">
+        <div className="mt-3 border-t border-gray-100 pt-3">
+            <div className="flex items-end gap-2">
                 <div className="relative size-9 shrink-0 overflow-hidden rounded-full bg-bg-green">
                     <Image src={currentProfile.avatar_url ?? "/user-avatar.svg"} alt={currentProfile.display_name} fill sizes="36px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
                 </div>
 
-                <div className="flex min-w-0 flex-1 items-end gap-2">
-                    <textarea value={content} onChange={(e) => { setContent(e.target.value); setError("") }} placeholder="Написать комментарий..." maxLength={2000} rows={1} className="min-h-10 max-h-[140] flex-1 resize-none rounded-xl border border-gray-100 bg-[#f8faf8] px-3 py-2.5 text-sm outline-none transition-colors placeholder:text-main-gray focus:border-main-green/40 focus:bg-white" />
+                <textarea ref={textareaRef} value={content} onChange={(e) => { setContent(e.target.value); setError(""); e.currentTarget.style.height = "40px"; const nextHeight = Math.min(e.currentTarget.scrollHeight, 120); e.currentTarget.style.height = `${nextHeight}px`; e.currentTarget.style.overflowY = e.currentTarget.scrollHeight > 120 ? "auto" : "hidden" }} placeholder="Комментарий..." maxLength={2000} rows={1} className="min-h-10 max-h-[120] min-w-0 flex-1 resize-none overflow-y-hidden rounded-2xl border border-gray-100 bg-[#f4f7f4] px-3.5 py-2.5 text-sm leading-5 outline-none transition-colors placeholder:text-main-gray focus:border-main-green/30 focus:bg-white" />
 
-                    <button type="button" onClick={handleSubmit} disabled={isPending || !content.trim()} className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-main-green text-white transition-colors hover:bg-hover-green disabled:pointer-events-none disabled:opacity-50">
-                        <Send className="size-4" />
-                    </button>
-                </div>
+                <button type="button" onClick={handleSubmit} disabled={isPending || !content.trim()} className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-main-green text-white transition-colors hover:bg-hover-green disabled:pointer-events-none disabled:opacity-50">
+                    <Send className="size-4" />
+                </button>
             </div>
 
             {error && (
@@ -89,21 +94,9 @@ function CommentsSection({ currentProfile, onCommentCreated, onCommentDeleted, p
                     Комментариев пока нет
                 </div>
             ) : (
-                <div className="mt-4 border-t border-green-100">
+                <div className="mt-4 flex flex-col gap-4">
                     {comments.map((comment) => (
-                        <div key={comment.id} className="border-b border-green-100 py-4 last:border-b-0 last:pb-1">
-                            <CommentItem
-                                comment={comment}
-                                postId={postId}
-                                username={username}
-                                currentProfile={currentProfile}
-                                initialLiked={likedCommentIds.includes(comment.id)}
-                                likedCommentIds={likedCommentIds}
-                                onCommentCreated={onCommentCreated}
-                                onCommentDeleted={onCommentDeleted}
-                                onRemove={(commentId) => setComments((prev) => prev.filter((item) => item.id !== commentId))}
-                            />
-                        </div>
+                        <CommentItem key={comment.id} comment={comment} postId={postId} username={username} currentProfile={currentProfile} initialLiked={likedCommentIds.includes(comment.id)} likedCommentIds={likedCommentIds} onCommentCreated={onCommentCreated} onCommentDeleted={onCommentDeleted} onRemove={(commentId) => setComments((prev) => prev.filter((item) => item.id !== commentId))} />
                     ))}
                 </div>
             )}

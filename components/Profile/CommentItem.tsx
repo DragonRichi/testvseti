@@ -19,9 +19,10 @@ type Props = {
     onCommentCreated: () => void
     onCommentDeleted: (commentCount: number) => void
     onRemove: (commentId: string) => void
+    depth?: number
 }
 
-function CommentItem({ comment, postId, username, currentProfile, initialLiked, likedCommentIds, onCommentCreated, onCommentDeleted, onRemove }: Props) {
+function CommentItem({ comment, postId, username, currentProfile, initialLiked, likedCommentIds, onCommentCreated, onCommentDeleted, onRemove, depth = 0 }: Props) {
     const [isEditing, setIsEditing] = useState<boolean>(false)
     const [content, setContent] = useState<string>(comment.content)
     const [updatedAt, setUpdatedAt] = useState<string>(comment.updated_at)
@@ -38,6 +39,7 @@ function CommentItem({ comment, postId, username, currentProfile, initialLiked, 
     const updateLock = useRef(false)
     const replyLock = useRef(false)
     const likeLock = useRef(false)
+    const replyTextareaRef = useRef<HTMLTextAreaElement>(null)
 
     const isEdited = new Date(updatedAt).getTime() > new Date(comment.created_at).getTime() + 1000
 
@@ -113,6 +115,12 @@ function CommentItem({ comment, postId, username, currentProfile, initialLiked, 
 
             setReplies((prev) => [...prev, newReply])
             setReplyContent("")
+
+            if (replyTextareaRef.current) {
+                replyTextareaRef.current.style.height = "36px"
+                replyTextareaRef.current.style.overflowY = "hidden"
+            }
+
             setIsReplying(false)
             onCommentCreated()
         } catch (error) {
@@ -164,7 +172,7 @@ function CommentItem({ comment, postId, username, currentProfile, initialLiked, 
                 </div>
 
                 <div className="min-w-0 flex-1">
-                    <div className="rounded-2xl bg-[#f7f9f7] px-3.5 py-2.5">
+                    <div className="rounded-2xl bg-[#f4f7f4] px-3.5 py-2.5">
                         <div className="flex items-center justify-between gap-3">
                             <div className="min-w-0 truncate text-sm font-semibold">
                                 {comment.author?.display_name ?? "Пользователь"}
@@ -209,8 +217,8 @@ function CommentItem({ comment, postId, username, currentProfile, initialLiked, 
                     </div>
 
                     {!isEditing && (
-                        <div className="mt-1 flex items-center gap-3 px-2 text-xs text-main-gray">
-                            <span>
+                        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 px-2 text-xs text-main-gray">
+                            <span className="whitespace-nowrap">
                                 {new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(comment.created_at))}
 
                                 {isEdited && (
@@ -223,47 +231,45 @@ function CommentItem({ comment, postId, username, currentProfile, initialLiked, 
                                 )}
                             </span>
 
-                            <button type="button" onClick={handleLike} className={`cursor-pointer font-medium transition-colors ${isLiked ? "text-main-green" : "hover:text-main-green"}`}>
-                                Нравится&nbsp;{likesCount > 0 && ` ${likesCount}`}
+                            <button type="button" onClick={handleLike} className={`cursor-pointer whitespace-nowrap font-medium transition-colors ${isLiked ? "text-main-green" : "hover:text-main-green"}`}>
+                                Нравится{likesCount > 0 && ` ${likesCount}`}
                             </button>
 
-                            <button type="button" onClick={() => setIsReplying((prev) => !prev)} className="cursor-pointer font-medium transition-colors hover:text-main-green">
+                            <button type="button" onClick={() => { setIsReplying((prev) => !prev); setReplyError("") }} className="cursor-pointer whitespace-nowrap font-medium transition-colors hover:text-main-green">
                                 Ответить
                             </button>
                         </div>
                     )}
 
                     {isReplying && (
-                        <div className="mt-3 flex items-start gap-2">
-                            <div className="relative size-8 shrink-0 overflow-hidden rounded-full bg-bg-green">
-                                <Image src={currentProfile.avatar_url ?? "/user-avatar.svg"} alt={currentProfile.display_name} fill sizes="32px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
-                            </div>
-
-                            <div className="min-w-0 flex-1">
-                                <div className="flex items-end gap-2">
-                                    <textarea value={replyContent} onChange={(e) => { setReplyContent(e.target.value); setReplyError("") }} placeholder={`Ответить ${comment.author?.display_name ?? "пользователю"}...`} maxLength={2000} rows={1} autoFocus className="min-h-9 max-h-[120] flex-1 resize-none rounded-xl border border-gray-100 bg-[#f8faf8] px-3 py-2 text-sm outline-none transition-colors placeholder:text-main-gray focus:border-main-green/40 focus:bg-white" />
-
-                                    <button type="button" onClick={handleReply} disabled={isReplyPending || !replyContent.trim()} className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-main-green text-white transition-colors hover:bg-hover-green disabled:pointer-events-none disabled:opacity-50">
-                                        <Send className="size-4" />
-                                    </button>
+                        <div className="mt-3">
+                            <div className="flex items-end gap-2">
+                                <div className="relative size-8 shrink-0 overflow-hidden rounded-full bg-bg-green">
+                                    <Image src={currentProfile.avatar_url ?? "/user-avatar.svg"} alt={currentProfile.display_name} fill sizes="32px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
                                 </div>
 
-                                {replyError && (
-                                    <div className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
-                                        {replyError}
-                                    </div>
-                                )}
+                                <textarea ref={replyTextareaRef} value={replyContent} onChange={(e) => { setReplyContent(e.target.value); setReplyError(""); e.currentTarget.style.height = "36px"; const nextHeight = Math.min(e.currentTarget.scrollHeight, 120); e.currentTarget.style.height = `${nextHeight}px`; e.currentTarget.style.overflowY = e.currentTarget.scrollHeight > 120 ? "auto" : "hidden" }} placeholder="Ваш ответ..." maxLength={2000} rows={1} autoFocus className="min-h-9 max-h-[120] min-w-0 flex-1 resize-none overflow-y-hidden rounded-2xl border border-gray-100 bg-[#f4f7f4] px-3.5 py-2 text-sm leading-5 outline-none transition-colors placeholder:text-main-gray focus:border-main-green/30 focus:bg-white" />
+
+                                <button type="button" onClick={handleReply} disabled={isReplyPending || !replyContent.trim()} className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-main-green text-white transition-colors hover:bg-hover-green disabled:pointer-events-none disabled:opacity-50">
+                                    <Send className="size-4" />
+                                </button>
                             </div>
+
+                            {replyError && (
+                                <div className="mt-2 pl-10 text-xs text-red-600">
+                                    {replyError}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
             </div>
 
             {replies.length > 0 && (
-                <div className="ml-5 mt-3 border-l border-green-100 pl-4 sm:ml-8">
+                <div className={depth === 0 ? "ml-9 mt-2" : "mt-2"}>
                     <div className="flex flex-col gap-3">
                         {replies.map((reply) => (
-                            <CommentItem key={reply.id} comment={reply} postId={postId} username={username} currentProfile={currentProfile} initialLiked={likedCommentIds.includes(reply.id)} likedCommentIds={likedCommentIds} onCommentCreated={onCommentCreated} onCommentDeleted={onCommentDeleted} onRemove={(commentId) => setReplies((prev) => prev.filter((item) => item.id !== commentId))} />
+                            <CommentItem key={reply.id} comment={reply} postId={postId} username={username} currentProfile={currentProfile} initialLiked={likedCommentIds.includes(reply.id)} likedCommentIds={likedCommentIds} depth={depth + 1} onCommentCreated={onCommentCreated} onCommentDeleted={onCommentDeleted} onRemove={(commentId) => setReplies((prev) => prev.filter((item) => item.id !== commentId))} />
                         ))}
                     </div>
                 </div>
