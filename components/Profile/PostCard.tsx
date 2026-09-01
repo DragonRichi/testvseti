@@ -8,7 +8,7 @@ import { useRef, useState } from "react"
 import PostActions from "./PostActions"
 import { togglePostLike } from "@/actions/togglePostLike"
 import CommentsSection from "./CommentsSection"
-import { Post, PostComment, Profile } from "@/types/social"
+import { Post, PostCommentNode, Profile } from "@/types/social"
 
 type Props = {
     profile: Profile
@@ -16,7 +16,7 @@ type Props = {
     isOwnProfile: boolean
     initialLiked: boolean
     currentProfile: Profile
-    initialComments: PostComment[]
+    initialComments: PostCommentNode[]
 }
 
 function PostCard({ profile, post, isOwnProfile, initialLiked, currentProfile, initialComments }: Props) {
