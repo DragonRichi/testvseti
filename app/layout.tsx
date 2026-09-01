@@ -20,6 +20,9 @@ const robotoSans = Roboto({
 export const metadata: Metadata = {
   title: "ВСети",
   description: "Геолакационная социальная сеть ",
+  icons: {
+    icon: "/logo.svg"
+  }
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

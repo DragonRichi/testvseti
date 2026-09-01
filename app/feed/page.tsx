@@ -23,7 +23,7 @@ async function page() {
                 <FeedSidebar profile={profile} />
                 <main className="min-w-0 px-4 pb-4 pt-20 sm:px-6 lg:pt-4">
                     <div className="mx-auto w-full max-w-[800]">
-                        <FeedHeader />
+                        <FeedHeader profile={profile} />
 
                         <div className="flex min-h-[400] items-center justify-center rounded-2xl border border-green-100 bg-white text-main-gray">
                             Здесь будет лента
