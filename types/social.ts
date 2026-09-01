@@ -39,7 +39,7 @@ export type PostComment = {
 }
 
 export type PostCommentNode = PostComment & {
-    replies: PostCommentNode[]
+    replies: PostCommentNode[] 
 }
 
 export type CommentsByPostId = Record<string, PostCommentNode[]>
