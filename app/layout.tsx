@@ -1,37 +1,25 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono, Roboto } from "next/font/google";
-import "./globals.css";
+import type { Metadata } from "next"
+import { Montserrat } from "next/font/google"
+import "./globals.css"
 
-// const geistSans = Geist({
-//   variable: "--font-geist-sans",
-//   subsets: ["latin"],
-// });
-
-const robotoSans = Roboto({
-  variable: "--font-roboto",
-  subsets: ["latin"]
+const montserrat = Montserrat({
+  variable: "--font-montserrat",
+  subsets: ["latin", "cyrillic"],
+  display: "swap"
 })
-
-// const geistMono = Geist_Mono({
-//   variable: "--font-geist-mono",
-//   subsets: ["latin"],
-// });
 
 export const metadata: Metadata = {
   title: "ВСети",
-  description: "Геолакационная социальная сеть ",
+  description: "Геолокационная социальная сеть",
   icons: {
     icon: "/logo.svg"
   }
-};
+}
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="ru"
-      className={`${robotoSans.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang="ru" className={`${montserrat.variable} h-full antialiased`}>
+      <body className="flex min-h-full flex-col">{children}</body>
     </html>
-  );
+  )
 }

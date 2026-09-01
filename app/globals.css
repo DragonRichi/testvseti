@@ -3,34 +3,39 @@
 :root {
   --background: #ffffff;
   --foreground: #111827;
+
   --main-green: #24c33d;
   --text-green: #36ca36;
   --hover-green: #2ed62e;
   --bg-green: #d3f3d3;
+
   --main-gray: #808080;
   --border-gray: #c7c4c4;
+
   color-scheme: light;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
   --color-main-green: var(--main-green);
   --color-text-green: var(--text-green);
+  --color-hover-green: var(--hover-green);
   --color-bg-green: var(--bg-green);
+
   --color-main-gray: var(--main-gray);
   --color-border-gray: var(--border-gray);
-  --color-hover-green: var(--hover-green);
+
   --background-image-people: url('/bg-main_page.svg');
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-roboto: var(--font-roboto);
+
+  --font-sans: var(--font-montserrat);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-roboto);
+  font-family: var(--font-montserrat);
 }
 
 .bg-zoom {
