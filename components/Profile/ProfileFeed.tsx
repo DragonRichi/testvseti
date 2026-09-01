@@ -1,34 +1,18 @@
 import { PenLine } from "lucide-react"
 import CreatePostCard from "./CreatePostCard"
 import PostCard from "./PostCard"
-
-type Profile = {
-    id: string
-    username: string
-    display_name: string
-    avatar_url: string | null
-}
-
-type Post = {
-    id: string
-    user_id: string
-    content: string | null
-    media_urls: string[] | null
-    comment_count: number | null
-    like_count: number | null
-    view_count: number | null
-    share_count: number | null
-    created_at: string | null
-    visibility: string | null
-}
+import { CommentsByPostId, Post, Profile } from "@/types/social"
 
 type Props = {
     profile: Profile
     posts: Post[]
     isOwnProfile: boolean
+    likedPostIds: string[]
+    currentProfile: Profile
+    commentsByPostId: CommentsByPostId
 }
 
-function ProfileFeed({ profile, posts, isOwnProfile }: Props) {
+function ProfileFeed({ profile, posts, isOwnProfile, likedPostIds, currentProfile, commentsByPostId }: Props) {
     return (
         <div className="mt-4 flex flex-col gap-4">
             {isOwnProfile && (
@@ -51,7 +35,15 @@ function ProfileFeed({ profile, posts, isOwnProfile }: Props) {
                 </div>
             ) : (
                 posts.map((post) => (
-                    <PostCard key={post.id} profile={profile} post={post} isOwnProfile={isOwnProfile} />
+                    <PostCard
+                        key={post.id}
+                        profile={profile}
+                        post={post}
+                        isOwnProfile={isOwnProfile}
+                        initialLiked={likedPostIds.includes(post.id)}
+                        currentProfile={currentProfile}
+                        initialComments={commentsByPostId[post.id] ?? []}
+                    />
                 ))
             )}
         </div>

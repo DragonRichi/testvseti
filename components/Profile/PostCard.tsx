@@ -6,46 +6,73 @@ import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useRef, useState } from "react"
 import PostActions from "./PostActions"
-
-type Profile = {
-    id: string
-    username: string
-    display_name: string
-    avatar_url: string | null
-}
-
-type Post = {
-    id: string
-    user_id: string
-    content: string | null
-    media_urls: string[] | null
-    comment_count: number | null
-    like_count: number | null
-    view_count: number | null
-    share_count: number | null
-    created_at: string | null
-    visibility: string | null
-}
+import { togglePostLike } from "@/actions/togglePostLike"
+import CommentsSection from "./CommentsSection"
+import { Post, PostComment, Profile } from "@/types/social"
 
 type Props = {
     profile: Profile
     post: Post
     isOwnProfile: boolean
+    initialLiked: boolean
+    currentProfile: Profile
+    initialComments: PostComment[]
 }
 
-function PostCard({ profile, post, isOwnProfile }: Props) {
+function PostCard({ profile, post, isOwnProfile, initialLiked, currentProfile, initialComments }: Props) {
     const [isEditing, setIsEditing] = useState<boolean>(false)
     const [content, setContent] = useState<string>(post.content ?? "")
     const [error, setError] = useState<string>("")
     const [isPending, setIsPending] = useState<boolean>(false)
 
+    const [isLiked, setIsLiked] = useState<boolean>(initialLiked)
+    const [likeCount, setLikeCount] = useState<number>(post.like_count ?? 0)
+
+    const [isCommentsOpen, setIsCommentsOpen] = useState<boolean>(false)
+    const [commentCount, setCommentCount] = useState<number>(post.comment_count ?? 0)
+
+
     const updateLock = useRef(false)
+    const likeLock = useRef(false)
     const router = useRouter()
 
     const handleCancelEdit = () => {
         setContent(post.content ?? "")
         setError("")
         setIsEditing(false)
+    }
+
+    const handleLike = async () => {
+        if (likeLock.current) return
+
+        likeLock.current = true
+
+        const previousLiked = isLiked
+        const previousLikeCount = likeCount
+        const nextLiked = !isLiked
+
+        setIsLiked(nextLiked)
+        setLikeCount(Math.max(0, previousLikeCount + (nextLiked ? 1 : -1)))
+
+        try {
+            const result = await togglePostLike({ postId: post.id, username: profile.username })
+
+            if (!result.success) {
+                setIsLiked(previousLiked)
+                setLikeCount(previousLikeCount)
+                return
+            }
+
+            setIsLiked(result.liked)
+            setLikeCount(result.likeCount)
+
+        } catch (error) {
+            console.error("POST LIKE ERROR: ", error)
+            setIsLiked(previousLiked)
+            setLikeCount(previousLikeCount)
+        } finally {
+            likeLock.current = false
+        }
     }
 
     const handleUpdate = async () => {
@@ -154,22 +181,34 @@ function PostCard({ profile, post, isOwnProfile }: Props) {
             </div>
 
             {!isEditing && (
-                <div className="mt-4 flex items-center gap-6 border-t border-gray-100 pt-3 text-main-gray">
-                    <button type="button" className="flex cursor-pointer items-center gap-1.5 text-sm transition-colors hover:text-main-green">
-                        <ThumbsUp className="size-5" />
-                        <span>{post.like_count ?? 0}</span>
-                    </button>
+                <>
+                    <div className="mt-4 flex items-center gap-6 border-t border-gray-100 pt-3 text-main-gray">
+                        <button type="button" onClick={handleLike} className={`flex cursor-pointer items-center gap-1.5 text-sm transition-colors ${isLiked ? "text-main-green" : "text-main-gray hover:text-main-green"}`}>
+                            <ThumbsUp className={`size-5 ${isLiked ? "fill-main-green" : ""}`} />
+                            <span>{likeCount}</span>
+                        </button>
 
-                    <button type="button" className="flex cursor-pointer items-center gap-1.5 text-sm transition-colors hover:text-main-green">
-                        <MessageCircle className="size-5" />
-                        <span>{post.comment_count ?? 0}</span>
-                    </button>
+                        <button type="button" onClick={() => setIsCommentsOpen((prev) => !prev)} className={`flex cursor-pointer items-center gap-1.5 text-sm transition-colors ${isCommentsOpen ? "text-main-green" : "text-main-gray hover:text-main-green"}`}>
+                            <MessageCircle className="size-5" />
+                            <span>{commentCount}</span>
+                        </button>
 
-                    <button type="button" className="flex cursor-pointer items-center gap-1.5 text-sm transition-colors hover:text-main-green">
-                        <Share2 className="size-5" />
-                        <span>{post.share_count ?? 0}</span>
-                    </button>
-                </div>
+                        <button type="button" className="flex cursor-pointer items-center gap-1.5 text-sm transition-colors hover:text-main-green">
+                            <Share2 className="size-5" />
+                            <span>{post.share_count ?? 0}</span>
+                        </button>
+                    </div>
+                    <div className={isCommentsOpen ? "block" : "hidden"}>
+                        <CommentsSection
+                            postId={post.id}
+                            username={profile.username}
+                            currentProfile={currentProfile}
+                            onCommentCreated={() => setCommentCount((prev) => prev + 1)}
+                            initialComments={initialComments}
+                        />
+                    </div>
+
+                </>
             )}
         </article>
     )
