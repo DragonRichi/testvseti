@@ -2,7 +2,6 @@
 
 import { supabaseAdmin } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
-import { redirect } from "next/navigation"
 
 type Props = {
     displayName: string
@@ -70,12 +69,7 @@ export async function registerUser({ displayName, username, email, password, rep
     }
 
     try {
-
-        const { data: existingUsername, error: usernameCheckError } = await supabaseAdmin
-            .from("profiles")
-            .select("id")
-            .eq("username", normalizedUsername)
-            .maybeSingle()
+        const { data: existingUsername, error: usernameCheckError } = await supabaseAdmin.from("profiles").select("id").eq("username", normalizedUsername).maybeSingle()
 
         if (usernameCheckError) {
             console.error("USERNAME CHECK ERROR:", usernameCheckError)
@@ -109,13 +103,21 @@ export async function registerUser({ displayName, username, email, password, rep
         if (authError) {
             console.error("SIGNUP ERROR:", authError)
 
-            if (
-                authError.message.toLowerCase().includes("already registered") ||
-                authError.message.toLowerCase().includes("already exists")
-            ) {
+            const authMessage = authError.message.toLowerCase()
+
+            if (authMessage.includes("already registered") || authMessage.includes("already exists") || authMessage.includes("user already registered")) {
                 return {
                     success: false,
                     error: "Аккаунт с таким Email уже существует"
+                }
+            }
+
+            const { data: usernameAfterError } = await supabaseAdmin.from("profiles").select("id").eq("username", normalizedUsername).maybeSingle()
+
+            if (usernameAfterError) {
+                return {
+                    success: false,
+                    error: "Это имя пользователя уже занято"
                 }
             }
 
@@ -132,74 +134,7 @@ export async function registerUser({ displayName, username, email, password, rep
             }
         }
 
-        const { data: existingProfile, error: profileCheckError } = await supabaseAdmin
-            .from("profiles")
-            .select("id, username")
-            .eq("id", data.user.id)
-            .maybeSingle()
-
-        if (profileCheckError) {
-            console.error("PROFILE CHECK ERROR:", profileCheckError)
-
-            return {
-                success: false,
-                error: "Не удалось проверить профиль"
-            }
-        }
-
-        if (existingProfile) {
-            return {
-                success: false,
-                error: "Аккаунт с таким Email уже существует"
-            }
-        }
-
-        const { error: profileError } = await supabaseAdmin
-            .from("profiles")
-            .insert({
-                id: data.user.id,
-                username: normalizedUsername,
-                display_name: normalizedDisplayName,
-                monthly_views: 0
-            })
-
-        if (profileError) {
-            console.error("PROFILE CREATE ERROR:", profileError)
-            if (profileError.code === "23505") {
-                const details = profileError.details ?? ""
-                const message = profileError.message ?? ""
-
-                if (
-                    details.includes("Key (username)=") ||
-                    message.includes("username")
-                ) {
-                    return {
-                        success: false,
-                        error: "Это имя пользователя уже занято"
-                    }
-                }
-
-                if (
-                    details.includes("Key (id)=") ||
-                    message.includes("profiles_pkey")
-                ) {
-                    return {
-                        success: false,
-                        error: "Аккаунт с таким Email уже существует"
-                    }
-                }
-
-                return {
-                    success: false,
-                    error: "Аккаунт с такими данными уже существует"
-                }
-            }
-
-            return {
-                success: false,
-                error: "Не удалось создать профиль"
-            }
-        }
+        console.log("REGISTER SUCCESS:", data.user.id)
 
         return {
             success: true,
@@ -212,7 +147,6 @@ export async function registerUser({ displayName, username, email, password, rep
             },
             needsEmailConfirmation: data.session === null
         }
-
     } catch (error) {
         console.error("REGISTER ERROR:", error)
 

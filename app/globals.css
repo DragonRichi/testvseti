@@ -2,14 +2,14 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #111827;
   --main-green: #24c33d;
   --text-green: #36ca36;
   --hover-green: #2ed62e;
   --bg-green: #d3f3d3;
   --main-gray: #808080;
   --border-gray: #c7c4c4;
-
+  color-scheme: light;
 }
 
 @theme inline {
@@ -21,19 +21,10 @@
   --color-main-gray: var(--main-gray);
   --color-border-gray: var(--border-gray);
   --color-hover-green: var(--hover-green);
-
   --background-image-people: url('/bg-main_page.svg');
-
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --font-roboto: var(--font-roboto)
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-roboto: var(--font-roboto);
 }
 
 body {
