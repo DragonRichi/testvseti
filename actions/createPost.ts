@@ -47,12 +47,21 @@ export async function createPost({ content, username, mediaUrls = [] }: Props) {
 
         const supabase = await createClient()
 
+        const { data: userLocation, error: locationError } = await supabase.from("user_locations").select("city,region,country_code").eq("user_id", user.id).maybeSingle()
+
+        if (locationError) {
+            console.error("POST LOCATION LOAD ERROR:", locationError)
+        }
+
         const { data, error } = await supabase.from("posts").insert({
             user_id: user.id,
             content: normalizedContent || null,
             media_urls: normalizedMediaUrls.length > 0 ? normalizedMediaUrls : null,
-            visibility: "all"
-        }).select("id,user_id,content,media_urls,comment_count,like_count,view_count,share_count,created_at,visibility").single()
+            visibility: "all",
+            city: userLocation?.city ?? null,
+            region: userLocation?.region ?? null,
+            country_code: userLocation?.country_code ?? null
+        }).select("id,user_id,content,media_urls,comment_count,like_count,view_count,share_count,created_at,visibility,city,region,country_code").single()
 
         if (error) {
             console.error("POST CREATE ERROR:", error)

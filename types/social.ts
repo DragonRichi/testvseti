@@ -16,6 +16,9 @@ export type Post = {
     share_count: number | null
     created_at: string | null
     visibility: string | null
+    city: string | null
+    region: string | null
+    country_code: string | null
 }
 
 export type CommentAuthor = {
@@ -39,7 +42,7 @@ export type PostComment = {
 }
 
 export type PostCommentNode = PostComment & {
-    replies: PostCommentNode[] 
+    replies: PostCommentNode[]
 }
 
 export type CommentsByPostId = Record<string, PostCommentNode[]>

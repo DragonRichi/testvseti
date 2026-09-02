@@ -21,6 +21,7 @@ type Props = {
     currentProfile: Profile
     initialComments: PostCommentNode[]
     likedCommentIds: string[]
+    eagerMedia: boolean
 }
 
 type SelectedMedia = {
@@ -38,7 +39,7 @@ const ALLOWED_TYPES = [
     "image/gif"
 ]
 
-function PostCard({ profile, post, isOwnProfile, initialLiked, currentProfile, initialComments, likedCommentIds }: Props) {
+function PostCard({ profile, post, isOwnProfile, initialLiked, currentProfile, initialComments, likedCommentIds, eagerMedia }: Props) {
     const [isEditing, setIsEditing] = useState<boolean>(false)
     const [savedContent, setSavedContent] = useState<string>(post.content ?? "")
     const [content, setContent] = useState<string>(post.content ?? "")
@@ -367,7 +368,7 @@ function PostCard({ profile, post, isOwnProfile, initialLiked, currentProfile, i
                             )}
 
                             {mediaUrls.length > 0 && (
-                                <PostMediaGrid mediaUrls={mediaUrls} />
+                                <PostMediaGrid mediaUrls={mediaUrls} eager={eagerMedia} />
                             )}
                         </>
                     )}

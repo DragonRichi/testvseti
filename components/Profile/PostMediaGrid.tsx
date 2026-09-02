@@ -6,9 +6,10 @@ import { useEffect, useRef, useState } from "react"
 
 type Props = {
     mediaUrls: string[]
+    eager?: boolean
 }
 
-function PostMediaGrid({ mediaUrls }: Props) {
+function PostMediaGrid({ mediaUrls, eager = false }: Props) {
     const [activeIndex, setActiveIndex] = useState<number | null>(null)
     const touchStartX = useRef<number | null>(null)
 
@@ -96,7 +97,14 @@ function PostMediaGrid({ mediaUrls }: Props) {
         if (mediaUrls.length === 1) {
             return (
                 <button type="button" onClick={() => openViewer(0)} className="relative mt-4 block aspect-16/10 w-full cursor-pointer overflow-hidden rounded-2xl bg-gray-100">
-                    <Image src={mediaUrls[0]} alt="Фото публикации" fill sizes="(max-width: 768px) 100vw, 700px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover transition-transform duration-200 hover:scale-[1.01]" />
+                    <Image
+                        src={mediaUrls[0]}
+                        alt="Фото публикации"
+                        fill
+                        sizes="(max-width: 768px) 100vw, 800px" unoptimized={process.env.NODE_ENV === "development"}
+                        className="object-cover transition-transform duration-200 hover:scale-[1.01]"
+                        loading={eager ? "eager" : "lazy"}
+                    />
                 </button>
             )
         }
@@ -106,7 +114,15 @@ function PostMediaGrid({ mediaUrls }: Props) {
                 <div className="mt-4 grid grid-cols-2 gap-1 overflow-hidden rounded-2xl">
                     {mediaUrls.map((url, index) => (
                         <button key={url} type="button" onClick={() => openViewer(index)} className="relative aspect-square cursor-pointer overflow-hidden bg-gray-100">
-                            <Image src={url} alt={`Фото публикации ${index + 1}`} fill sizes="(max-width: 768px) 50vw, 350px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover transition-transform duration-200 hover:scale-[1.02]" />
+                            <Image
+                                src={url}
+                                alt={`Фото публикации ${index + 1}`}
+                                fill
+                                sizes="(max-width: 768px) 50vw, 400px" unoptimized={process.env.NODE_ENV === "development"}
+                                className="object-cover transition-transform duration-200 hover:scale-[1.02]"
+                                loading={eager && index === 0 ? "eager" : "lazy"}
+
+                            />
                         </button>
                     ))}
                 </div>

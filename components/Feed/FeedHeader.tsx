@@ -2,6 +2,7 @@ import { Profile } from "@/types/social"
 import { Bell } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
+import DevDeleteUser from "../Dev/DevDeleteUser"
 
 
 type Props = {
@@ -18,6 +19,9 @@ function FeedHeader({ profile }: Props) {
     <header className="sticky top-0 z-30 mb-4 hidden h-14 items-center justify-between border-b border-green-100 bg-[#f7faf7]/95 backdrop-blur-md lg:flex">
       <h1 className="text-lg font-bold text-gray-900">Для вас</h1>
       <div className="flex items-center gap-2">
+        {process.env.NODE_ENV === "development" && (
+          <DevDeleteUser />
+        )}
         <Link
           href="/notifications"
           aria-label="Уведомления"

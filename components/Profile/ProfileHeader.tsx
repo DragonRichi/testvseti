@@ -24,7 +24,6 @@ type Props = {
     postsCount: number
 }
 
-
 function ProfileHeader({ isOwnProfile, profile, postsCount }: Props) {
     const formattedBirthDate = profile.birth_date ? new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric" }).format(new Date(profile.birth_date)) : null
 
@@ -32,7 +31,7 @@ function ProfileHeader({ isOwnProfile, profile, postsCount }: Props) {
         <section className="overflow-hidden rounded-3xl border border-green-100 bg-white">
             <div className="relative h-[180] overflow-hidden bg-bg-green sm:h-[230]">
                 {profile.cover_url ? (
-                    <Image src={profile.cover_url} alt="Обложка профиля" fill priority sizes="(max-width: 1024px) 100vw, 900px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
+                    <Image src={profile.cover_url} alt="Обложка профиля" fill priority sizes="(max-width: 1024px) 100vw, 800px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
                 ) : (
                     <div className="absolute inset-0 bg-linear-to-br from-green-100 via-[#eaf7ed] to-green-50" />
                 )}
@@ -42,24 +41,24 @@ function ProfileHeader({ isOwnProfile, profile, postsCount }: Props) {
                 <div className="flex flex-col items-center sm:flex-row sm:items-start sm:justify-between">
                     <div className="relative mt-[-62] shrink-0 sm:mt-[-70]">
                         <div className="relative size-[112] overflow-hidden rounded-full border-4 border-white bg-bg-green sm:size-[140]">
-                            <Image src={profile.avatar_url ?? "/user-avatar.svg"} alt={profile.display_name} fill priority sizes="(max-width: 640px) 112px, 140px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" loading="eager" />
+                            <Image src={profile.avatar_url ?? "/user-avatar.svg"} alt={profile.display_name} fill priority sizes="(max-width: 640px) 112px, 140px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
                         </div>
 
                         <span className="absolute bottom-1 right-1 size-5 rounded-full border-4 border-white bg-main-green sm:bottom-3 sm:right-3" />
                     </div>
 
-                    <div className="mt-3 flex w-full items-center justify-center gap-2 sm:mt-4 sm:w-auto sm:justify-end">
+                    <div className="mt-3 flex w-full min-w-0 items-center gap-2 sm:mt-4 sm:w-auto sm:justify-end">
                         {isOwnProfile ? (
-                            <Link href="/settings/profile" className="flex h-10 w-full max-w-[210] items-center justify-center rounded-xl bg-main-green px-4 text-sm font-medium text-white transition-colors hover:bg-hover-green sm:w-auto sm:max-w-none">
+                            <Link href="/settings/profile" className="flex h-10 min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-xl bg-main-green px-4 text-sm font-medium text-white transition-colors hover:bg-hover-green sm:flex-none sm:px-5">
                                 Редактировать профиль
                             </Link>
                         ) : (
-                            <button type="button" className="flex h-10 w-full max-w-[210] cursor-pointer items-center justify-center rounded-xl bg-main-green px-5 text-sm font-medium text-white transition-colors hover:bg-hover-green sm:w-auto sm:max-w-none">
+                            <button type="button" className="flex h-10 min-w-0 flex-1 cursor-pointer items-center justify-center whitespace-nowrap rounded-xl bg-main-green px-5 text-sm font-medium text-white transition-colors hover:bg-hover-green sm:flex-none">
                                 Подписаться
                             </button>
                         )}
 
-                        <button type="button" className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-gray-200 text-main-gray transition-colors hover:bg-gray-50 hover:text-black">
+                        <button type="button" aria-label="Ещё" className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-gray-200 bg-white text-main-gray transition-colors hover:bg-gray-50 hover:text-black">
                             <MoreHorizontal className="size-5" />
                         </button>
                     </div>
@@ -67,12 +66,12 @@ function ProfileHeader({ isOwnProfile, profile, postsCount }: Props) {
 
                 <div className="mt-4 text-center sm:text-left">
                     <div className="flex items-center justify-center gap-2 sm:justify-start">
-                        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                        <h1 className="min-w-0 break-words text-2xl font-bold tracking-tight sm:text-3xl">
                             {profile.display_name}
                         </h1>
 
                         {profile.is_verified && (
-                            <BadgeCheck className="size-6 fill-main-green text-white" />
+                            <BadgeCheck className="size-6 shrink-0 fill-main-green text-white" />
                         )}
                     </div>
 
@@ -95,22 +94,22 @@ function ProfileHeader({ isOwnProfile, profile, postsCount }: Props) {
                     <div className="mt-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-sm text-main-gray sm:justify-start">
                         {profile.location_label && (
                             <div className="flex items-center gap-1.5">
-                                <MapPin className="size-4" />
+                                <MapPin className="size-4 shrink-0" />
                                 <span>{profile.location_label}</span>
                             </div>
                         )}
 
                         {formattedBirthDate && (
                             <div className="flex items-center gap-1.5">
-                                <CalendarDays className="size-4" />
+                                <CalendarDays className="size-4 shrink-0" />
                                 <span>{formattedBirthDate}</span>
                             </div>
                         )}
 
                         {profile.website_url && (
-                            <Link href={profile.website_url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-main-green transition-colors hover:text-hover-green">
-                                <Link2 className="size-4" />
-                                <span>{profile.website_url.replace(/^https?:\/\//, "").replace(/\/$/, "")}</span>
+                            <Link href={profile.website_url} target="_blank" rel="noreferrer" className="flex min-w-0 items-center gap-1.5 text-main-green transition-colors hover:text-hover-green">
+                                <Link2 className="size-4 shrink-0" />
+                                <span className="truncate">{profile.website_url.replace(/^https?:\/\//, "").replace(/\/$/, "")}</span>
                             </Link>
                         )}
                     </div>
@@ -137,6 +136,7 @@ function ProfileHeader({ isOwnProfile, profile, postsCount }: Props) {
                         <div className="mt-1 text-xs text-main-gray">сохранено</div>
                     </div>
                 </div>
+
                 <ProfileTabs />
             </div>
         </section>

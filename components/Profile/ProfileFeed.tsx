@@ -35,7 +35,7 @@ function ProfileFeed({ profile, posts, isOwnProfile, likedPostIds, currentProfil
                     </p>
                 </div>
             ) : (
-                posts.map((post) => (
+                posts.map((post, index) => (
                     <PostCard
                         key={post.id}
                         profile={profile}
@@ -45,6 +45,7 @@ function ProfileFeed({ profile, posts, isOwnProfile, likedPostIds, currentProfil
                         currentProfile={currentProfile}
                         initialComments={commentsByPostId[post.id] ?? []}
                         likedCommentIds={likedCommentIds}
+                        eagerMedia={index === 0}
                     />
                 ))
             )}
