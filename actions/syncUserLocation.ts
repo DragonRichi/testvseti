@@ -6,13 +6,10 @@ import { createClient } from "@/lib/supabase/server"
 
 type Result = {
     success: boolean
-    skipped?: boolean
     city?: string
     countryCode?: string
     error?: string
 }
-
-const UPDATE_INTERVAL = 24 * 60 * 60 * 1000
 
 export async function syncUserLocation(): Promise<Result> {
     const supabase = await createClient()
@@ -29,7 +26,7 @@ export async function syncUserLocation(): Promise<Result> {
         }
     }
 
-    const { data: existingLocation, error: existingLocationError } = await supabase.from("user_locations").select("user_id,updated_at").eq("user_id", user.id).maybeSingle()
+    const { data: existingLocation, error: existingLocationError } = await supabase.from("user_locations").select("user_id").eq("user_id", user.id).maybeSingle()
 
     if (existingLocationError) {
         console.error("USER LOCATION LOAD ERROR:", existingLocationError)
@@ -37,17 +34,6 @@ export async function syncUserLocation(): Promise<Result> {
         return {
             success: false,
             error: "Не удалось проверить геолокацию"
-        }
-    }
-
-    if (existingLocation?.updated_at) {
-        const lastUpdate = new Date(existingLocation.updated_at).getTime()
-
-        if (Date.now() - lastUpdate < UPDATE_INTERVAL) {
-            return {
-                success: true,
-                skipped: true
-            }
         }
     }
 

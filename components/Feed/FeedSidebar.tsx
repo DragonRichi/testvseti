@@ -6,6 +6,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 import Logo from "../ui/Logo"
+import LogoutButton from "../Auth/LogoutButton"
 
 type Profile = {
     id: string
@@ -102,6 +103,9 @@ function FeedSidebar({ profile }: Props) {
                                 @{profile.username}
                             </div>
                         )}
+                        <div className="mt-2 border-t border-gray-100 pt-2">
+                            <LogoutButton variant="menu" />
+                        </div>
                     </div>
                 </Link>
             )}

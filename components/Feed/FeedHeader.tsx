@@ -3,6 +3,7 @@ import { Bell } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import DevDeleteUser from "../Dev/DevDeleteUser"
+import LogoutButton from "../Auth/LogoutButton"
 
 
 type Props = {
@@ -43,6 +44,7 @@ function FeedHeader({ profile }: Props) {
             className="object-cover"
           />
         </Link>
+        <LogoutButton />
       </div>
     </header>
   )
