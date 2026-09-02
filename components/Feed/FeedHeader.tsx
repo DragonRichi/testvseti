@@ -44,8 +44,8 @@ function FeedHeader({ profile }: Props) {
             className="object-cover"
           />
         </Link>
-        <LogoutButton />
       </div>
+      <LogoutButton />
     </header>
   )
 }
