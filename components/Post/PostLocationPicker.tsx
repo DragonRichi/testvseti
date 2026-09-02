@@ -200,10 +200,6 @@ function PostLocationPicker({ value, onChange, variant = "default", disabled = f
                             </div>
                         )}
 
-                        <div className="mt-2 text-[11px] text-main-gray">
-                            Место определяется по данным OpenStreetMap
-                        </div>
-
                         <div className="mt-6 flex justify-end gap-2">
                             <button type="button" onClick={handleClose} className="h-11 cursor-pointer rounded-xl border border-gray-200 px-5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50">
                                 Отмена
