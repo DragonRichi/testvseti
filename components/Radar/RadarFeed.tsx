@@ -130,7 +130,7 @@ async function RadarFeed({ radarId, currentProfile }: Props) {
                     </div>
 
                     <div className="text-xs text-main-gray">
-                        Радар публикаций
+                        {radar.type === "tracking" ? "Радар слежения" : "Радар публикаций"}
                     </div>
                 </div>
             </div>

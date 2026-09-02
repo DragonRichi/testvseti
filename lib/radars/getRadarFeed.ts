@@ -7,7 +7,7 @@ import type { Post } from "@/types/social"
 type Radar = {
     id: string
     user_id: string
-    type: string
+    type: "publications" | "tracking"
     name: string
     sort_mode: string | null
 }
@@ -53,10 +53,26 @@ export async function getRadarFeed(radarId: string): Promise<Result> {
         }
     }
 
-    if (radar.type !== "publications") {
+    if (radar.type === "tracking") {
+        const { data: posts, error: postsError } = await supabase.rpc("get_tracking_radar_posts", {
+            p_radar_id: radar.id,
+            p_limit: 20,
+            p_offset: 0
+        })
+
+        if (postsError) {
+            console.error("TRACKING RADAR POSTS LOAD ERROR:", postsError)
+
+            return {
+                success: false,
+                error: "Не удалось загрузить публикации радара"
+            }
+        }
+
         return {
-            success: false,
-            error: "Этот радар не является радаром публикаций"
+            success: true,
+            radar: radar as Radar,
+            posts: (posts ?? []) as Post[]
         }
     }
 
@@ -76,7 +92,7 @@ export async function getRadarFeed(radarId: string): Promise<Result> {
     if (profileIds.length === 0) {
         return {
             success: true,
-            radar,
+            radar: radar as Radar,
             posts: []
         }
     }
@@ -94,7 +110,7 @@ export async function getRadarFeed(radarId: string): Promise<Result> {
     const { data: posts, error: postsError } = await query.limit(20)
 
     if (postsError) {
-        console.error("RADAR POSTS LOAD ERROR:", postsError)
+        console.error("PUBLICATIONS RADAR POSTS LOAD ERROR:", postsError)
 
         return {
             success: false,
@@ -104,7 +120,7 @@ export async function getRadarFeed(radarId: string): Promise<Result> {
 
     return {
         success: true,
-        radar,
+        radar: radar as Radar,
         posts: posts ?? []
     }
 }
