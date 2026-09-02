@@ -38,7 +38,7 @@ async function Page({ params }: Props) {
 
     const isOwnProfile = user.id === profile.id
 
-    const { data: posts, error: postsError } = await supabase.from("posts").select("id,user_id,content,media_urls,comment_count,like_count,view_count,share_count,created_at,visibility,city,region,country_code").eq("user_id", profile.id).order("created_at", { ascending: false })
+    const { data: posts, error: postsError } = await supabase.from("posts").select("id,user_id,tagged_location_name,content,media_urls,comment_count,like_count,view_count,share_count,created_at,visibility,city,region,country_code").eq("user_id", profile.id).order("created_at", { ascending: false })
 
     if (postsError) {
         console.error("POSTS LOAD ERROR:", postsError)

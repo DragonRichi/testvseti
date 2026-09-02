@@ -97,7 +97,7 @@ export async function getRadarFeed(radarId: string): Promise<Result> {
         }
     }
 
-    let query = supabase.from("posts").select("id,user_id,content,media_urls,comment_count,like_count,view_count,share_count,created_at,visibility,city,region,country_code").in("user_id", profileIds).eq("visibility", "all")
+    let query = supabase.from("posts").select("id,user_id,content,media_urls,comment_count,like_count,view_count,share_count,created_at,visibility,city,region,country_code,tagged_location_name").in("user_id", profileIds).eq("visibility", "all")
 
     if (radar.sort_mode === "popular") {
         query = query.order("like_count", { ascending: false }).order("created_at", { ascending: false })

@@ -2,9 +2,10 @@
 
 import { togglePostLike } from "@/actions/togglePostLike"
 import { updatePost } from "@/actions/updatePost"
+import PostLocationPicker, { type SelectedPostLocation } from "@/components/Post/PostLocationPicker"
 import { removePostMedia, uploadPostMedia } from "@/lib/posts/uploadPostMedia"
 import type { Post, PostCommentNode, Profile } from "@/types/social"
-import { ImagePlus, MessageCircle, Share2, ThumbsUp, X } from "lucide-react"
+import { ImagePlus, MapPin, MessageCircle, Share2, ThumbsUp, X } from "lucide-react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import type { ChangeEvent } from "react"
@@ -40,12 +41,20 @@ const ALLOWED_TYPES = [
 ]
 
 function PostCard({ profile, post, isOwnProfile, initialLiked, currentProfile, initialComments, likedCommentIds, eagerMedia }: Props) {
+    const initialTaggedLocation: SelectedPostLocation | null = post.tagged_location_name && typeof post.tagged_lat === "number" && typeof post.tagged_lon === "number" ? {
+        name: post.tagged_location_name,
+        latitude: post.tagged_lat,
+        longitude: post.tagged_lon
+    } : null
+
     const [isEditing, setIsEditing] = useState<boolean>(false)
     const [savedContent, setSavedContent] = useState<string>(post.content ?? "")
     const [content, setContent] = useState<string>(post.content ?? "")
     const [mediaUrls, setMediaUrls] = useState<string[]>(post.media_urls ?? [])
     const [editMediaUrls, setEditMediaUrls] = useState<string[]>(post.media_urls ?? [])
     const [newMedia, setNewMedia] = useState<SelectedMedia[]>([])
+    const [savedLocation, setSavedLocation] = useState<SelectedPostLocation | null>(initialTaggedLocation)
+    const [editLocation, setEditLocation] = useState<SelectedPostLocation | null>(initialTaggedLocation)
     const [error, setError] = useState<string>("")
     const [isPending, setIsPending] = useState<boolean>(false)
 
@@ -69,6 +78,7 @@ function PostCard({ profile, post, isOwnProfile, initialLiked, currentProfile, i
     const handleStartEdit = () => {
         setContent(savedContent)
         setEditMediaUrls(mediaUrls)
+        setEditLocation(savedLocation)
         clearNewMedia()
         setError("")
         setIsEditing(true)
@@ -77,6 +87,7 @@ function PostCard({ profile, post, isOwnProfile, initialLiked, currentProfile, i
     const handleCancelEdit = () => {
         setContent(savedContent)
         setEditMediaUrls(mediaUrls)
+        setEditLocation(savedLocation)
         clearNewMedia()
         setError("")
         setIsEditing(false)
@@ -225,7 +236,8 @@ function PostCard({ profile, post, isOwnProfile, initialLiked, currentProfile, i
                 postId: post.id,
                 content: normalizedContent,
                 username: profile.username,
-                mediaUrls: finalMediaUrls
+                mediaUrls: finalMediaUrls,
+                taggedLocation: editLocation
             })
 
             if (result.success === false) {
@@ -242,12 +254,20 @@ function PostCard({ profile, post, isOwnProfile, initialLiked, currentProfile, i
             const updatedContent = result.post.content ?? ""
             const updatedMediaUrls = result.post.media_urls ?? []
 
+            const updatedLocation: SelectedPostLocation | null = result.post.tagged_location_name && typeof result.post.tagged_lat === "number" && typeof result.post.tagged_lon === "number" ? {
+                name: result.post.tagged_location_name,
+                latitude: result.post.tagged_lat,
+                longitude: result.post.tagged_lon
+            } : null
+
             newMedia.forEach((item) => URL.revokeObjectURL(item.previewUrl))
 
             setSavedContent(updatedContent)
             setContent(updatedContent)
             setMediaUrls(updatedMediaUrls)
             setEditMediaUrls(updatedMediaUrls)
+            setSavedLocation(updatedLocation)
+            setEditLocation(updatedLocation)
             setNewMedia([])
             setIsEditing(false)
 
@@ -298,7 +318,7 @@ function PostCard({ profile, post, isOwnProfile, initialLiked, currentProfile, i
 
                     {isEditing ? (
                         <div className="mt-3">
-                            <textarea value={content} onChange={(e) => { setContent(e.target.value); setError("") }} maxLength={5000} autoFocus placeholder="Что у вас нового?" className="min-h-[120] w-full resize-none rounded-xl border border-gray-100 bg-[#f8faf8] px-4 py-3 text-sm outline-none transition-colors placeholder:text-main-gray focus:border-main-green/40 focus:bg-white" />
+                            <textarea value={content} onChange={(event) => { setContent(event.target.value); setError("") }} maxLength={5000} autoFocus placeholder="Что у вас нового?" className="min-h-[120] w-full resize-none rounded-xl border border-gray-100 bg-[#f8faf8] px-4 py-3 text-sm outline-none transition-colors placeholder:text-main-gray focus:border-main-green/40 focus:bg-white" />
 
                             <div className="mt-2 text-right text-xs text-main-gray">
                                 {content.length}/5000
@@ -332,11 +352,29 @@ function PostCard({ profile, post, isOwnProfile, initialLiked, currentProfile, i
                                 </div>
                             )}
 
+                            {editLocation && (
+                                <div className="mt-3 flex items-center gap-2 rounded-xl bg-green-50 px-3 py-2">
+                                    <MapPin className="size-4 shrink-0 text-main-green" />
+
+                                    <div className="min-w-0 flex-1">
+                                        <div className="truncate text-sm font-medium text-gray-700">{editLocation.name}</div>
+                                    </div>
+
+                                    <button type="button" onClick={() => { setEditLocation(null); setError("") }} disabled={isPending} aria-label="Убрать место" title="Убрать место" className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-main-gray transition-colors hover:bg-white hover:text-red-500 disabled:pointer-events-none disabled:opacity-50">
+                                        <X className="size-4" />
+                                    </button>
+                                </div>
+                            )}
+
                             <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                                <button type="button" onClick={handleAddPhoto} disabled={isPending || editMediaUrls.length + newMedia.length >= MAX_MEDIA_COUNT} className="flex h-9 cursor-pointer items-center gap-2 rounded-xl border border-green-100 px-3 text-sm text-main-gray transition-colors hover:bg-green-50 hover:text-main-green disabled:pointer-events-none disabled:opacity-50">
-                                    <ImagePlus className="size-4" />
-                                    Добавить фото
-                                </button>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <button type="button" onClick={handleAddPhoto} disabled={isPending || editMediaUrls.length + newMedia.length >= MAX_MEDIA_COUNT} className="flex h-9 cursor-pointer items-center gap-2 rounded-xl border border-green-100 px-3 text-sm text-main-gray transition-colors hover:bg-green-50 hover:text-main-green disabled:pointer-events-none disabled:opacity-50">
+                                        <ImagePlus className="size-4" />
+                                        Добавить фото
+                                    </button>
+
+                                    <PostLocationPicker value={editLocation} onChange={(location) => { setEditLocation(location); setError("") }} variant="toolbar" disabled={isPending} />
+                                </div>
 
                                 <span className="text-xs text-main-gray">
                                     {editMediaUrls.length + newMedia.length}/{MAX_MEDIA_COUNT} фото
@@ -361,8 +399,15 @@ function PostCard({ profile, post, isOwnProfile, initialLiked, currentProfile, i
                         </div>
                     ) : (
                         <>
+                            {savedLocation && (
+                                <div className="mt-3 flex items-center gap-1.5 text-sm text-main-green">
+                                    <MapPin className="size-4 shrink-0" />
+                                    <span className="truncate font-medium">{savedLocation.name}</span>
+                                </div>
+                            )}
+
                             {savedContent && (
-                                <p className="mt-3 whitespace-pre-wrap wrap-break-word text-sm leading-6 text-gray-800">
+                                <p className={`${savedLocation ? "mt-2" : "mt-3"} whitespace-pre-wrap wrap-break-word text-sm leading-6 text-gray-800`}>
                                     {savedContent}
                                 </p>
                             )}

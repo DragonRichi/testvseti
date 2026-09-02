@@ -1,11 +1,13 @@
 "use client"
 
 import { createPost } from "@/actions/createPost"
+import PostLocationPicker, { type SelectedPostLocation } from "@/components/Post/PostLocationPicker"
 import { removePostMedia, uploadPostMedia } from "@/lib/posts/uploadPostMedia"
-import { BarChart3, ImagePlus, Smile, Video, X } from "lucide-react"
+import { BarChart3, ImagePlus, MapPin, Smile, Video, X } from "lucide-react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { ChangeEvent, useRef, useState } from "react"
+import type { ChangeEvent } from "react"
+import { useEffect, useRef, useState } from "react"
 
 type Props = {
     userId: string
@@ -29,21 +31,60 @@ const ALLOWED_TYPES = [
     "image/gif"
 ]
 
+const EMOJIS = [
+    "😀", "😃", "😄", "😁", "😂", "🤣", "😊", "😉", "😍", "🥰",
+    "😘", "😋", "😎", "🤩", "🥳", "😅", "🙂", "🙃", "🤔",
+    "😢", "😭", "😡", "😱", "😴", "🤗", "🤭", "❤️",
+    "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "💔", "💕", "💯",
+    "👍", "👎", "👏", "🙏", "💪", "🤝", "✌️", "🤟", "👌", "👀",
+    "🔥", "🎉", "🎊", "✨", "⭐", "💫", "🚀", "✅", "❌", "⚡",
+    "🌍", "☀️", "🌙", "🌧️", "❄️", "🌈", "🌊", "🌳",
+    "📍", "📸", "🎥", "🎵", "🎧", "⚽", "🏀", "🏆", "🎮", "💻"
+]
+
 function CreatePostCard({ userId, avatarUrl, displayName, username }: Props) {
     const [content, setContent] = useState<string>("")
     const [selectedMedia, setSelectedMedia] = useState<SelectedMedia[]>([])
+    const [selectedLocation, setSelectedLocation] = useState<SelectedPostLocation | null>(null)
     const [error, setError] = useState<string>("")
     const [isExpanded, setIsExpanded] = useState<boolean>(false)
+    const [isEmojiOpen, setIsEmojiOpen] = useState<boolean>(false)
     const [isPending, setIsPending] = useState<boolean>(false)
 
     const submitLock = useRef(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const composerRef = useRef<HTMLDivElement>(null)
+    const textareaRef = useRef<HTMLTextAreaElement>(null)
+
     const router = useRouter()
+
+    useEffect(() => {
+        if (!isExpanded) return
+
+        const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+            const target = event.target as Node
+
+            if (composerRef.current?.contains(target)) return
+            if (isPending) return
+
+            setIsEmojiOpen(false)
+            setIsExpanded(false)
+        }
+
+        document.addEventListener("mousedown", handleClickOutside)
+        document.addEventListener("touchstart", handleClickOutside)
+
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside)
+            document.removeEventListener("touchstart", handleClickOutside)
+        }
+    }, [isExpanded, isPending])
 
     const handlePhotoClick = () => {
         if (isPending) return
 
         setIsExpanded(true)
+        setIsEmojiOpen(false)
         fileInputRef.current?.click()
     }
 
@@ -101,6 +142,47 @@ function CreatePostCard({ userId, avatarUrl, displayName, username }: Props) {
         setSelectedMedia([])
     }
 
+    const handleLocationChange = (location: SelectedPostLocation | null) => {
+        setSelectedLocation(location)
+        setError("")
+        setIsEmojiOpen(false)
+
+        if (location) {
+            setIsExpanded(true)
+        }
+    }
+
+    const handleEmojiSelect = (emoji: string) => {
+        const textarea = textareaRef.current
+
+        if (!textarea) {
+            const nextContent = `${content}${emoji}`
+
+            if (nextContent.length <= 5000) {
+                setContent(nextContent)
+            }
+
+            return
+        }
+
+        const start = textarea.selectionStart
+        const end = textarea.selectionEnd
+        const nextContent = `${content.slice(0, start)}${emoji}${content.slice(end)}`
+
+        if (nextContent.length > 5000) return
+
+        setContent(nextContent)
+        setError("")
+
+        requestAnimationFrame(() => {
+            textarea.focus()
+
+            const nextPosition = start + emoji.length
+
+            textarea.setSelectionRange(nextPosition, nextPosition)
+        })
+    }
+
     const handlePublish = async () => {
         if (submitLock.current) return
 
@@ -130,10 +212,11 @@ function CreatePostCard({ userId, avatarUrl, displayName, username }: Props) {
             const result = await createPost({
                 content: normalizedContent,
                 username,
-                mediaUrls: uploadedMedia.map((item) => item.url)
+                mediaUrls: uploadedMedia.map((item) => item.url),
+                taggedLocation: selectedLocation
             })
 
-            if (!result.success) {
+            if (result.success === false) {
                 if (uploadedPaths.length > 0) {
                     await removePostMedia(uploadedPaths)
                 }
@@ -146,6 +229,8 @@ function CreatePostCard({ userId, avatarUrl, displayName, username }: Props) {
 
             setContent("")
             clearSelectedMedia()
+            setSelectedLocation(null)
+            setIsEmojiOpen(false)
             setIsExpanded(false)
             router.refresh()
         } catch (error) {
@@ -163,7 +248,7 @@ function CreatePostCard({ userId, avatarUrl, displayName, username }: Props) {
     }
 
     return (
-        <div className="rounded-2xl border border-green-100 bg-white p-4">
+        <div ref={composerRef} className="rounded-2xl border border-green-100 bg-white p-4">
             <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple onChange={handleFilesChange} className="hidden" />
 
             <div className="flex items-start gap-3">
@@ -173,7 +258,7 @@ function CreatePostCard({ userId, avatarUrl, displayName, username }: Props) {
 
                 <div className="min-w-0 flex-1">
                     {isExpanded ? (
-                        <textarea value={content} onChange={(e) => { setContent(e.target.value); setError("") }} placeholder="Что у вас нового?" maxLength={5000} autoFocus className="min-h-[110] w-full resize-none rounded-xl border border-gray-100 bg-[#f8faf8] px-4 py-3 text-sm outline-none transition-colors placeholder:text-main-gray focus:border-main-green/40 focus:bg-white" />
+                        <textarea ref={textareaRef} value={content} onChange={(event) => { setContent(event.target.value); setError("") }} placeholder="Что у вас нового?" maxLength={5000} autoFocus className="min-h-[110] w-full resize-none rounded-xl border border-gray-100 bg-[#f8faf8] px-4 py-3 text-sm outline-none transition-colors placeholder:text-main-gray focus:border-main-green/40 focus:bg-white" />
                     ) : (
                         <button type="button" onClick={() => setIsExpanded(true)} className="flex h-11 w-full cursor-pointer items-center rounded-xl border border-gray-100 bg-[#f8faf8] px-4 text-left text-sm text-main-gray transition-colors hover:border-green-100 hover:bg-green-50/50">
                             Что у вас нового?
@@ -188,7 +273,7 @@ function CreatePostCard({ userId, avatarUrl, displayName, username }: Props) {
                 </div>
             </div>
 
-            {selectedMedia.length > 0 && (
+            {isExpanded && selectedMedia.length > 0 && (
                 <div className="mt-4">
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                         {selectedMedia.map((item, index) => (
@@ -208,33 +293,63 @@ function CreatePostCard({ userId, avatarUrl, displayName, username }: Props) {
                 </div>
             )}
 
-            {error && (
+            {isExpanded && selectedLocation && (
+                <div className="mt-3 flex items-center gap-2 rounded-xl bg-green-50 px-3 py-2">
+                    <MapPin className="size-4 shrink-0 text-main-green" />
+
+                    <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium text-gray-700">{selectedLocation.name}</div>
+                    </div>
+
+                    <button type="button" onClick={() => setSelectedLocation(null)} disabled={isPending} aria-label="Убрать место" title="Убрать место" className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-main-gray transition-colors hover:bg-white hover:text-red-500 disabled:pointer-events-none disabled:opacity-50">
+                        <X className="size-4" />
+                    </button>
+                </div>
+            )}
+
+            {isExpanded && error && (
                 <div className="mt-3 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">
                     {error}
                 </div>
             )}
 
-            <div className="mt-4 grid grid-cols-4 gap-1 border-t border-gray-100 pt-3">
-                <button type="button" onClick={handlePhotoClick} disabled={isPending || selectedMedia.length >= MAX_MEDIA_COUNT} className={`flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl py-2.5 transition-colors disabled:pointer-events-none disabled:opacity-50 sm:flex-row sm:gap-2 ${selectedMedia.length > 0 ? "bg-green-50 text-main-green" : "text-main-gray hover:bg-green-50 hover:text-main-green"}`}>
-                    <ImagePlus className="size-5" />
-                    <span className="text-xs sm:text-sm">Фото</span>
-                </button>
+            {isExpanded && (
+                <div className="mt-4 grid grid-cols-5 gap-1 border-t border-gray-100 pt-3">
+                    <button type="button" onClick={handlePhotoClick} disabled={isPending || selectedMedia.length >= MAX_MEDIA_COUNT} className={`flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl py-2.5 transition-colors disabled:pointer-events-none disabled:opacity-50 sm:flex-row sm:gap-2 ${selectedMedia.length > 0 ? "bg-green-50 text-main-green" : "text-main-gray hover:bg-green-50 hover:text-main-green"}`}>
+                        <ImagePlus className="size-5" />
+                        <span className="text-xs sm:text-sm">Фото</span>
+                    </button>
 
-                <button type="button" className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl py-2.5 text-main-gray transition-colors hover:bg-green-50 hover:text-main-green sm:flex-row sm:gap-2">
-                    <Video className="size-5" />
-                    <span className="text-xs sm:text-sm">Видео</span>
-                </button>
+                    {/* <button type="button" disabled={isPending} className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl py-2.5 text-main-gray transition-colors hover:bg-green-50 hover:text-main-green disabled:pointer-events-none disabled:opacity-50 sm:flex-row sm:gap-2">
+                        <Video className="size-5" />
+                        <span className="text-xs sm:text-sm">Видео</span>
+                    </button>
 
-                <button type="button" className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl py-2.5 text-main-gray transition-colors hover:bg-green-50 hover:text-main-green sm:flex-row sm:gap-2">
-                    <BarChart3 className="size-5" />
-                    <span className="text-xs sm:text-sm">Опрос</span>
-                </button>
+                    <button type="button" disabled={isPending} className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl py-2.5 text-main-gray transition-colors hover:bg-green-50 hover:text-main-green disabled:pointer-events-none disabled:opacity-50 sm:flex-row sm:gap-2">
+                        <BarChart3 className="size-5" />
+                        <span className="text-xs sm:text-sm">Опрос</span>
+                    </button> */}
 
-                <button type="button" className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl py-2.5 text-main-gray transition-colors hover:bg-green-50 hover:text-main-green sm:flex-row sm:gap-2">
-                    <Smile className="size-5" />
-                    <span className="text-xs sm:text-sm">Настроение</span>
-                </button>
-            </div>
+                    <button type="button" onClick={() => setIsEmojiOpen((prev) => !prev)} disabled={isPending} className={`flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl py-2.5 transition-colors disabled:pointer-events-none disabled:opacity-50 sm:flex-row sm:gap-2 ${isEmojiOpen ? "bg-green-50 text-main-green" : "text-main-gray hover:bg-green-50 hover:text-main-green"}`}>
+                        <Smile className="size-5" />
+                        <span className="text-xs sm:text-sm">Эмодзи</span>
+                    </button>
+
+                    <PostLocationPicker value={selectedLocation} onChange={handleLocationChange} variant="toolbar" disabled={isPending} />
+                </div>
+            )}
+
+            {isExpanded && isEmojiOpen && (
+                <div className="mt-2 rounded-2xl border border-green-100 bg-white p-3 shadow-sm">
+                    <div className="grid grid-cols-8 gap-1 sm:grid-cols-10">
+                        {EMOJIS.map((emoji, index) => (
+                            <button key={`${emoji}-${index}`} type="button" onClick={() => handleEmojiSelect(emoji)} disabled={isPending} className="flex aspect-square cursor-pointer items-center justify-center rounded-lg text-xl transition-colors hover:bg-green-50 disabled:pointer-events-none disabled:opacity-50">
+                                {emoji}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {isExpanded && (
                 <div className="mt-3 flex justify-end">

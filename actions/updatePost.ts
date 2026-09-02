@@ -5,11 +5,18 @@ import { supabaseAdmin } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 
+type TaggedLocation = {
+    name: string
+    latitude: number
+    longitude: number
+}
+
 type Props = {
     postId: string
     content: string
     username: string
     mediaUrls?: string[]
+    taggedLocation: TaggedLocation | null
 }
 
 type UpdatePostResult =
@@ -20,6 +27,9 @@ type UpdatePostResult =
             id: string
             content: string | null
             media_urls: string[] | null
+            tagged_location_name: string | null
+            tagged_lat: number | null
+            tagged_lon: number | null
         }
     }
     | {
@@ -40,9 +50,10 @@ function getStoragePath(url: string) {
     return decodeURIComponent(path)
 }
 
-export async function updatePost({ content, username, postId, mediaUrls = [] }: Props): Promise<UpdatePostResult> {
+export async function updatePost({ content, username, postId, mediaUrls = [], taggedLocation }: Props): Promise<UpdatePostResult> {
     const normalizedContent = content.trim()
     const normalizedMediaUrls = [...new Set(mediaUrls.filter((url) => url.trim().length > 0))]
+    const normalizedLocationName = taggedLocation?.name.trim() ?? ""
 
     if (!postId) {
         return {
@@ -69,6 +80,36 @@ export async function updatePost({ content, username, postId, mediaUrls = [] }: 
         return {
             success: false,
             error: "Можно добавить не более 10 фотографий"
+        }
+    }
+
+    if (taggedLocation) {
+        if (!normalizedLocationName) {
+            return {
+                success: false,
+                error: "Укажите название места"
+            }
+        }
+
+        if (normalizedLocationName.length > 100) {
+            return {
+                success: false,
+                error: "Название места слишком длинное"
+            }
+        }
+
+        if (!Number.isFinite(taggedLocation.latitude) || taggedLocation.latitude < -90 || taggedLocation.latitude > 90) {
+            return {
+                success: false,
+                error: "Некорректная широта места"
+            }
+        }
+
+        if (!Number.isFinite(taggedLocation.longitude) || taggedLocation.longitude < -180 || taggedLocation.longitude > 180) {
+            return {
+                success: false,
+                error: "Некорректная долгота места"
+            }
         }
     }
 
@@ -116,11 +157,14 @@ export async function updatePost({ content, username, postId, mediaUrls = [] }: 
         }
 
         const removedMediaUrls = existingMediaUrls.filter((url) => !normalizedMediaUrls.includes(url))
+        const taggedLocationPoint = taggedLocation ? `POINT(${taggedLocation.longitude} ${taggedLocation.latitude})` : null
 
         const { data, error } = await supabase.from("posts").update({
             content: normalizedContent || null,
-            media_urls: normalizedMediaUrls.length > 0 ? normalizedMediaUrls : null
-        }).eq("id", postId).eq("user_id", user.id).select("id,content,media_urls").maybeSingle()
+            media_urls: normalizedMediaUrls.length > 0 ? normalizedMediaUrls : null,
+            tagged_location: taggedLocationPoint,
+            tagged_location_name: taggedLocation ? normalizedLocationName : null
+        }).eq("id", postId).eq("user_id", user.id).select("id,content,media_urls,tagged_location_name,tagged_lat,tagged_lon").maybeSingle()
 
         if (error) {
             console.error("POST UPDATE ERROR:", error)
@@ -159,7 +203,10 @@ export async function updatePost({ content, username, postId, mediaUrls = [] }: 
             post: {
                 id: data.id,
                 content: data.content,
-                media_urls: Array.isArray(data.media_urls) ? data.media_urls : null
+                media_urls: Array.isArray(data.media_urls) ? data.media_urls : null,
+                tagged_location_name: data.tagged_location_name,
+                tagged_lat: data.tagged_lat,
+                tagged_lon: data.tagged_lon
             }
         }
     } catch (error) {

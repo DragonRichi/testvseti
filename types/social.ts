@@ -5,6 +5,7 @@ export type Profile = {
     avatar_url: string | null
 }
 
+
 export type Post = {
     id: string
     user_id: string
@@ -19,6 +20,9 @@ export type Post = {
     city: string | null
     region: string | null
     country_code: string | null
+    tagged_location_name: string | null
+    tagged_lat: number | null
+    tagged_lon: number | null
 }
 
 export type CommentAuthor = {
