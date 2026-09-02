@@ -1,4 +1,4 @@
-import FeedSidebar from "@/components/Feed/FeedSidebar"
+import SocialLayout from "@/components/Layout/SocialLayout"
 import ProfileFeed from "@/components/Profile/ProfileFeed"
 import ProfileHeader from "@/components/Profile/ProfileHeader"
 import { createClient } from "@/lib/supabase/server"
@@ -6,7 +6,9 @@ import type { CommentsByPostId, PostCommentNode } from "@/types/social"
 import { notFound, redirect } from "next/navigation"
 
 type Props = {
-    params: Promise<{ username: string }>
+    params: Promise<{
+        username: string
+    }>
 }
 
 async function Page({ params }: Props) {
@@ -14,7 +16,9 @@ async function Page({ params }: Props) {
 
     const supabase = await createClient()
 
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+        data: { user }
+    } = await supabase.auth.getUser()
 
     if (!user) redirect("/")
 
@@ -34,12 +38,13 @@ async function Page({ params }: Props) {
 
     const isOwnProfile = user.id === profile.id
 
-    const { data: posts, count: postsCount, error: postsError } = await supabase.from("posts").select("id,user_id,content,media_urls,comment_count,like_count,view_count,share_count,created_at,visibility", { count: "exact" }).eq("user_id", profile.id).eq("visibility", "all").order("created_at", { ascending: false })
+    const { data: posts, error: postsError } = await supabase.from("posts").select("id,user_id,content,media_urls,comment_count,like_count,view_count,share_count,created_at,visibility,city,region,country_code").eq("user_id", profile.id).order("created_at", { ascending: false })
 
     if (postsError) {
         console.error("POSTS LOAD ERROR:", postsError)
     }
 
+    const postsCount = posts?.length ?? 0
     const postIds = (posts ?? []).map((post) => post.id)
 
     let commentsByPostId: CommentsByPostId = {}
@@ -60,7 +65,7 @@ async function Page({ params }: Props) {
             if (commentProfilesError) {
                 console.error("COMMENT PROFILES LOAD ERROR:", commentProfilesError)
             } else {
-                const profileMap = new Map((commentProfiles ?? []).map((profile) => [profile.id, profile]))
+                const profileMap = new Map((commentProfiles ?? []).map((commentProfile) => [commentProfile.id, commentProfile]))
                 const commentMap = new Map<string, PostCommentNode>()
 
                 commentsData.forEach((comment) => {
@@ -105,7 +110,7 @@ async function Page({ params }: Props) {
         if (likedPostsError) {
             console.error("LIKED POSTS LOAD ERROR:", likedPostsError)
         } else {
-            likedPostIds = likedPosts.map((like) => like.post_id)
+            likedPostIds = (likedPosts ?? []).map((like) => like.post_id)
         }
     }
 
@@ -117,24 +122,16 @@ async function Page({ params }: Props) {
         if (likedCommentsError) {
             console.error("LIKED COMMENTS LOAD ERROR:", likedCommentsError)
         } else {
-            likedCommentIds = likedComments.map((like) => like.comment_id)
+            likedCommentIds = (likedComments ?? []).map((like) => like.comment_id)
         }
     }
 
     return (
-        <div className="min-h-screen bg-[#f7faf7]">
-            <div className="mx-auto grid min-h-screen w-full max-w-[1050] lg:grid-cols-[250px_minmax(0,800px)]">
-                <FeedSidebar profile={currentProfile} />
+        <SocialLayout profile={currentProfile}>
+            <ProfileHeader postsCount={postsCount} profile={profile} isOwnProfile={isOwnProfile} />
 
-                <main className="min-w-0 px-4 pb-10 pt-20 sm:px-6 lg:pt-4">
-                    <div className="mx-auto w-full max-w-[800]">
-                        <ProfileHeader postsCount={postsCount ?? 0} profile={profile} isOwnProfile={isOwnProfile} />
-
-                        <ProfileFeed posts={posts ?? []} isOwnProfile={isOwnProfile} profile={profile} likedPostIds={likedPostIds} likedCommentIds={likedCommentIds} currentProfile={currentProfile} commentsByPostId={commentsByPostId} />
-                    </div>
-                </main>
-            </div>
-        </div>
+            <ProfileFeed posts={posts ?? []} isOwnProfile={isOwnProfile} profile={profile} likedPostIds={likedPostIds} likedCommentIds={likedCommentIds} currentProfile={currentProfile} commentsByPostId={commentsByPostId} />
+        </SocialLayout>
     )
 }
 
