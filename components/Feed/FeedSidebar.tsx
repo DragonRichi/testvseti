@@ -1,12 +1,12 @@
 "use client"
 
+import LogoutButton from "../Auth/LogoutButton"
+import Logo from "../ui/Logo"
 import { Bell, Home, Menu, MessageCircle, Search, UserRound, X } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
-import Logo from "../ui/Logo"
-import LogoutButton from "../Auth/LogoutButton"
 
 type Profile = {
     id: string
@@ -90,24 +90,27 @@ function FeedSidebar({ profile }: Props) {
             </nav>
 
             {mobile && (
-                <Link href={profileHref} onClick={() => setIsOpen(false)} className="mt-auto flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-green-50">
-                    <Image src={profile?.avatar_url ?? "/user-avatar.svg"} alt={profile?.display_name ?? "Профиль"} width={44} height={44} className="size-11 rounded-full object-cover" loading="eager" unoptimized={process.env.NODE_ENV === "development"} />
-
-                    <div className="min-w-0 flex flex-col">
-                        <div className="truncate text-sm font-bold text-gray-900">
-                            {profile?.display_name ?? "Профиль"}
-                        </div>
-
-                        {profile?.username && (
-                            <div className="truncate text-xs text-main-gray">
-                                @{profile.username}
+                <div className="mt-auto pt-6">
+                    <div className="border-t border-gray-100 pt-4">
+                        <Link href={profileHref} onClick={() => setIsOpen(false)} className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-green-50">
+                            <div className="relative size-11 shrink-0 overflow-hidden rounded-full bg-bg-green">
+                                <Image src={profile?.avatar_url ?? "/user-avatar.svg"} alt={profile?.display_name ?? "Профиль"} fill sizes="44px" loading="eager" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
                             </div>
-                        )}
-                        <div className="mt-2 border-t border-gray-100 pt-2">
+
+                            <div className="min-w-0 flex-1">
+                                <div className="truncate text-sm font-bold text-gray-900">{profile?.display_name ?? "Профиль"}</div>
+
+                                {profile?.username && (
+                                    <div className="mt-0.5 truncate text-xs text-main-gray">@{profile.username}</div>
+                                )}
+                            </div>
+                        </Link>
+
+                        <div className="mt-2">
                             <LogoutButton variant="menu" />
                         </div>
                     </div>
-                </Link>
+                </div>
             )}
         </>
     )
@@ -134,7 +137,7 @@ function FeedSidebar({ profile }: Props) {
             </div>
 
             <div onClick={() => setIsOpen(false)} className={`fixed inset-0 z-50 overscroll-none bg-black/25 backdrop-blur-[2px] transition-all duration-300 lg:hidden ${isOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}>
-                <aside onClick={(e) => e.stopPropagation()} className={`absolute left-0 top-0 flex h-full w-[290] flex-col overflow-y-auto overscroll-contain bg-white px-4 py-5 shadow-2xl transition-transform duration-300 ease-out ${isOpen ? "translate-x-0" : "-translate-x-full"}`}>
+                <aside onClick={(event) => event.stopPropagation()} className={`absolute left-0 top-0 flex h-full w-[290] flex-col overflow-y-auto overscroll-contain bg-white px-4 py-5 shadow-2xl transition-transform duration-300 ease-out ${isOpen ? "translate-x-0" : "-translate-x-full"}`}>
                     <div className="flex items-center justify-between">
                         <Logo />
 
