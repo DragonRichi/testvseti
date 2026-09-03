@@ -4,13 +4,11 @@ import { syncPreciseLocation } from "@/actions/syncPreciseLocation"
 import { CheckCircle2, LocateFixed, MapPin, RefreshCw, Settings, TriangleAlert } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
 
-type Status = "checking" | "prompt" | "requesting" | "ready" | "denied" | "imprecise" | "unsupported" | "error"
+type Status = "checking" | "prompt" | "requesting" | "ready" | "denied" | "unsupported" | "error"
 
 type LocationInfo = {
     accuracy: number
 }
-
-const MAX_ACCURACY_M = 1000
 
 function GeoChatLocationGate() {
     const [status, setStatus] = useState<Status>("checking")
@@ -46,11 +44,6 @@ function GeoChatLocationGate() {
                     if (result.success === false) {
                         setError(result.error)
                         setStatus("error")
-                        return
-                    }
-
-                    if (accuracy > MAX_ACCURACY_M) {
-                        setStatus("imprecise")
                         return
                     }
 
@@ -153,16 +146,14 @@ function GeoChatLocationGate() {
 
                     <h2 className="mt-5 text-xl font-bold text-gray-900">Найдём геочаты рядом</h2>
 
-                    <p className="mt-2 text-sm leading-6 text-main-gray">
-                        Геочаты доступны только людям, которые действительно находятся внутри заданной территории. Для этого ВСети нужно ваше текущее местоположение.
-                    </p>
+                    <p className="mt-2 text-sm leading-6 text-main-gray">Геочаты показываются в зависимости от вашего текущего местоположения. Можно использовать как точную, так и примерную геопозицию.</p>
 
                     <button type="button" onClick={() => void requestLocation()} className="mt-6 flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-main-green px-5 text-sm font-medium text-white transition-colors hover:bg-hover-green">
                         <LocateFixed className="size-4" />
                         <span>Разрешить местоположение</span>
                     </button>
 
-                    <div className="mt-4 text-xs leading-5 text-main-gray">Точное местоположение используется только для функций, которым оно действительно необходимо.</div>
+                    <div className="mt-4 text-xs leading-5 text-main-gray">Местоположение используется для определения доступных геочатов рядом с вами.</div>
                 </div>
             </div>
         )
@@ -178,46 +169,13 @@ function GeoChatLocationGate() {
 
                     <h2 className="mt-5 text-xl font-bold text-gray-900">Доступ к геолокации запрещён</h2>
 
-                    <p className="mt-2 text-sm leading-6 text-main-gray">
-                        Чтобы пользоваться геочатами, разрешите этому сайту доступ к местоположению в настройках браузера или телефона.
-                    </p>
+                    <p className="mt-2 text-sm leading-6 text-main-gray">Чтобы пользоваться геочатами, разрешите ВСети доступ к местоположению в настройках браузера или телефона.</p>
 
-                    <div className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
-                        После изменения разрешения вернитесь сюда и нажмите «Проверить снова».
-                    </div>
+                    <div className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">После изменения разрешения вернитесь сюда и нажмите «Проверить снова».</div>
 
                     <button type="button" onClick={() => void checkPermission()} className="mt-5 flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-green-200 bg-white px-5 text-sm font-medium text-main-green transition-colors hover:bg-green-50">
                         <RefreshCw className="size-4" />
                         <span>Проверить снова</span>
-                    </button>
-                </div>
-            </div>
-        )
-    }
-
-    if (status === "imprecise") {
-        const accuracyKm = locationInfo ? Math.max(locationInfo.accuracy / 1000, 0.1).toFixed(1) : null
-
-        return (
-            <div className="flex min-h-[420] items-center justify-center rounded-2xl border border-amber-100 bg-white px-5 py-10">
-                <div className="flex max-w-[480] flex-col items-center text-center">
-                    <div className="flex size-16 items-center justify-center rounded-full bg-amber-50 text-amber-600">
-                        <TriangleAlert className="size-7" />
-                    </div>
-
-                    <h2 className="mt-5 text-xl font-bold text-gray-900">Нужно точное местоположение</h2>
-
-                    <p className="mt-2 text-sm leading-6 text-main-gray">
-                        Сейчас устройство передаёт примерное местоположение{accuracyKm ? ` с погрешностью около ${accuracyKm} км` : ""}. Для геочатов этого недостаточно.
-                    </p>
-
-                    <div className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
-                        В настройках доступа к местоположению включите для ВСети точную геопозицию.
-                    </div>
-
-                    <button type="button" onClick={() => void requestLocation()} className="mt-5 flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-main-green px-5 text-sm font-medium text-white transition-colors hover:bg-hover-green">
-                        <LocateFixed className="size-4" />
-                        <span>Проверить точность снова</span>
                     </button>
                 </div>
             </div>
@@ -240,9 +198,7 @@ function GeoChatLocationGate() {
             <div className="flex min-h-[420] items-center justify-center rounded-2xl border border-red-100 bg-white px-5 py-10">
                 <div className="flex max-w-[420] flex-col items-center text-center">
                     <TriangleAlert className="size-8 text-red-500" />
-
                     <div className="mt-4 text-base font-semibold text-gray-900">Не удалось определить местоположение</div>
-
                     <div className="mt-2 text-sm leading-6 text-main-gray">{error || "Попробуйте ещё раз"}</div>
 
                     <button type="button" onClick={() => void requestLocation()} className="mt-5 flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-green-200 px-5 text-sm font-medium text-main-green transition-colors hover:bg-green-50">
@@ -254,6 +210,9 @@ function GeoChatLocationGate() {
         )
     }
 
+    const accuracy = locationInfo?.accuracy ?? null
+    const isApproximate = accuracy !== null && accuracy > 1000
+
     return (
         <div className="rounded-2xl border border-green-100 bg-white">
             <div className="flex min-h-[420] flex-col items-center justify-center px-5 text-center">
@@ -263,13 +222,11 @@ function GeoChatLocationGate() {
 
                 <h2 className="mt-5 text-xl font-bold text-gray-900">Местоположение определено</h2>
 
-                <p className="mt-2 max-w-[460] text-sm leading-6 text-main-gray">
-                    Всё готово. Здесь появятся геочаты, доступные рядом с вашим текущим местоположением.
-                </p>
+                <p className="mt-2 max-w-[460] text-sm leading-6 text-main-gray">Всё готово. Здесь появятся геочаты, доступные рядом с вашим текущим местоположением.</p>
 
-                {locationInfo && (
+                {accuracy !== null && (
                     <div className="mt-4 rounded-full bg-green-50 px-3 py-1.5 text-xs font-medium text-main-green">
-                        Точность ±{Math.round(locationInfo.accuracy)} м
+                        {isApproximate ? `Примерное местоположение · ±${Math.max(1, Math.round(accuracy / 1000))} км` : `Точность ±${Math.round(accuracy)} м`}
                     </div>
                 )}
             </div>
