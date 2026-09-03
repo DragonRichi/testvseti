@@ -27,6 +27,8 @@ function createIpHash(ip: string) {
 
 export async function getCachedIpLocation(ip: string): Promise<GeoLocation | null> {
     const ipHash = createIpHash(ip)
+    const forceIpInfo = process.env.GEO_FORCE_IPINFO === "true"
+    const forceAllFail = process.env.GEO_FORCE_ALL_FAIL === "true"
 
     const { data: cachedLocation, error: cacheError } = await supabaseAdmin
         .from("geo_ip_cache")
@@ -56,18 +58,13 @@ export async function getCachedIpLocation(ip: string): Promise<GeoLocation | nul
 
     console.log("GEO CACHE MISS")
 
-    // let location = await getIpLocation(ip)
-    // let provider = "ipwho.is"
-
-    const forceIpInfo = process.env.GEO_FORCE_IPINFO === "true"
-
-    let location = forceIpInfo ? null : await getIpLocation(ip)
+    let location = forceAllFail || forceIpInfo ? null : await getIpLocation(ip)
     let provider = "ipwho.is"
 
     if (!location) {
         console.log("GEO PRIMARY FAILED, TRYING IPINFO")
 
-        location = await getIpInfoLocation(ip)
+        location = forceAllFail ? null : await getIpInfoLocation(ip)
         provider = "ipinfo"
     }
 
