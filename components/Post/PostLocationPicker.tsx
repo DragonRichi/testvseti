@@ -158,7 +158,7 @@ function PostLocationPicker({ value, onChange, variant = "default", disabled = f
             )}
 
             {isOpen && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4">
+                <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/40 p-4">
                     <div className="max-h-[95vh] w-full max-w-[700] overflow-y-auto rounded-3xl bg-white p-5 shadow-xl sm:p-6">
                         <div className="flex items-start justify-between gap-4">
                             <div>
