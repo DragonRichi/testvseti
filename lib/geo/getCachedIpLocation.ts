@@ -56,7 +56,12 @@ export async function getCachedIpLocation(ip: string): Promise<GeoLocation | nul
 
     console.log("GEO CACHE MISS")
 
-    let location = await getIpLocation(ip)
+    // let location = await getIpLocation(ip)
+    // let provider = "ipwho.is"
+
+    const forceIpInfo = process.env.GEO_FORCE_IPINFO === "true"
+
+    let location = forceIpInfo ? null : await getIpLocation(ip)
     let provider = "ipwho.is"
 
     if (!location) {
