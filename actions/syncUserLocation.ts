@@ -1,6 +1,7 @@
 "use server"
 
 import { getCachedIpLocation } from "@/lib/geo/getCachedIpLocation"
+import { getIpLocation } from "@/lib/geo/getIpLocation"
 import { getRequestIp } from "@/lib/geo/getRequestIp"
 import { createClient } from "@/lib/supabase/server"
 
@@ -39,14 +40,11 @@ export async function syncUserLocation(): Promise<Result> {
 
     const ip = await getRequestIp()
 
-    if (!ip) {
-        return {
-            success: false,
-            error: "Не удалось определить IP-адрес"
-        }
-    }
-
-    const geo = await getCachedIpLocation(ip)
+    const geo = ip
+        ? await getCachedIpLocation(ip)
+        : process.env.NODE_ENV === "development"
+            ? await getIpLocation(null)
+            : null
 
     if (!geo) {
         return {

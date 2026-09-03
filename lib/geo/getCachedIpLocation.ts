@@ -1,10 +1,19 @@
 import "server-only"
 
 import { createHmac } from "crypto"
+import { getIpInfoLocation } from "@/lib/geo/getIpInfoLocation"
 import { getIpLocation } from "@/lib/geo/getIpLocation"
 import { supabaseAdmin } from "@/lib/supabase/admin"
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000
+
+type GeoLocation = {
+    city: string
+    region: string
+    countryCode: string
+    latitude: number
+    longitude: number
+}
 
 function createIpHash(ip: string) {
     const secret = process.env.GEO_CACHE_SECRET
@@ -16,9 +25,8 @@ function createIpHash(ip: string) {
     return createHmac("sha256", secret).update(ip).digest("hex")
 }
 
-export async function getCachedIpLocation(ip: string) {
+export async function getCachedIpLocation(ip: string): Promise<GeoLocation | null> {
     const ipHash = createIpHash(ip)
-    const minimumUpdatedAt = new Date(Date.now() - CACHE_TTL_MS).toISOString()
 
     const { data: cachedLocation, error: cacheError } = await supabaseAdmin
         .from("geo_ip_cache")
@@ -30,21 +38,33 @@ export async function getCachedIpLocation(ip: string) {
         console.error("GEO CACHE READ ERROR:", cacheError)
     }
 
-    if (cachedLocation && cachedLocation.updated_at >= minimumUpdatedAt) {
-        console.log("GEO CACHE HIT:", cachedLocation.city, cachedLocation.country_code)
+    if (cachedLocation) {
+        const cacheAge = Date.now() - new Date(cachedLocation.updated_at).getTime()
 
-        return {
-            city: cachedLocation.city,
-            region: cachedLocation.region,
-            countryCode: cachedLocation.country_code,
-            latitude: cachedLocation.latitude,
-            longitude: cachedLocation.longitude
+        if (cacheAge < CACHE_TTL_MS) {
+            console.log("GEO CACHE HIT:", cachedLocation.city, cachedLocation.country_code)
+
+            return {
+                city: cachedLocation.city,
+                region: cachedLocation.region,
+                countryCode: cachedLocation.country_code,
+                latitude: cachedLocation.latitude,
+                longitude: cachedLocation.longitude
+            }
         }
     }
 
     console.log("GEO CACHE MISS")
 
-    const location = await getIpLocation(ip)
+    let location = await getIpLocation(ip)
+    let provider = "ipwho.is"
+
+    if (!location) {
+        console.log("GEO PRIMARY FAILED, TRYING IPINFO")
+
+        location = await getIpInfoLocation(ip)
+        provider = "ipinfo"
+    }
 
     if (!location) {
         if (cachedLocation) {
@@ -59,6 +79,7 @@ export async function getCachedIpLocation(ip: string) {
             }
         }
 
+        console.error("GEO ALL PROVIDERS FAILED")
         return null
     }
 
@@ -83,7 +104,7 @@ export async function getCachedIpLocation(ip: string) {
         console.error("GEO CACHE WRITE ERROR:", upsertError)
     }
 
-    console.log("GEO CACHE SAVED:", location.city, location.countryCode)
+    console.log("GEO CACHE SAVED:", provider, location.city, location.countryCode)
 
     return location
 }
