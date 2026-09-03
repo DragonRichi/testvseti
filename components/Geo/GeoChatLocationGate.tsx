@@ -1,7 +1,8 @@
 "use client"
 
 import { syncPreciseLocation } from "@/actions/syncPreciseLocation"
-import { CheckCircle2, LocateFixed, MapPin, RefreshCw, Settings, TriangleAlert } from "lucide-react"
+import { CheckCircle2, LocateFixed, MapPin, Plus, RefreshCw, Settings, TriangleAlert } from "lucide-react"
+import Link from "next/link"
 import { useCallback, useEffect, useState } from "react"
 
 type Status = "checking" | "prompt" | "requesting" | "ready" | "denied" | "unsupported" | "error"
@@ -215,7 +216,7 @@ function GeoChatLocationGate() {
 
     return (
         <div className="rounded-2xl border border-green-100 bg-white">
-            <div className="flex min-h-[420] flex-col items-center justify-center px-5 text-center">
+            <div className="flex min-h-[420] flex-col items-center justify-center px-5 py-10 text-center">
                 <div className="flex size-16 items-center justify-center rounded-full bg-green-50 text-main-green">
                     <CheckCircle2 className="size-8" />
                 </div>
@@ -229,6 +230,11 @@ function GeoChatLocationGate() {
                         {isApproximate ? `Примерное местоположение · ±${Math.max(1, Math.round(accuracy / 1000))} км` : `Точность ±${Math.round(accuracy)} м`}
                     </div>
                 )}
+
+                <Link href="/geochats/new" className="mt-6 flex h-11 items-center justify-center gap-2 rounded-xl bg-main-green px-5 text-sm font-medium text-white transition-colors hover:bg-hover-green">
+                    <Plus className="size-4" />
+                    <span>Создать геочат</span>
+                </Link>
             </div>
         </div>
     )
