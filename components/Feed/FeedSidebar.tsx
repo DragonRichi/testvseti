@@ -2,7 +2,7 @@
 
 import LogoutButton from "../Auth/LogoutButton"
 import Logo from "../ui/Logo"
-import { Bell, Home, Menu, MessageCircle, Search, UserRound, X } from "lucide-react"
+import { Bell, Home, MapPinned, Menu, MessageCircle, Search, UserRound, X } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -29,6 +29,11 @@ const menuItems = [
         name: "Сообщения",
         href: "/messages",
         icon: MessageCircle
+    },
+    {
+        name: "Геочаты",
+        href: "/geochats",
+        icon: MapPinned
     },
     {
         name: "Окружение",

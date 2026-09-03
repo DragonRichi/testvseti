@@ -13,7 +13,6 @@ function SocialLayout({ profile, children }: Props) {
     return (
         <div className="min-h-screen bg-[#f7faf7]">
             <GeoLocationSync userId={profile.id} />
-            <PreciseLocationSync />
             <div className="mx-auto grid min-h-screen w-full max-w-[1070] lg:grid-cols-[250px_minmax(0,800px)] lg:gap-5">
                 <FeedSidebar profile={profile} />
 
