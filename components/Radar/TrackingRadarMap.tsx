@@ -34,20 +34,23 @@ function TrackingRadarMap({ point, radiusM, onPointChange }: Props) {
     const center: [number, number] = [53.7, 27.95]
 
     return (
-        <div className="h-[420] w-full overflow-hidden rounded-2xl border border-gray-200 sm:h-[500]">
-            <MapContainer center={center} zoom={6} scrollWheelZoom className="h-full w-full">
-                <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        <div className="relative h-[420] w-full overflow-hidden rounded-2xl border border-gray-200 sm:h-[500]">
+            <MapContainer attributionControl={false} center={center} zoom={6} scrollWheelZoom className="h-full w-full">
+                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
                 <MapClickHandler onPointChange={onPointChange} />
 
                 {point && (
                     <>
                         <Circle center={[point.latitude, point.longitude]} radius={radiusM} pathOptions={{ fillOpacity: 0.12 }} />
-
                         <CircleMarker center={[point.latitude, point.longitude]} radius={7} />
                     </>
                 )}
             </MapContainer>
+
+            <div className="absolute bottom-1 right-1 z-500 rounded bg-white/90 px-1.5 py-0.5 text-[10px] text-gray-600">
+                © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" className="hover:underline">OpenStreetMap contributors</a>
+            </div>
         </div>
     )
 }

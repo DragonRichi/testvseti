@@ -31,7 +31,7 @@ const menuItems = [
         icon: MessageCircle
     },
     {
-        name: "Контакты",
+        name: "Окружение",
         href: "/contacts",
         icon: UserRound
     },
@@ -117,12 +117,12 @@ function FeedSidebar({ profile }: Props) {
 
     return (
         <>
-            <aside className="sticky top-0 hidden h-screen flex-col border-r border-green-100 bg-white px-4 py-5 lg:flex">
+            <aside className="sticky top-0 hidden h-screen flex-col border-r border-green-100 bg-white px-4 py-5 lg:flex ">
                 <Logo />
                 {renderMenu()}
             </aside>
 
-            <div className="fixed left-0 right-0 top-0 z-40 flex h-16 items-center border-b border-black/5 bg-white/95 px-4 backdrop-blur-md lg:hidden">
+            <div className="fixed left-0 right-0 top-0 z-40  flex h-16 items-center border-b border-black/5 bg-white/95 px-4 backdrop-blur-md lg:hidden">
                 <Logo />
 
                 <div className="ml-auto flex items-center gap-1">
@@ -136,7 +136,7 @@ function FeedSidebar({ profile }: Props) {
                 </div>
             </div>
 
-            <div onClick={() => setIsOpen(false)} className={`fixed inset-0 z-50 overscroll-none bg-black/25 backdrop-blur-[2px] transition-all duration-300 lg:hidden ${isOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}>
+            <div onClick={() => setIsOpen(false)} className={`fixed inset-0 z-9999 overscroll-none bg-black/25 backdrop-blur-[2px] transition-all duration-300 lg:hidden ${isOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}>
                 <aside onClick={(event) => event.stopPropagation()} className={`absolute left-0 top-0 flex h-full w-[290] flex-col overflow-y-auto overscroll-contain bg-white px-4 py-5 shadow-2xl transition-transform duration-300 ease-out ${isOpen ? "translate-x-0" : "-translate-x-full"}`}>
                     <div className="flex items-center justify-between">
                         <Logo />

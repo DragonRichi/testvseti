@@ -2,6 +2,8 @@ import { BadgeCheck, CalendarDays, Link2, MapPin, MoreHorizontal } from "lucide-
 import Image from "next/image"
 import Link from "next/link"
 import ProfileTabs from "./ProfileTabs"
+import FollowButton from "./FollowButton"
+import ProfileConnectionsStats from "./ProfileConnectionsStats"
 
 type Profile = {
     id: string
@@ -14,6 +16,7 @@ type Profile = {
     location_label: string | null
     website_url: string | null
     subscriber_count: number | null
+    following_count: number | null
     is_verified: boolean | null
     badge_title: string | null
 }
@@ -21,10 +24,11 @@ type Profile = {
 type Props = {
     profile: Profile
     isOwnProfile: boolean
+    isFollowing: boolean
     postsCount: number
 }
 
-function ProfileHeader({ isOwnProfile, profile, postsCount }: Props) {
+function ProfileHeader({ isOwnProfile, isFollowing, profile, postsCount }: Props) {
     const formattedBirthDate = profile.birth_date ? new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric" }).format(new Date(profile.birth_date)) : null
 
     return (
@@ -53,9 +57,7 @@ function ProfileHeader({ isOwnProfile, profile, postsCount }: Props) {
                                 Редактировать профиль
                             </Link>
                         ) : (
-                            <button type="button" className="flex h-10 min-w-0 flex-1 cursor-pointer items-center justify-center whitespace-nowrap rounded-xl bg-main-green px-5 text-sm font-medium text-white transition-colors hover:bg-hover-green sm:flex-none">
-                                Подписаться
-                            </button>
+                            <FollowButton profileId={profile.id} username={profile.username} initialFollowing={isFollowing} />
                         )}
 
                         <button type="button" aria-label="Ещё" className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-gray-200 bg-white text-main-gray transition-colors hover:bg-gray-50 hover:text-black">
@@ -66,7 +68,7 @@ function ProfileHeader({ isOwnProfile, profile, postsCount }: Props) {
 
                 <div className="mt-4 text-center sm:text-left">
                     <div className="flex items-center justify-center gap-2 sm:justify-start">
-                        <h1 className="min-w-0 break-words text-2xl font-bold tracking-tight sm:text-3xl">
+                        <h1 className="min-w-0 wrap-break-words text-2xl font-bold tracking-tight sm:text-3xl">
                             {profile.display_name}
                         </h1>
 
@@ -121,15 +123,7 @@ function ProfileHeader({ isOwnProfile, profile, postsCount }: Props) {
                         <div className="mt-1 text-xs text-main-gray">публикаций</div>
                     </div>
 
-                    <div className="border-b border-gray-100 px-2 py-4 text-center sm:border-b-0 sm:border-r">
-                        <div className="text-lg font-bold">{profile.subscriber_count ?? 0}</div>
-                        <div className="mt-1 text-xs text-main-gray">подписчиков</div>
-                    </div>
-
-                    <div className="border-r border-gray-100 px-2 py-4 text-center">
-                        <div className="text-lg font-bold">0</div>
-                        <div className="mt-1 text-xs text-main-gray">подписок</div>
-                    </div>
+                    <ProfileConnectionsStats profileId={profile.id} subscriberCount={profile.subscriber_count ?? 0} followingCount={profile.following_count ?? 0} />
 
                     <div className="px-2 py-4 text-center">
                         <div className="text-lg font-bold">0</div>

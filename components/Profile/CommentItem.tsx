@@ -8,6 +8,7 @@ import { Send } from "lucide-react"
 import Image from "next/image"
 import { useRef, useState } from "react"
 import CommentActions from "./CommentActions"
+import Link from "next/link"
 
 type Props = {
     comment: PostCommentNode
@@ -167,16 +168,16 @@ function CommentItem({ comment, postId, username, currentProfile, initialLiked, 
     return (
         <div>
             <div className="flex items-start gap-3">
-                <div className="relative size-9 shrink-0 overflow-hidden rounded-full bg-bg-green">
+                <Link href={`/profile/${currentProfile.username}`} className="relative size-9 shrink-0 overflow-hidden rounded-full bg-bg-green">
                     <Image src={comment.author?.avatar_url ?? "/user-avatar.svg"} alt={comment.author?.display_name ?? "Пользователь"} fill sizes="36px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
-                </div>
+                </Link>
 
                 <div className="min-w-0 flex-1">
                     <div className="rounded-2xl bg-[#f4f7f4] px-3.5 py-2.5">
                         <div className="flex items-center justify-between gap-3">
-                            <div className="min-w-0 truncate text-sm font-semibold">
+                            <Link href={`/profile/${currentProfile.username}`} className="min-w-0 truncate text-sm font-semibold">
                                 {comment.author?.display_name ?? "Пользователь"}
-                            </div>
+                            </Link>
 
                             {comment.user_id === currentProfile.id && !isEditing && (
                                 <CommentActions commentId={comment.id} postId={postId} username={username} onEdit={() => setIsEditing(true)} onDeleted={(commentCount) => { onRemove(comment.id); onCommentDeleted(commentCount) }} />
@@ -232,7 +233,7 @@ function CommentItem({ comment, postId, username, currentProfile, initialLiked, 
                             </span>
 
                             <button type="button" onClick={handleLike} className={`cursor-pointer whitespace-nowrap font-medium transition-colors ${isLiked ? "text-main-green" : "hover:text-main-green"}`}>
-                                Нравится{likesCount > 0 && ` ${likesCount}`}
+                                Нравится&nbsp;({likesCount > 0 && `${likesCount}`})
                             </button>
 
                             <button type="button" onClick={() => { setIsReplying((prev) => !prev); setReplyError("") }} className="cursor-pointer whitespace-nowrap font-medium transition-colors hover:text-main-green">

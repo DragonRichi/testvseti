@@ -13,6 +13,7 @@ import { useRef, useState } from "react"
 import CommentsSection from "./CommentsSection"
 import PostActions from "./PostActions"
 import PostMediaGrid from "./PostMediaGrid"
+import Link from "next/link"
 
 type Props = {
     profile: Profile
@@ -291,16 +292,16 @@ function PostCard({ profile, post, isOwnProfile, initialLiked, currentProfile, i
             <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple onChange={handleFilesChange} className="hidden" />
 
             <div className="flex items-start gap-3">
-                <div className="relative size-11 shrink-0 overflow-hidden rounded-full bg-bg-green">
+                <Link href={`/profile/${profile.username}`} className="relative size-11 shrink-0 overflow-hidden rounded-full bg-bg-green">
                     <Image src={profile.avatar_url ?? "/user-avatar.svg"} alt={profile.display_name} fill loading="eager" sizes="44px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
-                </div>
+                </Link>
 
                 <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-3">
                         <div>
-                            <div className="font-bold">
+                            <Link href={`/profile/${profile.username}`} className="font-bold">
                                 {profile.display_name}
-                            </div>
+                            </Link>
 
                             <div className="mt-0.5 text-xs text-main-gray">
                                 @{profile.username}

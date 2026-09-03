@@ -1,6 +1,7 @@
 "use client"
 
-import { CircleMarker, MapContainer, TileLayer, useMapEvents } from "react-leaflet"
+import { useEffect } from "react"
+import { CircleMarker, MapContainer, TileLayer, useMap, useMapEvents } from "react-leaflet"
 
 export type PostLocationPoint = {
     latitude: number
@@ -10,6 +11,16 @@ export type PostLocationPoint = {
 type ClickHandlerProps = {
     point: PostLocationPoint | null
     onPointChange: (point: PostLocationPoint) => void
+}
+
+function RemoveLeafletAttribution() {
+    const map = useMap()
+
+    useEffect(() => {
+        map.attributionControl.setPrefix(false)
+    }, [map])
+
+    return null
 }
 
 function ClickHandler({ point, onPointChange }: ClickHandlerProps) {
@@ -37,7 +48,8 @@ type Props = {
 function PostLocationMap({ point, onPointChange }: Props) {
     return (
         <MapContainer center={point ? [point.latitude, point.longitude] : [53.7, 27.95]} zoom={point ? 12 : 6} className="h-[360] w-full rounded-2xl sm:h-[420]">
-            <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            <RemoveLeafletAttribution />
             <ClickHandler point={point} onPointChange={onPointChange} />
         </MapContainer>
     )
