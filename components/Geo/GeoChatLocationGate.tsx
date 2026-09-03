@@ -1,8 +1,8 @@
 "use client"
 
 import { syncPreciseLocation } from "@/actions/syncPreciseLocation"
-import { CheckCircle2, LocateFixed, MapPin, Plus, RefreshCw, Settings, TriangleAlert } from "lucide-react"
-import Link from "next/link"
+import NearbyGeoChats from "@/components/GeoChat/NearbyGeoChats"
+import { LocateFixed, MapPin, RefreshCw, Settings, TriangleAlert } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
 
 type Status = "checking" | "prompt" | "requesting" | "ready" | "denied" | "unsupported" | "error"
@@ -212,32 +212,8 @@ function GeoChatLocationGate() {
     }
 
     const accuracy = locationInfo?.accuracy ?? null
-    const isApproximate = accuracy !== null && accuracy > 1000
 
-    return (
-        <div className="rounded-2xl border border-green-100 bg-white">
-            <div className="flex min-h-[420] flex-col items-center justify-center px-5 py-10 text-center">
-                <div className="flex size-16 items-center justify-center rounded-full bg-green-50 text-main-green">
-                    <CheckCircle2 className="size-8" />
-                </div>
-
-                <h2 className="mt-5 text-xl font-bold text-gray-900">Местоположение определено</h2>
-
-                <p className="mt-2 max-w-[460] text-sm leading-6 text-main-gray">Всё готово. Здесь появятся геочаты, доступные рядом с вашим текущим местоположением.</p>
-
-                {accuracy !== null && (
-                    <div className="mt-4 rounded-full bg-green-50 px-3 py-1.5 text-xs font-medium text-main-green">
-                        {isApproximate ? `Примерное местоположение · ±${Math.max(1, Math.round(accuracy / 1000))} км` : `Точность ±${Math.round(accuracy)} м`}
-                    </div>
-                )}
-
-                <Link href="/geochats/new" className="mt-6 flex h-11 items-center justify-center gap-2 rounded-xl bg-main-green px-5 text-sm font-medium text-white transition-colors hover:bg-hover-green">
-                    <Plus className="size-4" />
-                    <span>Создать геочат</span>
-                </Link>
-            </div>
-        </div>
-    )
+    return <NearbyGeoChats accuracy={accuracy} />
 }
 
 export default GeoChatLocationGate
