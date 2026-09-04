@@ -17,3 +17,25 @@ export type NearbyGeoChat = {
     creatorAvatarUrl: string | null
     createdAt: string
 }
+
+export type GeoChatRoom = {
+    id: string
+    creatorId: string
+    name: string
+    description: string | null
+    radiusM: number
+    distanceM: number
+    createdAt: string
+}
+
+export type GeoChatMessage = {
+    id: string
+    chatId: string
+    userId: string
+    content: string
+    createdAt: string
+    updatedAt: string
+    authorUsername: string
+    authorDisplayName: string
+    authorAvatarUrl: string | null
+}

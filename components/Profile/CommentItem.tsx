@@ -4,11 +4,11 @@ import { createComment } from "@/actions/createComment"
 import { toggleCommentLike } from "@/actions/toggleCommentLike"
 import { updateComment } from "@/actions/updateComment"
 import type { PostCommentNode, Profile } from "@/types/social"
-import { Send } from "lucide-react"
+import { CornerUpLeft, Send, X } from "lucide-react"
 import Image from "next/image"
+import Link from "next/link"
 import { useRef, useState } from "react"
 import CommentActions from "./CommentActions"
-import Link from "next/link"
 
 type Props = {
     comment: PostCommentNode
@@ -21,9 +21,10 @@ type Props = {
     onCommentDeleted: (commentCount: number) => void
     onRemove: (commentId: string) => void
     depth?: number
+    replyToUsername?: string | null
 }
 
-function CommentItem({ comment, postId, username, currentProfile, initialLiked, likedCommentIds, onCommentCreated, onCommentDeleted, onRemove, depth = 0 }: Props) {
+function CommentItem({ comment, postId, username, currentProfile, initialLiked, likedCommentIds, onCommentCreated, onCommentDeleted, onRemove, depth = 0, replyToUsername = null }: Props) {
     const [isEditing, setIsEditing] = useState<boolean>(false)
     const [content, setContent] = useState<string>(comment.content)
     const [updatedAt, setUpdatedAt] = useState<string>(comment.updated_at)
@@ -43,6 +44,7 @@ function CommentItem({ comment, postId, username, currentProfile, initialLiked, 
     const replyTextareaRef = useRef<HTMLTextAreaElement>(null)
 
     const isEdited = new Date(updatedAt).getTime() > new Date(comment.created_at).getTime() + 1000
+    const authorUsername = comment.author?.username ?? null
 
     const handleCancel = () => {
         setContent(comment.content)
@@ -165,33 +167,69 @@ function CommentItem({ comment, postId, username, currentProfile, initialLiked, 
         }
     }
 
+    const handleToggleReply = () => {
+        setIsReplying((prev) => !prev)
+        setReplyError("")
+    }
+
+    const handleCloseReply = () => {
+        setIsReplying(false)
+        setReplyContent("")
+        setReplyError("")
+
+        if (replyTextareaRef.current) {
+            replyTextareaRef.current.style.height = "36px"
+            replyTextareaRef.current.style.overflowY = "hidden"
+        }
+    }
+
     return (
         <div>
             <div className="flex items-start gap-3">
-                <Link href={`/profile/${currentProfile.username}`} className="relative size-9 shrink-0 overflow-hidden rounded-full bg-bg-green">
-                    <Image src={comment.author?.avatar_url ?? "/user-avatar.svg"} alt={comment.author?.display_name ?? "Пользователь"} fill sizes="36px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
-                </Link>
+                {authorUsername ? (
+                    <Link href={`/profile/${authorUsername}`} className="relative size-9 shrink-0 overflow-hidden rounded-full bg-bg-green">
+                        <Image src={comment.author?.avatar_url ?? "/user-avatar.svg"} alt={comment.author?.display_name ?? "Пользователь"} fill sizes="36px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
+                    </Link>
+                ) : (
+                    <div className="relative size-9 shrink-0 overflow-hidden rounded-full bg-bg-green">
+                        <Image src="/user-avatar.svg" alt="Пользователь" fill sizes="36px" className="object-cover" />
+                    </div>
+                )}
 
                 <div className="min-w-0 flex-1">
                     <div className="rounded-2xl bg-[#f4f7f4] px-3.5 py-2.5">
                         <div className="flex items-center justify-between gap-3">
-                            <Link href={`/profile/${currentProfile.username}`} className="min-w-0 truncate text-sm font-semibold">
-                                {comment.author?.display_name ?? "Пользователь"}
-                            </Link>
+                            {authorUsername ? (
+                                <Link href={`/profile/${authorUsername}`} className="min-w-0 truncate text-sm font-semibold">
+                                    {comment.author?.display_name ?? "Пользователь"}
+                                </Link>
+                            ) : (
+                                <span className="min-w-0 truncate text-sm font-semibold">
+                                    {comment.author?.display_name ?? "Пользователь"}
+                                </span>
+                            )}
 
                             {comment.user_id === currentProfile.id && !isEditing && (
                                 <CommentActions commentId={comment.id} postId={postId} username={username} onEdit={() => setIsEditing(true)} onDeleted={(commentCount) => { onRemove(comment.id); onCommentDeleted(commentCount) }} />
                             )}
                         </div>
 
+                        {replyToUsername && !isEditing && (
+                            <div className="mt-1 flex items-center gap-1 text-xs text-main-gray">
+                                <CornerUpLeft className="size-3.5 shrink-0" />
+                                <span>Ответ</span>
+                                <Link href={`/profile/${replyToUsername}`} className="font-medium text-main-green hover:underline">
+                                    @{replyToUsername}
+                                </Link>
+                            </div>
+                        )}
+
                         {isEditing ? (
                             <div className="mt-2">
                                 <textarea value={content} onChange={(e) => { setContent(e.target.value); setError("") }} maxLength={2000} autoFocus className="min-h-[90] w-full resize-none rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm outline-none transition-colors focus:border-main-green/40" />
 
                                 <div className="mt-2 flex items-center justify-between gap-3">
-                                    <span className="text-xs text-main-gray">
-                                        {content.length}/2000
-                                    </span>
+                                    <span className="text-xs text-main-gray">{content.length}/2000</span>
 
                                     <div className="flex items-center gap-2">
                                         <button type="button" disabled={isPending} onClick={handleCancel} className="h-8 cursor-pointer rounded-lg border border-gray-200 px-3 text-xs transition-colors hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-50">
@@ -233,10 +271,10 @@ function CommentItem({ comment, postId, username, currentProfile, initialLiked, 
                             </span>
 
                             <button type="button" onClick={handleLike} className={`cursor-pointer whitespace-nowrap font-medium transition-colors ${isLiked ? "text-main-green" : "hover:text-main-green"}`}>
-                                Нравится&nbsp;({likesCount > 0 && `${likesCount}`})
+                                Нравится&nbsp;{likesCount > 0 && `(${likesCount})`}
                             </button>
 
-                            <button type="button" onClick={() => { setIsReplying((prev) => !prev); setReplyError("") }} className="cursor-pointer whitespace-nowrap font-medium transition-colors hover:text-main-green">
+                            <button type="button" onClick={handleToggleReply} className="cursor-pointer whitespace-nowrap font-medium transition-colors hover:text-main-green">
                                 Ответить
                             </button>
                         </div>
@@ -244,12 +282,26 @@ function CommentItem({ comment, postId, username, currentProfile, initialLiked, 
 
                     {isReplying && (
                         <div className="mt-3">
+                            {authorUsername && (
+                                <div className="mb-2 ml-10 flex items-center justify-between gap-3 rounded-xl bg-green-50 px-3 py-2 text-xs">
+                                    <div className="flex min-w-0 items-center gap-1 text-main-gray">
+                                        <CornerUpLeft className="size-3.5 shrink-0 text-main-green" />
+                                        <span className="shrink-0">Ответ для</span>
+                                        <span className="truncate font-medium text-main-green">@{authorUsername}</span>
+                                    </div>
+
+                                    <button type="button" onClick={handleCloseReply} aria-label="Отменить ответ" className="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full text-main-gray transition-colors hover:bg-white hover:text-gray-900">
+                                        <X className="size-3.5" />
+                                    </button>
+                                </div>
+                            )}
+
                             <div className="flex items-end gap-2">
                                 <div className="relative size-8 shrink-0 overflow-hidden rounded-full bg-bg-green">
                                     <Image src={currentProfile.avatar_url ?? "/user-avatar.svg"} alt={currentProfile.display_name} fill sizes="32px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
                                 </div>
 
-                                <textarea ref={replyTextareaRef} value={replyContent} onChange={(e) => { setReplyContent(e.target.value); setReplyError(""); e.currentTarget.style.height = "36px"; const nextHeight = Math.min(e.currentTarget.scrollHeight, 120); e.currentTarget.style.height = `${nextHeight}px`; e.currentTarget.style.overflowY = e.currentTarget.scrollHeight > 120 ? "auto" : "hidden" }} placeholder="Ваш ответ..." maxLength={2000} rows={1} autoFocus className="min-h-9 max-h-[120] min-w-0 flex-1 resize-none overflow-y-hidden rounded-2xl border border-gray-100 bg-[#f4f7f4] px-3.5 py-2 text-sm leading-5 outline-none transition-colors placeholder:text-main-gray focus:border-main-green/30 focus:bg-white" />
+                                <textarea ref={replyTextareaRef} value={replyContent} onChange={(e) => { setReplyContent(e.target.value); setReplyError(""); e.currentTarget.style.height = "36px"; const nextHeight = Math.min(e.currentTarget.scrollHeight, 120); e.currentTarget.style.height = `${nextHeight}px`; e.currentTarget.style.overflowY = e.currentTarget.scrollHeight > 120 ? "auto" : "hidden" }} placeholder={authorUsername ? `Ответ @${authorUsername}...` : "Ваш ответ..."} maxLength={2000} rows={1} autoFocus className="min-h-9 max-h-[120] min-w-0 flex-1 resize-none overflow-y-hidden rounded-2xl border border-gray-100 bg-[#f4f7f4] px-3.5 py-2 text-sm leading-5 outline-none transition-colors placeholder:text-main-gray focus:border-main-green/30 focus:bg-white" />
 
                                 <button type="button" onClick={handleReply} disabled={isReplyPending || !replyContent.trim()} className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-main-green text-white transition-colors hover:bg-hover-green disabled:pointer-events-none disabled:opacity-50">
                                     <Send className="size-4" />
@@ -267,10 +319,10 @@ function CommentItem({ comment, postId, username, currentProfile, initialLiked, 
             </div>
 
             {replies.length > 0 && (
-                <div className={depth === 0 ? "ml-9 mt-2" : "mt-2"}>
+                <div className={depth === 0 ? "ml-6 mt-2 sm:ml-9" : "mt-2"}>
                     <div className="flex flex-col gap-3">
                         {replies.map((reply) => (
-                            <CommentItem key={reply.id} comment={reply} postId={postId} username={username} currentProfile={currentProfile} initialLiked={likedCommentIds.includes(reply.id)} likedCommentIds={likedCommentIds} depth={depth + 1} onCommentCreated={onCommentCreated} onCommentDeleted={onCommentDeleted} onRemove={(commentId) => setReplies((prev) => prev.filter((item) => item.id !== commentId))} />
+                            <CommentItem key={reply.id} comment={reply} postId={postId} username={username} currentProfile={currentProfile} initialLiked={likedCommentIds.includes(reply.id)} likedCommentIds={likedCommentIds} depth={depth + 1} replyToUsername={comment.author?.username ?? null} onCommentCreated={onCommentCreated} onCommentDeleted={onCommentDeleted} onRemove={(commentId) => setReplies((prev) => prev.filter((item) => item.id !== commentId))} />
                         ))}
                     </div>
                 </div>
