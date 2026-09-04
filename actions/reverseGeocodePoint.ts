@@ -5,24 +5,27 @@ type Props = {
     longitude: number
 }
 
+type NominatimAddress = {
+    city?: string
+    town?: string
+    village?: string
+    municipality?: string
+    county?: string
+    state?: string
+    region?: string
+    country?: string
+    country_code?: string
+}
+
 type NominatimResponse = {
+    name?: string
     display_name?: string
-    address?: {
-        city?: string
-        town?: string
-        village?: string
-        municipality?: string
-        county?: string
-        state?: string
-        country?: string
-        country_code?: string
-    }
+    address?: NominatimAddress
 }
 
 type Result =
     | {
         success: true
-        error: null
         name: string
         city: string | null
         region: string | null
@@ -51,20 +54,19 @@ export async function reverseGeocodePoint({ latitude, longitude }: Props): Promi
     try {
         const params = new URLSearchParams({
             format: "jsonv2",
-            lat: latitude.toString(),
-            lon: longitude.toString(),
-            zoom: "14",
+            lat: String(latitude),
+            lon: String(longitude),
             addressdetails: "1",
-            "accept-language": "ru"
+            zoom: "18",
+            "accept-language": "en"
         })
 
         const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${params.toString()}`, {
+            cache: "no-store",
             headers: {
-                "User-Agent": "vseti.by/1.0",
-                Referer: "https://vseti.by",
-                Accept: "application/json"
-            },
-            cache: "no-store"
+                Accept: "application/json",
+                "User-Agent": "vseti.by/1.0"
+            }
         })
 
         if (!response.ok) {
@@ -77,30 +79,13 @@ export async function reverseGeocodePoint({ latitude, longitude }: Props): Promi
         }
 
         const data = await response.json() as NominatimResponse
-        const address = data.address
+        const address = data.address ?? {}
 
-        if (!address) {
-            return {
-                success: false,
-                error: "Место не найдено"
-            }
-        }
-
-        const city = address.city ?? address.town ?? address.village ?? address.municipality ?? address.county ?? null
-        const region = address.state ?? address.county ?? null
+        const city = address.city ?? address.town ?? address.village ?? address.municipality ?? null
+        const region = address.state ?? address.region ?? address.county ?? null
         const countryCode = address.country_code?.toUpperCase() ?? null
 
-        const nameParts: string[] = []
-
-        if (city) {
-            nameParts.push(city)
-        }
-
-        if (region && region !== city) {
-            nameParts.push(region)
-        }
-
-        const name = nameParts.length > 0 ? nameParts.join(", ") : data.display_name ?? ""
+        const name = data.name?.trim() || city || data.display_name?.split(",")[0]?.trim() || ""
 
         if (!name) {
             return {
@@ -111,7 +96,6 @@ export async function reverseGeocodePoint({ latitude, longitude }: Props): Promi
 
         return {
             success: true,
-            error: null,
             name,
             city,
             region,

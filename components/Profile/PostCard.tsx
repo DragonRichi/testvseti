@@ -401,15 +401,28 @@ function PostCard({ profile, post, isOwnProfile, initialLiked, currentProfile, i
                     ) : (
                         <>
                             {savedLocation && (
-                                <div className="mt-3 flex items-center gap-1.5 text-sm text-main-green">
-                                    <MapPin className="size-4 shrink-0" />
-                                    <span className="truncate font-medium">{savedLocation.name}</span>
+                                <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+                                    <div className="flex min-w-0 items-center gap-1.5 text-main-green">
+                                        <MapPin className="size-4 shrink-0" />
+                                        <span className="truncate font-medium">{savedLocation.name}</span>
+                                    </div>
+                                    {(post.tagged_city || post.tagged_country_code) && (
+                                        <span className="text-xs text-gray-400">
+                                            {[post.tagged_city, post.tagged_country_code ? new Intl.DisplayNames(["ru"], { type: "region" }).of(post.tagged_country_code) : null].filter(Boolean).join(", ")}
+                                        </span>
+                                    )}
                                 </div>
                             )}
-
                             {savedContent && (
                                 <p className={`${savedLocation ? "mt-2" : "mt-3"} whitespace-pre-wrap wrap-break-word text-sm leading-6 text-gray-800`}>
                                     {savedContent}
+                                    {(post.tagged_location_name || post.city || post.region || post.country_code) && (
+                                        <span className="ml-1 text-xs font-normal text-gray-400">
+                                            ({post.tagged_location_name
+                                                ? [post.tagged_city, post.tagged_region, post.tagged_country_code].filter(Boolean).join(", ")
+                                                : [post.city, post.region, post.country_code].filter(Boolean).join(", ")})
+                                        </span>
+                                    )}
                                 </p>
                             )}
 

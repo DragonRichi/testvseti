@@ -1,5 +1,6 @@
 "use server"
 
+import { reverseGeocodePoint } from "@/actions/reverseGeocodePoint"
 import { getCurrentUser } from "@/lib/auth/getCurrentUser"
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
@@ -91,6 +92,35 @@ export async function createPost({ content, username, mediaUrls = [], taggedLoca
             console.error("POST LOCATION LOAD ERROR:", locationError)
         }
 
+        let taggedCity: string | null = null
+        let taggedRegion: string | null = null
+        let taggedCountryCode: string | null = null
+
+        if (taggedLocation) {
+            const taggedGeoResult = await reverseGeocodePoint({
+                latitude: taggedLocation.latitude,
+                longitude: taggedLocation.longitude
+            })
+
+            if (taggedGeoResult.success === false) {
+                return {
+                    success: false,
+                    error: "Не удалось определить географию выбранного места. Попробуйте выбрать точку ещё раз"
+                }
+            }
+
+            taggedCity = taggedGeoResult.city
+            taggedRegion = taggedGeoResult.region
+            taggedCountryCode = taggedGeoResult.countryCode
+
+            if (!taggedCountryCode) {
+                return {
+                    success: false,
+                    error: "Не удалось определить страну выбранного места"
+                }
+            }
+        }
+
         const taggedLocationPoint = taggedLocation ? `POINT(${taggedLocation.longitude} ${taggedLocation.latitude})` : null
 
         const { data, error } = await supabase.from("posts").insert({
@@ -103,8 +133,11 @@ export async function createPost({ content, username, mediaUrls = [], taggedLoca
             country_code: userLocation?.country_code ?? null,
             created_location: userLocation?.location ?? null,
             tagged_location: taggedLocationPoint,
-            tagged_location_name: taggedLocation ? normalizedLocationName : null
-        }).select("id,user_id,content,media_urls,comment_count,like_count,view_count,share_count,created_at,visibility,city,region,country_code,tagged_location_name,tagged_lat,tagged_lon").single()
+            tagged_location_name: taggedLocation ? normalizedLocationName : null,
+            tagged_city: taggedLocation ? taggedCity : null,
+            tagged_region: taggedLocation ? taggedRegion : null,
+            tagged_country_code: taggedLocation ? taggedCountryCode : null
+        }).select("id,user_id,content,media_urls,comment_count,like_count,view_count,share_count,created_at,visibility,city,region,country_code,tagged_location_name,tagged_lat,tagged_lon,tagged_city,tagged_region,tagged_country_code").single()
 
         if (error) {
             console.error("POST CREATE ERROR:", error)

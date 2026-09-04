@@ -1,7 +1,7 @@
 "use server"
 
+import { reverseGeocodePoint } from "@/actions/reverseGeocodePoint"
 import { getCurrentUser } from "@/lib/auth/getCurrentUser"
-import { supabaseAdmin } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 
@@ -16,20 +16,32 @@ type Props = {
     content: string
     username: string
     mediaUrls?: string[]
-    taggedLocation: TaggedLocation | null
+    taggedLocation?: TaggedLocation | null
 }
 
-type UpdatePostResult =
+type Result =
     | {
         success: true
-        error: null
         post: {
             id: string
+            user_id: string
             content: string | null
             media_urls: string[] | null
+            comment_count: number | null
+            like_count: number | null
+            view_count: number | null
+            share_count: number | null
+            created_at: string | null
+            visibility: string | null
+            city: string | null
+            region: string | null
+            country_code: string | null
             tagged_location_name: string | null
             tagged_lat: number | null
             tagged_lon: number | null
+            tagged_city: string | null
+            tagged_region: string | null
+            tagged_country_code: string | null
         }
     }
     | {
@@ -37,30 +49,10 @@ type UpdatePostResult =
         error: string
     }
 
-function getStoragePath(url: string) {
-    const marker = "/storage/v1/object/public/post-media/"
-    const markerIndex = url.indexOf(marker)
-
-    if (markerIndex === -1) return null
-
-    const path = url.slice(markerIndex + marker.length)
-
-    if (!path) return null
-
-    return decodeURIComponent(path)
-}
-
-export async function updatePost({ content, username, postId, mediaUrls = [], taggedLocation }: Props): Promise<UpdatePostResult> {
+export async function updatePost({ postId, content, username, mediaUrls = [], taggedLocation = null }: Props): Promise<Result> {
     const normalizedContent = content.trim()
-    const normalizedMediaUrls = [...new Set(mediaUrls.filter((url) => url.trim().length > 0))]
+    const normalizedMediaUrls = mediaUrls.filter((url) => url.trim().length > 0)
     const normalizedLocationName = taggedLocation?.name.trim() ?? ""
-
-    if (!postId) {
-        return {
-            success: false,
-            error: "Публикация не найдена"
-        }
-    }
 
     if (!normalizedContent && normalizedMediaUrls.length === 0) {
         return {
@@ -125,48 +117,72 @@ export async function updatePost({ content, username, postId, mediaUrls = [], ta
 
         const supabase = await createClient()
 
-        const { data: existingPost, error: existingPostError } = await supabase.from("posts").select("id,user_id,media_urls").eq("id", postId).maybeSingle()
+        const { data: existingPost, error: existingPostError } = await supabase.from("posts").select("id,user_id").eq("id", postId).maybeSingle()
 
         if (existingPostError) {
-            console.error("POST LOAD ERROR:", existingPostError)
+            console.error("POST UPDATE LOAD ERROR:", existingPostError)
 
             return {
                 success: false,
-                error: "Не удалось получить публикацию"
+                error: "Не удалось загрузить публикацию"
             }
         }
 
         if (!existingPost || existingPost.user_id !== user.id) {
             return {
                 success: false,
-                error: "Публикация не найдена или у вас нет прав на её редактирование"
+                error: "Публикация не найдена"
             }
         }
 
-        const existingMediaUrls: string[] = Array.isArray(existingPost.media_urls) ? existingPost.media_urls : []
+        let taggedCity: string | null = null
+        let taggedRegion: string | null = null
+        let taggedCountryCode: string | null = null
 
-        for (const url of normalizedMediaUrls) {
-            const path = getStoragePath(url)
+        if (taggedLocation) {
+            const taggedGeoResult = await reverseGeocodePoint({
+                latitude: taggedLocation.latitude,
+                longitude: taggedLocation.longitude
+            })
 
-            if (!path || !path.startsWith(`${user.id}/`)) {
+            if (taggedGeoResult.success === false) {
                 return {
                     success: false,
-                    error: "Некорректный файл публикации"
+                    error: "Не удалось определить географию выбранного места. Попробуйте выбрать точку ещё раз"
+                }
+            }
+
+            taggedCity = taggedGeoResult.city
+            taggedRegion = taggedGeoResult.region
+            taggedCountryCode = taggedGeoResult.countryCode
+
+            if (!taggedCountryCode) {
+                return {
+                    success: false,
+                    error: "Не удалось определить страну выбранного места"
                 }
             }
         }
 
-        const removedMediaUrls = existingMediaUrls.filter((url) => !normalizedMediaUrls.includes(url))
         const taggedLocationPoint = taggedLocation ? `POINT(${taggedLocation.longitude} ${taggedLocation.latitude})` : null
 
-        const { data, error } = await supabase.from("posts").update({
-            content: normalizedContent || null,
-            media_urls: normalizedMediaUrls.length > 0 ? normalizedMediaUrls : null,
-            tagged_location: taggedLocationPoint,
-            tagged_location_name: taggedLocation ? normalizedLocationName : null
-        }).eq("id", postId).eq("user_id", user.id).select("id,content,media_urls,tagged_location_name,tagged_lat,tagged_lon").maybeSingle()
+        const { data, error } = await supabase
+            .from("posts")
+            .update({
+                content: normalizedContent || null,
+                media_urls: normalizedMediaUrls.length > 0 ? normalizedMediaUrls : null,
+                tagged_location: taggedLocationPoint,
+                tagged_location_name: taggedLocation ? normalizedLocationName : null,
+                tagged_city: taggedLocation ? taggedCity : null,
+                tagged_region: taggedLocation ? taggedRegion : null,
+                tagged_country_code: taggedLocation ? taggedCountryCode : null
+            })
+            .eq("id", postId)
+            .eq("user_id", user.id)
+            .select("id,user_id,content,media_urls,comment_count,like_count,view_count,share_count,created_at,visibility,city,region,country_code,tagged_location_name,tagged_lat,tagged_lon,tagged_city,tagged_region,tagged_country_code")
+            .single()
 
-        if (error) {
+        if (error || !data) {
             console.error("POST UPDATE ERROR:", error)
 
             return {
@@ -175,39 +191,12 @@ export async function updatePost({ content, username, postId, mediaUrls = [], ta
             }
         }
 
-        if (!data) {
-            return {
-                success: false,
-                error: "Публикация не найдена или у вас нет прав на её редактирование"
-            }
-        }
-
-        if (removedMediaUrls.length > 0) {
-            const removedMediaPaths = removedMediaUrls.map((url) => getStoragePath(url)).filter((path): path is string => path !== null && path.startsWith(`${user.id}/`))
-
-            if (removedMediaPaths.length > 0) {
-                const { error: storageError } = await supabaseAdmin.storage.from("post-media").remove(removedMediaPaths)
-
-                if (storageError) {
-                    console.error("POST MEDIA REMOVE ERROR:", storageError)
-                }
-            }
-        }
-
         revalidatePath("/feed")
         revalidatePath(`/profile/${username}`)
 
         return {
             success: true,
-            error: null,
-            post: {
-                id: data.id,
-                content: data.content,
-                media_urls: Array.isArray(data.media_urls) ? data.media_urls : null,
-                tagged_location_name: data.tagged_location_name,
-                tagged_lat: data.tagged_lat,
-                tagged_lon: data.tagged_lon
-            }
+            post: data
         }
     } catch (error) {
         console.error("POST UPDATE ERROR:", error)

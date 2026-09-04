@@ -23,6 +23,9 @@ export type Post = {
     tagged_location_name: string | null
     tagged_lat: number | null
     tagged_lon: number | null
+    tagged_city?: string | null
+    tagged_region?: string | null
+    tagged_country_code?: string | null
 }
 
 export type CommentAuthor = {
