@@ -10,7 +10,11 @@ type Props = {
     accuracy: number | null
 }
 
-function formatDistance(distanceM: number) {
+function formatDistance(distanceM: number | null) {
+    if (distanceM === null) {
+        return "Тестовый доступ"
+    }
+
     if (distanceM < 1000) {
         return `${Math.max(1, Math.round(distanceM))} м`
     }

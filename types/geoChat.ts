@@ -11,7 +11,7 @@ export type NearbyGeoChat = {
     name: string
     description: string | null
     radiusM: number
-    distanceM: number
+    distanceM: number | null
     creatorUsername: string
     creatorDisplayName: string
     creatorAvatarUrl: string | null
@@ -24,7 +24,7 @@ export type GeoChatRoom = {
     name: string
     description: string | null
     radiusM: number
-    distanceM: number
+    distanceM: number | null
     createdAt: string
 }
 

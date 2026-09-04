@@ -1,8 +1,9 @@
 "use client"
 
+import { enableGeoChatTestAccess } from "@/actions/enableGeoChatTestAccess"
 import { syncPreciseLocation } from "@/actions/syncPreciseLocation"
 import NearbyGeoChats from "@/components/GeoChat/NearbyGeoChats"
-import { LocateFixed, MapPin, RefreshCw, Settings, TriangleAlert } from "lucide-react"
+import { KeyRound, LocateFixed, MapPin, RefreshCw, Settings, TriangleAlert } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 
 type Status = "checking" | "prompt" | "requesting" | "ready" | "denied" | "unsupported" | "error"
@@ -15,6 +16,10 @@ type SyncedLocation = {
     latitude: number
     longitude: number
     syncedAt: number
+}
+
+type Props = {
+    initialTestAccess?: boolean
 }
 
 const MIN_SYNC_INTERVAL_MS = 15000
@@ -40,11 +45,16 @@ function getDistanceMeters(latitude1: number, longitude1: number, latitude2: num
     return earthRadiusM * c
 }
 
-function GeoChatLocationGate() {
+function GeoChatLocationGate({ initialTestAccess = false }: Props) {
     const [status, setStatus] = useState<Status>("checking")
     const [locationInfo, setLocationInfo] = useState<LocationInfo | null>(null)
     const [locationVersion, setLocationVersion] = useState(0)
     const [error, setError] = useState("")
+
+    const [testAccess, setTestAccess] = useState(initialTestAccess)
+    const [testPassword, setTestPassword] = useState("")
+    const [testError, setTestError] = useState("")
+    const [isTestPending, setIsTestPending] = useState(false)
 
     const lastSyncedLocationRef = useRef<SyncedLocation | null>(null)
     const syncLockRef = useRef(false)
@@ -189,11 +199,38 @@ function GeoChatLocationGate() {
         }
     }, [requestLocation])
 
-    useEffect(() => {
-        void checkPermission()
-    }, [checkPermission])
+    const handleTestAccess = async () => {
+        if (isTestPending || !testPassword.trim()) return
+
+        setIsTestPending(true)
+        setTestError("")
+
+        try {
+            const result = await enableGeoChatTestAccess(testPassword)
+
+            if (result.success === false) {
+                setTestError(result.error)
+                return
+            }
+
+            setTestAccess(true)
+            setTestPassword("")
+        } catch (error) {
+            console.error("GEO CHAT TEST ACCESS ERROR:", error)
+            setTestError("Не удалось включить тестовый доступ")
+        } finally {
+            setIsTestPending(false)
+        }
+    }
 
     useEffect(() => {
+        if (testAccess) return
+
+        void checkPermission()
+    }, [checkPermission, testAccess])
+
+    useEffect(() => {
+        if (testAccess) return
         if (status !== "ready") return
         if (!navigator.geolocation) return
 
@@ -219,14 +256,44 @@ function GeoChatLocationGate() {
         return () => {
             navigator.geolocation.clearWatch(watchId)
         }
-    }, [savePosition, status])
+    }, [savePosition, status, testAccess])
+
+    const testAccessForm = (
+        <div className="mt-6 w-full max-w-[420] rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-4 text-left">
+            <div className="flex items-center gap-2">
+                <KeyRound className="size-4 text-main-green" />
+                <div className="text-sm font-semibold text-gray-900">Тестовый доступ</div>
+            </div>
+
+            <div className="mt-1 text-xs leading-5 text-main-gray">Для тестирования геочатов без доступа к геолокации.</div>
+
+            <div className="mt-3 flex gap-2">
+                <input type="password" value={testPassword} onChange={(event) => { setTestPassword(event.target.value); setTestError("") }} onKeyDown={(event) => { if (event.key === "Enter") void handleTestAccess() }} placeholder="Введите пароль" className="h-10 min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 text-sm outline-none transition-colors focus:border-main-green" />
+
+                <button type="button" onClick={() => void handleTestAccess()} disabled={isTestPending || !testPassword.trim()} className="h-10 shrink-0 cursor-pointer rounded-xl bg-gray-900 px-4 text-sm font-medium text-white transition-colors hover:bg-black disabled:pointer-events-none disabled:opacity-40">
+                    {isTestPending ? "..." : "Открыть"}
+                </button>
+            </div>
+
+            {testError && (
+                <div className="mt-2 text-xs text-red-600">
+                    {testError}
+                </div>
+            )}
+        </div>
+    )
+
+    if (testAccess) {
+        return <NearbyGeoChats accuracy={null} />
+    }
 
     if (status === "checking") {
         return (
-            <div className="flex min-h-[420] items-center justify-center rounded-2xl border border-green-100 bg-white">
-                <div className="flex flex-col items-center text-center">
+            <div className="flex min-h-[420] items-center justify-center rounded-2xl border border-green-100 bg-white px-5">
+                <div className="flex w-full max-w-[460] flex-col items-center text-center">
                     <RefreshCw className="size-6 animate-spin text-main-green" />
                     <div className="mt-3 text-sm text-main-gray">Проверяем доступ к местоположению...</div>
+                    {testAccessForm}
                 </div>
             </div>
         )
@@ -235,10 +302,11 @@ function GeoChatLocationGate() {
     if (status === "requesting") {
         return (
             <div className="flex min-h-[420] items-center justify-center rounded-2xl border border-green-100 bg-white px-5">
-                <div className="flex max-w-[420] flex-col items-center text-center">
+                <div className="flex w-full max-w-[460] flex-col items-center text-center">
                     <LocateFixed className="size-8 animate-pulse text-main-green" />
                     <div className="mt-4 text-base font-semibold text-gray-900">Определяем ваше местоположение</div>
                     <div className="mt-2 text-sm leading-6 text-main-gray">Получаем актуальное местоположение устройства.</div>
+                    {testAccessForm}
                 </div>
             </div>
         )
@@ -247,7 +315,7 @@ function GeoChatLocationGate() {
     if (status === "prompt") {
         return (
             <div className="flex min-h-[420] items-center justify-center rounded-2xl border border-green-100 bg-white px-5 py-10">
-                <div className="flex max-w-[460] flex-col items-center text-center">
+                <div className="flex w-full max-w-[460] flex-col items-center text-center">
                     <div className="flex size-16 items-center justify-center rounded-full bg-green-50 text-main-green">
                         <MapPin className="size-7" />
                     </div>
@@ -262,6 +330,8 @@ function GeoChatLocationGate() {
                     </button>
 
                     <div className="mt-4 text-xs leading-5 text-main-gray">Местоположение используется для определения доступных геочатов рядом с вами.</div>
+
+                    {testAccessForm}
                 </div>
             </div>
         )
@@ -270,7 +340,7 @@ function GeoChatLocationGate() {
     if (status === "denied") {
         return (
             <div className="flex min-h-[420] items-center justify-center rounded-2xl border border-amber-100 bg-white px-5 py-10">
-                <div className="flex max-w-[460] flex-col items-center text-center">
+                <div className="flex w-full max-w-[460] flex-col items-center text-center">
                     <div className="flex size-16 items-center justify-center rounded-full bg-amber-50 text-amber-600">
                         <Settings className="size-7" />
                     </div>
@@ -285,6 +355,8 @@ function GeoChatLocationGate() {
                         <RefreshCw className="size-4" />
                         <span>Проверить снова</span>
                     </button>
+
+                    {testAccessForm}
                 </div>
             </div>
         )
@@ -292,10 +364,11 @@ function GeoChatLocationGate() {
 
     if (status === "unsupported") {
         return (
-            <div className="flex min-h-[420] items-center justify-center rounded-2xl border border-red-100 bg-white px-5 text-center">
-                <div className="max-w-[420]">
+            <div className="flex min-h-[420] items-center justify-center rounded-2xl border border-red-100 bg-white px-5 py-10 text-center">
+                <div className="flex w-full max-w-[460] flex-col items-center">
                     <div className="text-base font-semibold text-gray-900">Геолокация недоступна</div>
                     <div className="mt-2 text-sm leading-6 text-main-gray">Этот браузер или устройство не поддерживает определение местоположения.</div>
+                    {testAccessForm}
                 </div>
             </div>
         )
@@ -304,7 +377,7 @@ function GeoChatLocationGate() {
     if (status === "error") {
         return (
             <div className="flex min-h-[420] items-center justify-center rounded-2xl border border-red-100 bg-white px-5 py-10">
-                <div className="flex max-w-[420] flex-col items-center text-center">
+                <div className="flex w-full max-w-[460] flex-col items-center text-center">
                     <TriangleAlert className="size-8 text-red-500" />
                     <div className="mt-4 text-base font-semibold text-gray-900">Не удалось определить местоположение</div>
                     <div className="mt-2 text-sm leading-6 text-main-gray">{error || "Попробуйте ещё раз"}</div>
@@ -313,6 +386,8 @@ function GeoChatLocationGate() {
                         <RefreshCw className="size-4" />
                         <span>Попробовать снова</span>
                     </button>
+
+                    {testAccessForm}
                 </div>
             </div>
         )

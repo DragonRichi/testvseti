@@ -9,7 +9,7 @@ type NearbyGeoChatRow = {
     name: string
     description: string | null
     radius_m: number
-    distance_m: number
+    distance_m: number | null
     creator_username: string
     creator_display_name: string | null
     creator_avatar_url: string | null

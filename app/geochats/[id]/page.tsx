@@ -18,7 +18,7 @@ type RoomRow = {
     name: string
     description: string | null
     radius_m: number
-    distance_m: number
+    distance_m: number | null
     created_at: string
 }
 
