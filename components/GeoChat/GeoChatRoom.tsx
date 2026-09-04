@@ -136,17 +136,47 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
                     table: "geo_chat_messages",
                     filter: `chat_id=eq.${room.id}`
                 },
-                () => {
+                (payload) => {
+                    console.log("GEO CHAT REALTIME INSERT:", payload)
+
                     const shouldScroll = isNearBottom()
 
                     void refreshMessagesFromRealtime(shouldScroll)
                 }
             )
-            .subscribe((status) => {
-                if (process.env.NODE_ENV === "development") {
-                    console.log("GEO CHAT REALTIME:", status)
+
+        const subscribe = async () => {
+            const {
+                data: { session },
+                error: sessionError
+            } = await supabase.auth.getSession()
+
+            if (sessionError) {
+                console.error("GEO CHAT REALTIME SESSION ERROR:", sessionError)
+                return
+            }
+
+            if (!session) {
+                console.error("GEO CHAT REALTIME: NO SESSION")
+                return
+            }
+
+            supabase.realtime.setAuth(session.access_token)
+
+            channel.subscribe((status, error) => {
+                console.log("GEO CHAT REALTIME STATUS:", status, error ?? "")
+
+                if (status === "CHANNEL_ERROR") {
+                    console.error("GEO CHAT REALTIME CHANNEL ERROR:", error)
+                }
+
+                if (status === "TIMED_OUT") {
+                    console.error("GEO CHAT REALTIME TIMED OUT")
                 }
             })
+        }
+
+        void subscribe()
 
         return () => {
             void supabase.removeChannel(channel)
