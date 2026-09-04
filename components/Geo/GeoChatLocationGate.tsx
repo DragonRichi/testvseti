@@ -3,7 +3,7 @@
 import { syncPreciseLocation } from "@/actions/syncPreciseLocation"
 import NearbyGeoChats from "@/components/GeoChat/NearbyGeoChats"
 import { LocateFixed, MapPin, RefreshCw, Settings, TriangleAlert } from "lucide-react"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 type Status = "checking" | "prompt" | "requesting" | "ready" | "denied" | "unsupported" | "error"
 
@@ -11,10 +11,108 @@ type LocationInfo = {
     accuracy: number
 }
 
+type SyncedLocation = {
+    latitude: number
+    longitude: number
+    syncedAt: number
+}
+
+const MIN_SYNC_INTERVAL_MS = 15000
+const MIN_DISTANCE_M = 100
+const FORCE_SYNC_INTERVAL_MS = 120000
+
+function getDistanceMeters(latitude1: number, longitude1: number, latitude2: number, longitude2: number) {
+    const earthRadiusM = 6371000
+    const toRadians = (value: number) => value * Math.PI / 180
+
+    const latitudeDelta = toRadians(latitude2 - latitude1)
+    const longitudeDelta = toRadians(longitude2 - longitude1)
+
+    const a =
+        Math.sin(latitudeDelta / 2) * Math.sin(latitudeDelta / 2) +
+        Math.cos(toRadians(latitude1)) *
+        Math.cos(toRadians(latitude2)) *
+        Math.sin(longitudeDelta / 2) *
+        Math.sin(longitudeDelta / 2)
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+
+    return earthRadiusM * c
+}
+
 function GeoChatLocationGate() {
     const [status, setStatus] = useState<Status>("checking")
     const [locationInfo, setLocationInfo] = useState<LocationInfo | null>(null)
-    const [error, setError] = useState<string>("")
+    const [locationVersion, setLocationVersion] = useState(0)
+    const [error, setError] = useState("")
+
+    const lastSyncedLocationRef = useRef<SyncedLocation | null>(null)
+    const syncLockRef = useRef(false)
+
+    const savePosition = useCallback(async (position: GeolocationPosition, force: boolean) => {
+        const latitude = position.coords.latitude
+        const longitude = position.coords.longitude
+        const accuracy = position.coords.accuracy
+        const now = Date.now()
+
+        setLocationInfo({
+            accuracy
+        })
+
+        const previous = lastSyncedLocationRef.current
+
+        if (!force && previous) {
+            const elapsed = now - previous.syncedAt
+            const distance = getDistanceMeters(previous.latitude, previous.longitude, latitude, longitude)
+
+            if (elapsed < MIN_SYNC_INTERVAL_MS) {
+                return true
+            }
+
+            if (distance < MIN_DISTANCE_M && elapsed < FORCE_SYNC_INTERVAL_MS) {
+                return true
+            }
+        }
+
+        if (syncLockRef.current) {
+            return true
+        }
+
+        syncLockRef.current = true
+
+        try {
+            const result = await syncPreciseLocation({
+                latitude,
+                longitude,
+                accuracy: Number.isFinite(accuracy) ? accuracy : null
+            })
+
+            if (result.success === false) {
+                setError(result.error)
+                return false
+            }
+
+            lastSyncedLocationRef.current = {
+                latitude,
+                longitude,
+                syncedAt: now
+            }
+
+            setLocationVersion((current) => current + 1)
+
+            if (process.env.NODE_ENV === "development") {
+                console.log("GEOCHAT LOCATION UPDATED:", latitude, longitude, accuracy)
+            }
+
+            return true
+        } catch (error) {
+            console.error("GEOCHAT LOCATION SYNC ERROR:", error)
+            setError("Не удалось сохранить местоположение")
+            return false
+        } finally {
+            syncLockRef.current = false
+        }
+    }, [])
 
     const requestLocation = useCallback(async () => {
         if (!navigator.geolocation) {
@@ -27,33 +125,14 @@ function GeoChatLocationGate() {
 
         navigator.geolocation.getCurrentPosition(
             async (position) => {
-                const latitude = position.coords.latitude
-                const longitude = position.coords.longitude
-                const accuracy = position.coords.accuracy
+                const success = await savePosition(position, true)
 
-                setLocationInfo({
-                    accuracy
-                })
-
-                try {
-                    const result = await syncPreciseLocation({
-                        latitude,
-                        longitude,
-                        accuracy: Number.isFinite(accuracy) ? accuracy : null
-                    })
-
-                    if (result.success === false) {
-                        setError(result.error)
-                        setStatus("error")
-                        return
-                    }
-
-                    setStatus("ready")
-                } catch (error) {
-                    console.error("GEOCHAT LOCATION SYNC ERROR:", error)
-                    setError("Не удалось сохранить местоположение")
+                if (!success) {
                     setStatus("error")
+                    return
                 }
+
+                setStatus("ready")
             },
             (positionError) => {
                 if (positionError.code === positionError.PERMISSION_DENIED) {
@@ -73,10 +152,10 @@ function GeoChatLocationGate() {
             {
                 enableHighAccuracy: true,
                 timeout: 20000,
-                maximumAge: 15000
+                maximumAge: 0
             }
         )
-    }, [])
+    }, [savePosition])
 
     const checkPermission = useCallback(async () => {
         if (!navigator.geolocation) {
@@ -114,6 +193,34 @@ function GeoChatLocationGate() {
         void checkPermission()
     }, [checkPermission])
 
+    useEffect(() => {
+        if (status !== "ready") return
+        if (!navigator.geolocation) return
+
+        const watchId = navigator.geolocation.watchPosition(
+            (position) => {
+                void savePosition(position, false)
+            },
+            (positionError) => {
+                if (positionError.code === positionError.PERMISSION_DENIED) {
+                    setStatus("denied")
+                    return
+                }
+
+                console.error("GEOCHAT LOCATION WATCH ERROR:", positionError)
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 20000,
+                maximumAge: 5000
+            }
+        )
+
+        return () => {
+            navigator.geolocation.clearWatch(watchId)
+        }
+    }, [savePosition, status])
+
     if (status === "checking") {
         return (
             <div className="flex min-h-[420] items-center justify-center rounded-2xl border border-green-100 bg-white">
@@ -131,7 +238,7 @@ function GeoChatLocationGate() {
                 <div className="flex max-w-[420] flex-col items-center text-center">
                     <LocateFixed className="size-8 animate-pulse text-main-green" />
                     <div className="mt-4 text-base font-semibold text-gray-900">Определяем ваше местоположение</div>
-                    <div className="mt-2 text-sm leading-6 text-main-gray">Подтвердите доступ к геолокации в системном окне браузера.</div>
+                    <div className="mt-2 text-sm leading-6 text-main-gray">Получаем актуальное местоположение устройства.</div>
                 </div>
             </div>
         )
@@ -213,7 +320,7 @@ function GeoChatLocationGate() {
 
     const accuracy = locationInfo?.accuracy ?? null
 
-    return <NearbyGeoChats accuracy={accuracy} />
+    return <NearbyGeoChats key={locationVersion} accuracy={accuracy} />
 }
 
 export default GeoChatLocationGate
