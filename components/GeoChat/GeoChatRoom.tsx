@@ -1,11 +1,13 @@
 "use client"
 
 import { createGeoChatMessage } from "@/actions/createGeoChatMessage"
+import { deleteGeoChatMessage } from "@/actions/deleteGeoChatMessage"
 import { getGeoChatMessages } from "@/actions/getGeoChatMessages"
+import { updateGeoChatMessage } from "@/actions/updateGeoChatMessage"
 import { createClient } from "@/lib/supabase/client"
 import type { GeoChatMessage, GeoChatRoom as GeoChatRoomType } from "@/types/geoChat"
 import type { Profile } from "@/types/social"
-import { ArrowDown, ArrowLeft, Copy, CornerUpLeft, Hash, MapPin, MoreHorizontal, Paperclip, RefreshCw, Send, Smile, X } from "lucide-react"
+import { ArrowDown, ArrowLeft, Copy, CornerUpLeft, Hash, MapPin, MoreHorizontal, Paperclip, Pencil, RefreshCw, Send, Smile, Trash2, X } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import type { KeyboardEvent, TouchEvent } from "react"
@@ -27,7 +29,6 @@ type MenuPosition = {
 const REFRESH_THRESHOLD = 70
 const MAX_PULL_DISTANCE = 95
 const MESSAGE_MENU_WIDTH = 170
-const MESSAGE_MENU_HEIGHT = 88
 const MESSAGE_MENU_GAP = 6
 const VIEWPORT_MARGIN = 8
 
@@ -41,14 +42,24 @@ function formatMessageDate(value: string) {
     }).format(new Date(value))
 }
 
+function isMessageEdited(message: GeoChatMessage) {
+    const createdAt = new Date(message.createdAt).getTime()
+    const updatedAt = new Date(message.updatedAt).getTime()
+
+    return updatedAt - createdAt > 1000
+}
+
 function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
     const [messages, setMessages] = useState<GeoChatMessage[]>(initialMessages)
     const [content, setContent] = useState("")
     const [error, setError] = useState("")
     const [isPending, setIsPending] = useState(false)
     const [isRefreshing, setIsRefreshing] = useState(false)
+    const [isDeleting, setIsDeleting] = useState(false)
     const [pullDistance, setPullDistance] = useState(0)
     const [replyingTo, setReplyingTo] = useState<GeoChatMessage | null>(null)
+    const [editingMessage, setEditingMessage] = useState<GeoChatMessage | null>(null)
+    const [deleteTarget, setDeleteTarget] = useState<GeoChatMessage | null>(null)
     const [openMenuId, setOpenMenuId] = useState<string | null>(null)
     const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null)
     const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
@@ -57,6 +68,7 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
 
     const submitLockRef = useRef(false)
     const refreshLockRef = useRef(false)
+    const deleteLockRef = useRef(false)
 
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -175,10 +187,6 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
                     filter: `chat_id=eq.${room.id}`
                 },
                 async (payload) => {
-                    if (process.env.NODE_ENV === "development") {
-                        console.log("GEO CHAT REALTIME INSERT:", payload)
-                    }
-
                     const row = payload.new as {
                         id: string
                         chat_id: string
@@ -250,17 +258,106 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
                         replyTo
                     }
 
-                    setMessages((prev) => {
-                        if (prev.some((message) => message.id === newMessage.id)) {
-                            return prev
+                    setMessages((currentMessages) => {
+                        if (currentMessages.some((message) => message.id === newMessage.id)) {
+                            return currentMessages
                         }
 
-                        return [...prev, newMessage]
+                        return [...currentMessages, newMessage]
                     })
 
                     if (shouldScroll) {
                         scrollToBottom()
                     }
+                }
+            )
+            .on(
+                "postgres_changes",
+                {
+                    event: "UPDATE",
+                    schema: "public",
+                    table: "geo_chat_messages",
+                    filter: `chat_id=eq.${room.id}`
+                },
+                (payload) => {
+                    const row = payload.new as {
+                        id: string
+                        content: string
+                        reply_to_id: string | null
+                        updated_at: string
+                    }
+
+                    setMessages((currentMessages) =>
+                        currentMessages.map((message) => {
+                            let nextMessage = message
+
+                            if (message.id === row.id) {
+                                nextMessage = {
+                                    ...nextMessage,
+                                    content: row.content,
+                                    updatedAt: row.updated_at,
+                                    replyTo: row.reply_to_id === null ? null : nextMessage.replyTo
+                                }
+                            }
+
+                            if (nextMessage.replyTo?.id === row.id) {
+                                nextMessage = {
+                                    ...nextMessage,
+                                    replyTo: {
+                                        ...nextMessage.replyTo,
+                                        content: row.content
+                                    }
+                                }
+                            }
+
+                            return nextMessage
+                        })
+                    )
+
+                    setEditingMessage((current) => {
+                        if (!current || current.id !== row.id) return current
+
+                        return {
+                            ...current,
+                            content: row.content,
+                            updatedAt: row.updated_at
+                        }
+                    })
+                }
+            )
+            .on(
+                "postgres_changes",
+                {
+                    event: "DELETE",
+                    schema: "public",
+                    table: "geo_chat_messages",
+                    filter: `chat_id=eq.${room.id}`
+                },
+                (payload) => {
+                    const row = payload.old as {
+                        id: string
+                    }
+
+                    if (!row.id) return
+
+                    setMessages((currentMessages) =>
+                        currentMessages
+                            .filter((message) => message.id !== row.id)
+                            .map((message) => {
+                                if (message.replyTo?.id !== row.id) {
+                                    return message
+                                }
+
+                                return {
+                                    ...message,
+                                    replyTo: null
+                                }
+                            })
+                    )
+
+                    setReplyingTo((current) => current?.id === row.id ? null : current)
+                    setEditingMessage((current) => current?.id === row.id ? null : current)
+                    setDeleteTarget((current) => current?.id === row.id ? null : current)
                 }
             )
 
@@ -381,31 +478,26 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
         setPullDistance(0)
     }
 
-    const getMenuPosition = (element: HTMLElement): MenuPosition => {
+    const getMenuPosition = (element: HTMLElement, isOwnMessage: boolean): MenuPosition => {
         const rect = element.getBoundingClientRect()
         const viewportWidth = window.innerWidth
         const viewportHeight = window.innerHeight
+        const menuHeight = isOwnMessage ? 168 : 88
 
         const spaceBelow = viewportHeight - rect.bottom
         const spaceAbove = rect.top
 
         let top: number
 
-        if (spaceBelow >= MESSAGE_MENU_HEIGHT + MESSAGE_MENU_GAP + VIEWPORT_MARGIN) {
+        if (spaceBelow >= menuHeight + MESSAGE_MENU_GAP + VIEWPORT_MARGIN) {
             top = rect.bottom + MESSAGE_MENU_GAP
-        } else if (spaceAbove >= MESSAGE_MENU_HEIGHT + MESSAGE_MENU_GAP + VIEWPORT_MARGIN) {
-            top = rect.top - MESSAGE_MENU_HEIGHT - MESSAGE_MENU_GAP
+        } else if (spaceAbove >= menuHeight + MESSAGE_MENU_GAP + VIEWPORT_MARGIN) {
+            top = rect.top - menuHeight - MESSAGE_MENU_GAP
         } else {
-            top = Math.max(VIEWPORT_MARGIN, Math.min(rect.top, viewportHeight - MESSAGE_MENU_HEIGHT - VIEWPORT_MARGIN))
+            top = Math.max(VIEWPORT_MARGIN, Math.min(rect.top, viewportHeight - menuHeight - VIEWPORT_MARGIN))
         }
 
-        const left = Math.max(
-            VIEWPORT_MARGIN,
-            Math.min(
-                rect.right - MESSAGE_MENU_WIDTH,
-                viewportWidth - MESSAGE_MENU_WIDTH - VIEWPORT_MARGIN
-            )
-        )
+        const left = Math.max(VIEWPORT_MARGIN, Math.min(rect.right - MESSAGE_MENU_WIDTH, viewportWidth - MESSAGE_MENU_WIDTH - VIEWPORT_MARGIN))
 
         return {
             top,
@@ -415,10 +507,11 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
 
     const openMessageMenu = (messageId: string, anchor?: HTMLElement) => {
         const element = anchor ?? messageRefs.current.get(messageId)
+        const message = messages.find((item) => item.id === messageId)
 
-        if (!element) return
+        if (!element || !message) return
 
-        setMenuPosition(getMenuPosition(element))
+        setMenuPosition(getMenuPosition(element, message.userId === currentProfile.id))
         setOpenMenuId(messageId)
     }
 
@@ -447,16 +540,65 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
         }, 500)
     }
 
+    const focusComposer = () => {
+        requestAnimationFrame(() => {
+            textareaRef.current?.focus()
+            textareaRef.current?.setSelectionRange(textareaRef.current.value.length, textareaRef.current.value.length)
+        })
+    }
+
+    const resetTextareaHeight = () => {
+        if (!textareaRef.current) return
+
+        textareaRef.current.style.height = "38px"
+        textareaRef.current.style.overflowY = "hidden"
+    }
+
+    const resizeTextarea = () => {
+        requestAnimationFrame(() => {
+            const textarea = textareaRef.current
+
+            if (!textarea) return
+
+            textarea.style.height = "38px"
+
+            const nextHeight = Math.min(textarea.scrollHeight, 100)
+
+            textarea.style.height = `${nextHeight}px`
+            textarea.style.overflowY = textarea.scrollHeight > 100 ? "auto" : "hidden"
+        })
+    }
+
     const handleReplyToMessage = (message: GeoChatMessage) => {
         if (!canSend) return
 
+        setEditingMessage(null)
         setReplyingTo(message)
-        closeMessageMenu()
+        setContent("")
         setError("")
+        closeMessageMenu()
+        resetTextareaHeight()
+        focusComposer()
+    }
 
-        requestAnimationFrame(() => {
-            textareaRef.current?.focus()
-        })
+    const handleEditMessage = (message: GeoChatMessage) => {
+        if (!canSend) return
+        if (message.userId !== currentProfile.id) return
+
+        setReplyingTo(null)
+        setEditingMessage(message)
+        setContent(message.content)
+        setError("")
+        closeMessageMenu()
+        resizeTextarea()
+        focusComposer()
+    }
+
+    const cancelEdit = () => {
+        setEditingMessage(null)
+        setContent("")
+        setError("")
+        resetTextareaHeight()
     }
 
     const handleCopyMessage = async (message: GeoChatMessage) => {
@@ -467,6 +609,66 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
         } catch (error) {
             console.error("GEO CHAT COPY ERROR:", error)
             setError("Не удалось скопировать сообщение")
+        }
+    }
+
+    const handleDeleteRequest = (message: GeoChatMessage) => {
+        if (message.userId !== currentProfile.id) return
+
+        closeMessageMenu()
+        setDeleteTarget(message)
+    }
+
+    const handleDeleteConfirm = async () => {
+        if (!deleteTarget) return
+        if (deleteLockRef.current) return
+
+        deleteLockRef.current = true
+        setIsDeleting(true)
+        setError("")
+
+        const messageId = deleteTarget.id
+
+        try {
+            const result = await deleteGeoChatMessage(room.id, messageId)
+
+            if (result.success === false) {
+                setError(result.error)
+                return
+            }
+
+            setMessages((currentMessages) =>
+                currentMessages
+                    .filter((message) => message.id !== messageId)
+                    .map((message) => {
+                        if (message.replyTo?.id !== messageId) {
+                            return message
+                        }
+
+                        return {
+                            ...message,
+                            replyTo: null
+                        }
+                    })
+            )
+
+            if (replyingTo?.id === messageId) {
+                setReplyingTo(null)
+            }
+
+            if (editingMessage?.id === messageId) {
+                setEditingMessage(null)
+                setContent("")
+                resetTextareaHeight()
+            }
+
+            setDeleteTarget(null)
+        } catch (error) {
+            console.error("GEO CHAT MESSAGE DELETE ERROR:", error)
+            setError("Не удалось удалить сообщение")
+        } finally {
+            deleteLockRef.current = false
+            setIsDeleting(false)
         }
     }
 
@@ -515,6 +717,51 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
         closeMessageMenu()
 
         try {
+            if (editingMessage) {
+                if (normalizedContent === editingMessage.content.trim()) {
+                    cancelEdit()
+                    return
+                }
+
+                const result = await updateGeoChatMessage(room.id, editingMessage.id, normalizedContent)
+
+                if (result.success === false) {
+                    setError(result.error)
+                    return
+                }
+
+                setMessages((currentMessages) =>
+                    currentMessages.map((message) => {
+                        let nextMessage = message
+
+                        if (message.id === editingMessage.id) {
+                            nextMessage = {
+                                ...nextMessage,
+                                content: result.message.content,
+                                updatedAt: result.message.updated_at
+                            }
+                        }
+
+                        if (nextMessage.replyTo?.id === editingMessage.id) {
+                            nextMessage = {
+                                ...nextMessage,
+                                replyTo: {
+                                    ...nextMessage.replyTo,
+                                    content: result.message.content
+                                }
+                            }
+                        }
+
+                        return nextMessage
+                    })
+                )
+
+                setEditingMessage(null)
+                setContent("")
+                resetTextareaHeight()
+                return
+            }
+
             const result = await createGeoChatMessage(room.id, normalizedContent, replyingTo?.id ?? null)
 
             if (result.success === false) {
@@ -540,26 +787,21 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
                 } : null
             }
 
-            setMessages((prev) => {
-                if (prev.some((message) => message.id === newMessage.id)) {
-                    return prev
+            setMessages((currentMessages) => {
+                if (currentMessages.some((message) => message.id === newMessage.id)) {
+                    return currentMessages
                 }
 
-                return [...prev, newMessage]
+                return [...currentMessages, newMessage]
             })
 
             setContent("")
             setReplyingTo(null)
-
-            if (textareaRef.current) {
-                textareaRef.current.style.height = "38px"
-                textareaRef.current.style.overflowY = "hidden"
-            }
-
+            resetTextareaHeight()
             scrollToBottom()
         } catch (error) {
-            console.error("GEO CHAT MESSAGE CREATE ERROR:", error)
-            setError("Не удалось отправить сообщение")
+            console.error("GEO CHAT MESSAGE SUBMIT ERROR:", error)
+            setError(editingMessage ? "Не удалось изменить сообщение" : "Не удалось отправить сообщение")
         } finally {
             submitLockRef.current = false
             setIsPending(false)
@@ -567,6 +809,12 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
     }
 
     const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+        if (event.key === "Escape" && editingMessage) {
+            event.preventDefault()
+            cancelEdit()
+            return
+        }
+
         if (event.key !== "Enter") return
         if (event.shiftKey) return
 
@@ -675,8 +923,12 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
                                                 </div>
                                             </div>
 
-                                            <div className="mt-1 px-1 text-[10px] text-main-gray sm:text-xs">
-                                                {formatMessageDate(message.createdAt)}
+                                            <div className="mt-1 flex items-center gap-1 px-1 text-[10px] text-main-gray sm:text-xs">
+                                                <span>{formatMessageDate(message.createdAt)}</span>
+
+                                                {isMessageEdited(message) && (
+                                                    <span>· изменено</span>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -733,7 +985,27 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
                         </div>
                     )}
 
-                    {replyingTo && (
+                    {editingMessage && (
+                        <div className="mb-2 flex items-center gap-2 rounded-xl bg-green-50 px-3 py-2">
+                            <Pencil className="size-4 shrink-0 text-main-green" />
+
+                            <div className="min-w-0 flex-1">
+                                <div className="text-xs font-semibold text-main-green">
+                                    Редактирование сообщения
+                                </div>
+
+                                <div className="mt-0.5 truncate text-xs text-main-gray">
+                                    {editingMessage.content}
+                                </div>
+                            </div>
+
+                            <button type="button" onClick={cancelEdit} aria-label="Отменить редактирование" className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-main-gray transition-colors hover:bg-white hover:text-gray-900">
+                                <X className="size-4" />
+                            </button>
+                        </div>
+                    )}
+
+                    {!editingMessage && replyingTo && (
                         <div className="mb-2 flex items-center gap-2 rounded-xl bg-green-50 px-3 py-2">
                             <CornerUpLeft className="size-4 shrink-0 text-main-green" />
 
@@ -754,18 +1026,18 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
                     )}
 
                     <div className="flex items-end gap-1 rounded-2xl border border-gray-200 bg-white p-1.5 sm:gap-2 sm:p-2">
-                        <button type="button" disabled={!canSend} aria-label="Прикрепить файл" className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-main-green transition-colors hover:bg-green-50 disabled:pointer-events-none disabled:opacity-40 sm:size-9">
+                        <button type="button" disabled={!canSend || Boolean(editingMessage)} aria-label="Прикрепить файл" className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-main-green transition-colors hover:bg-green-50 disabled:pointer-events-none disabled:opacity-40 sm:size-9">
                             <Paperclip className="size-4 sm:size-5" />
                         </button>
 
-                        <button type="button" disabled={!canSend} aria-label="Эмодзи" className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-main-green transition-colors hover:bg-green-50 disabled:pointer-events-none disabled:opacity-40 sm:size-9">
+                        <button type="button" disabled={!canSend || Boolean(editingMessage)} aria-label="Эмодзи" className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-main-green transition-colors hover:bg-green-50 disabled:pointer-events-none disabled:opacity-40 sm:size-9">
                             <Smile className="size-4 sm:size-5" />
                         </button>
 
-                        <textarea ref={textareaRef} value={content} disabled={!canSend} onKeyDown={handleKeyDown} onFocus={() => scrollToBottom()} onChange={(event) => { setContent(event.target.value); setError(""); event.currentTarget.style.height = "38px"; const nextHeight = Math.min(event.currentTarget.scrollHeight, 100); event.currentTarget.style.height = `${nextHeight}px`; event.currentTarget.style.overflowY = event.currentTarget.scrollHeight > 100 ? "auto" : "hidden" }} placeholder={canSend ? replyingTo ? `Ответ ${replyingTo.authorDisplayName}...` : "Написать сообщение..." : accessStatus === "checking" ? "Проверяем местоположение..." : "Вы вне зоны геочата"} maxLength={4000} rows={1} className="min-h-[38] max-h-[100] min-w-0 flex-1 resize-none overflow-y-hidden border-0 bg-transparent px-1 py-2 text-sm leading-5.5 text-gray-900 outline-none placeholder:text-main-gray disabled:cursor-not-allowed disabled:opacity-50" />
+                        <textarea ref={textareaRef} value={content} disabled={!canSend} onKeyDown={handleKeyDown} onFocus={() => { if (!editingMessage) scrollToBottom() }} onChange={(event) => { setContent(event.target.value); setError(""); event.currentTarget.style.height = "38px"; const nextHeight = Math.min(event.currentTarget.scrollHeight, 100); event.currentTarget.style.height = `${nextHeight}px`; event.currentTarget.style.overflowY = event.currentTarget.scrollHeight > 100 ? "auto" : "hidden" }} placeholder={canSend ? editingMessage ? "Изменить сообщение..." : replyingTo ? `Ответ ${replyingTo.authorDisplayName}...` : "Написать сообщение..." : accessStatus === "checking" ? "Проверяем местоположение..." : "Вы вне зоны геочата"} maxLength={4000} rows={1} className="min-h-[38] max-h-[100] min-w-0 flex-1 resize-none overflow-y-hidden border-0 bg-transparent px-1 py-2 text-sm leading-5.5 text-gray-900 outline-none placeholder:text-main-gray disabled:cursor-not-allowed disabled:opacity-50" />
 
-                        <button type="button" onClick={() => void handleSubmit()} disabled={!canSend || isPending || !content.trim()} aria-label="Отправить" className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-main-green text-white transition-colors hover:bg-hover-green disabled:pointer-events-none disabled:opacity-40 sm:size-10">
-                            <Send className="size-4" />
+                        <button type="button" onClick={() => void handleSubmit()} disabled={!canSend || isPending || !content.trim()} aria-label={editingMessage ? "Сохранить" : "Отправить"} className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-main-green text-white transition-colors hover:bg-hover-green disabled:pointer-events-none disabled:opacity-40 sm:size-10">
+                            {editingMessage ? <Pencil className="size-4" /> : <Send className="size-4" />}
                         </button>
                     </div>
                 </div>
@@ -782,6 +1054,69 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
                         <Copy className="size-4 text-main-gray" />
                         <span>Копировать</span>
                     </button>
+
+                    {openMenuMessage.userId === currentProfile.id && (
+                        <>
+                            <div className="mx-3 border-t border-gray-100" />
+
+                            <button type="button" disabled={!canSend} onClick={() => handleEditMessage(openMenuMessage)} className="flex h-10 w-full cursor-pointer items-center gap-2.5 px-3 text-left text-sm text-gray-800 transition-colors hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-40">
+                                <Pencil className="size-4 text-main-gray" />
+                                <span>Изменить</span>
+                            </button>
+
+                            <button type="button" disabled={!canSend} onClick={() => handleDeleteRequest(openMenuMessage)} className="flex h-10 w-full cursor-pointer items-center gap-2.5 px-3 text-left text-sm text-red-500 transition-colors hover:bg-red-50 disabled:pointer-events-none disabled:opacity-40">
+                                <Trash2 className="size-4" />
+                                <span>Удалить</span>
+                            </button>
+                        </>
+                    )}
+                </div>,
+                document.body
+            )}
+
+            {typeof document !== "undefined" && deleteTarget && createPortal(
+                <div className="fixed inset-0 z-10000 flex items-center justify-center bg-black/35 px-4" onPointerDown={(event) => { if (event.target === event.currentTarget && !isDeleting) setDeleteTarget(null) }}>
+                    <div className="w-full max-w-[360] rounded-3xl bg-white p-5 shadow-2xl">
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <div className="text-base font-bold text-gray-900">
+                                    Удалить сообщение?
+                                </div>
+
+                                <div className="mt-1.5 text-sm leading-5 text-main-gray">
+                                    Сообщение будет удалено из этого геочата.
+                                </div>
+                            </div>
+
+                            <button type="button" disabled={isDeleting} onClick={() => setDeleteTarget(null)} aria-label="Закрыть" className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-main-gray transition-colors hover:bg-gray-100 hover:text-gray-900 disabled:pointer-events-none disabled:opacity-40">
+                                <X className="size-4" />
+                            </button>
+                        </div>
+
+                        <div className="mt-4 max-h-[120] overflow-hidden rounded-2xl bg-gray-50 px-3 py-2.5 text-sm leading-5 text-gray-700">
+                            {deleteTarget.content}
+                        </div>
+
+                        <div className="mt-5 flex justify-end gap-2">
+                            <button type="button" disabled={isDeleting} onClick={() => setDeleteTarget(null)} className="h-10 cursor-pointer rounded-xl border border-gray-200 px-4 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-40">
+                                Отмена
+                            </button>
+
+                            <button type="button" disabled={isDeleting} onClick={() => void handleDeleteConfirm()} className="flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl bg-red-500 px-4 text-sm font-medium text-white transition-colors hover:bg-red-600 disabled:pointer-events-none disabled:opacity-50">
+                                {isDeleting ? (
+                                    <>
+                                        <RefreshCw className="size-4 animate-spin" />
+                                        <span>Удаляем...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Trash2 className="size-4" />
+                                        <span>Удалить</span>
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
                 </div>,
                 document.body
             )}

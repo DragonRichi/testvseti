@@ -29,16 +29,13 @@ async function GeoFeed({ currentProfile }: Props) {
     }
 
     const hydrated = await getGeoFeedItems(posts, currentProfile.id)
-    const feedVersion = posts.map((post) => post.id).join(",")
 
     return (
         <GeoFeedList
-            key={feedVersion}
             currentProfile={currentProfile}
             initialItems={hydrated.items}
             initialLikedCommentIds={hydrated.likedCommentIds}
             initialNextCursor={nextCursor}
-
         />
     )
 }

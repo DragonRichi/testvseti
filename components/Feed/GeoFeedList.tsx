@@ -23,22 +23,32 @@ function GeoFeedList({ currentProfile, initialItems, initialLikedCommentIds, ini
 
     const loadMoreRef = useRef<HTMLDivElement>(null)
     const loadingLock = useRef(false)
+    const observerArmedRef = useRef(true)
 
     const initialItemsVersion = useMemo(() => initialItems.map((item) => item.post.id).join("|"), [initialItems])
+    const appliedInitialVersionRef = useRef(initialItemsVersion)
 
     useEffect(() => {
+        if (appliedInitialVersionRef.current === initialItemsVersion) return
+
+        appliedInitialVersionRef.current = initialItemsVersion
+
         setItems(initialItems)
         setLikedCommentIds(initialLikedCommentIds)
         setNextCursor(initialNextCursor)
         setLoadError("")
         setIsLoading(false)
+
         loadingLock.current = false
+        observerArmedRef.current = true
     }, [initialItems, initialItemsVersion, initialLikedCommentIds, initialNextCursor])
 
     const loadMore = useCallback(async () => {
         if (!nextCursor || loadingLock.current) return
 
         loadingLock.current = true
+        observerArmedRef.current = false
+
         setIsLoading(true)
         setLoadError("")
 
@@ -79,12 +89,22 @@ function GeoFeedList({ currentProfile, initialItems, initialLikedCommentIds, ini
             (entries) => {
                 const entry = entries[0]
 
-                if (entry?.isIntersecting) {
-                    void loadMore()
+                if (!entry) return
+
+                if (!entry.isIntersecting) {
+                    observerArmedRef.current = true
+                    return
                 }
+
+                if (!observerArmedRef.current) return
+                if (loadingLock.current) return
+
+                observerArmedRef.current = false
+
+                void loadMore()
             },
             {
-                rootMargin: "600px 0px",
+                rootMargin: "250px 0px",
                 threshold: 0
             }
         )
@@ -95,6 +115,13 @@ function GeoFeedList({ currentProfile, initialItems, initialLikedCommentIds, ini
             observer.disconnect()
         }
     }, [nextCursor, loadError, loadMore])
+
+    const handleRetry = () => {
+        setLoadError("")
+        observerArmedRef.current = true
+
+        void loadMore()
+    }
 
     return (
         <>
@@ -119,7 +146,7 @@ function GeoFeedList({ currentProfile, initialItems, initialLikedCommentIds, ini
                 <div className="mt-4 flex flex-col items-center gap-2 rounded-2xl border border-red-100 bg-white p-4 text-center">
                     <div className="text-sm text-red-500">{loadError}</div>
 
-                    <button type="button" onClick={() => { setLoadError(""); void loadMore() }} className="cursor-pointer rounded-xl bg-green-50 px-4 py-2 text-sm font-medium text-main-green transition-colors hover:bg-green-100">
+                    <button type="button" onClick={handleRetry} className="cursor-pointer rounded-xl bg-green-50 px-4 py-2 text-sm font-medium text-main-green transition-colors hover:bg-green-100">
                         Повторить
                     </button>
                 </div>

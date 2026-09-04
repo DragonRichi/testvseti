@@ -228,16 +228,18 @@ function CommentItem({ comment, postId, username, currentProfile, initialLiked, 
                             <div className="mt-2">
                                 <textarea value={content} onChange={(e) => { setContent(e.target.value); setError("") }} maxLength={2000} autoFocus className="min-h-[90] w-full resize-none rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm outline-none transition-colors focus:border-main-green/40" />
 
-                                <div className="mt-2 flex items-center justify-between gap-3">
-                                    <span className="text-xs text-main-gray">{content.length}/2000</span>
+                                <div className="mt-2 flex flex-wrap items-center gap-2">
+                                    <span className="mr-auto text-xs text-main-gray">
+                                        {content.length}/2000
+                                    </span>
 
-                                    <div className="flex items-center gap-2">
-                                        <button type="button" disabled={isPending} onClick={handleCancel} className="h-8 cursor-pointer rounded-lg border border-gray-200 px-3 text-xs transition-colors hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-50">
+                                    <div className="ml-auto flex items-center gap-2">
+                                        <button type="button" disabled={isPending} onClick={handleCancel} className="h-8 cursor-pointer rounded-lg border border-gray-200 px-2.5 text-xs transition-colors hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-50">
                                             Отмена
                                         </button>
 
-                                        <button type="button" disabled={isPending || !content.trim()} onClick={handleUpdate} className="h-8 cursor-pointer rounded-lg bg-main-green px-3 text-xs font-medium text-white transition-colors hover:bg-hover-green disabled:pointer-events-none disabled:opacity-50">
-                                            {isPending ? "Сохраняем..." : "Сохранить"}
+                                        <button type="button" disabled={isPending || !content.trim()} onClick={handleUpdate} className="h-8 cursor-pointer rounded-lg bg-main-green px-2.5 text-xs font-medium text-white transition-colors hover:bg-hover-green disabled:pointer-events-none disabled:opacity-50">
+                                            {isPending ? "..." : "Сохранить"}
                                         </button>
                                     </div>
                                 </div>
