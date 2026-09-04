@@ -136,12 +136,54 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
                     table: "geo_chat_messages",
                     filter: `chat_id=eq.${room.id}`
                 },
-                (payload) => {
+                async (payload) => {
                     console.log("GEO CHAT REALTIME INSERT:", payload)
+
+                    const row = payload.new as {
+                        id: string
+                        chat_id: string
+                        user_id: string
+                        content: string
+                        created_at: string
+                        updated_at: string
+                    }
 
                     const shouldScroll = isNearBottom()
 
-                    void refreshMessagesFromRealtime(shouldScroll)
+                    const { data: author, error: authorError } = await supabase
+                        .from("profiles")
+                        .select("username,display_name,avatar_url")
+                        .eq("id", row.user_id)
+                        .single()
+
+                    if (authorError || !author) {
+                        console.error("GEO CHAT REALTIME AUTHOR ERROR:", authorError)
+                        return
+                    }
+
+                    const newMessage: GeoChatMessage = {
+                        id: row.id,
+                        chatId: row.chat_id,
+                        userId: row.user_id,
+                        content: row.content,
+                        createdAt: row.created_at,
+                        updatedAt: row.updated_at,
+                        authorUsername: author.username,
+                        authorDisplayName: author.display_name ?? author.username,
+                        authorAvatarUrl: author.avatar_url
+                    }
+
+                    setMessages((prev) => {
+                        if (prev.some((message) => message.id === newMessage.id)) {
+                            return prev
+                        }
+
+                        return [...prev, newMessage]
+                    })
+
+                    if (shouldScroll) {
+                        scrollToBottom()
+                    }
                 }
             )
 
@@ -181,7 +223,7 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
         return () => {
             void supabase.removeChannel(channel)
         }
-    }, [isNearBottom, refreshMessagesFromRealtime, room.id])
+    }, [isNearBottom, room.id, scrollToBottom])
 
     const refreshMessages = async () => {
         if (refreshLockRef.current) return
