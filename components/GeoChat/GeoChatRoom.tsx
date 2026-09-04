@@ -2,13 +2,14 @@
 
 import { createGeoChatMessage } from "@/actions/createGeoChatMessage"
 import { getGeoChatMessages } from "@/actions/getGeoChatMessages"
+import { createClient } from "@/lib/supabase/client"
 import type { GeoChatMessage, GeoChatRoom as GeoChatRoomType } from "@/types/geoChat"
 import type { Profile } from "@/types/social"
 import { ArrowDown, ArrowLeft, Hash, MoreHorizontal, Paperclip, RefreshCw, Send, Smile } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import type { KeyboardEvent, TouchEvent } from "react"
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 type Props = {
     room: GeoChatRoomType
@@ -39,6 +40,9 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
 
     const submitLockRef = useRef(false)
     const refreshLockRef = useRef(false)
+    const realtimeRefreshLockRef = useRef(false)
+    const realtimeRefreshQueuedRef = useRef(false)
+
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const messagesContainerRef = useRef<HTMLDivElement>(null)
     const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -64,21 +68,90 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
         }
     }, [])
 
-    useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({
-            behavior: "instant",
-            block: "end"
-        })
-    }, [])
-
-    const scrollToBottom = () => {
+    const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
         requestAnimationFrame(() => {
             messagesEndRef.current?.scrollIntoView({
-                behavior: "smooth",
+                behavior,
                 block: "end"
             })
         })
-    }
+    }, [])
+
+    const isNearBottom = useCallback(() => {
+        const container = messagesContainerRef.current
+
+        if (!container) return true
+
+        const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight
+
+        return distanceFromBottom < 160
+    }, [])
+
+    const refreshMessagesFromRealtime = useCallback(async (scrollAfterRefresh: boolean) => {
+        if (realtimeRefreshLockRef.current) {
+            realtimeRefreshQueuedRef.current = true
+            return
+        }
+
+        realtimeRefreshLockRef.current = true
+
+        try {
+            do {
+                realtimeRefreshQueuedRef.current = false
+
+                const result = await getGeoChatMessages(room.id)
+
+                if (result.success === false) {
+                    console.error("GEO CHAT REALTIME REFRESH ERROR:", result.error)
+                    return
+                }
+
+                setMessages(result.messages)
+            } while (realtimeRefreshQueuedRef.current)
+
+            if (scrollAfterRefresh) {
+                scrollToBottom("smooth")
+            }
+        } catch (error) {
+            console.error("GEO CHAT REALTIME ERROR:", error)
+        } finally {
+            realtimeRefreshLockRef.current = false
+        }
+    }, [room.id, scrollToBottom])
+
+    useEffect(() => {
+        scrollToBottom("instant")
+    }, [scrollToBottom])
+
+    useEffect(() => {
+        const supabase = createClient()
+
+        const channel = supabase
+            .channel(`geo-chat:${room.id}`)
+            .on(
+                "postgres_changes",
+                {
+                    event: "INSERT",
+                    schema: "public",
+                    table: "geo_chat_messages",
+                    filter: `chat_id=eq.${room.id}`
+                },
+                () => {
+                    const shouldScroll = isNearBottom()
+
+                    void refreshMessagesFromRealtime(shouldScroll)
+                }
+            )
+            .subscribe((status) => {
+                if (process.env.NODE_ENV === "development") {
+                    console.log("GEO CHAT REALTIME:", status)
+                }
+            })
+
+        return () => {
+            void supabase.removeChannel(channel)
+        }
+    }, [isNearBottom, refreshMessagesFromRealtime, room.id])
 
     const refreshMessages = async () => {
         if (refreshLockRef.current) return
@@ -191,7 +264,14 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
                 authorAvatarUrl: currentProfile.avatar_url
             }
 
-            setMessages((prev) => [...prev, newMessage])
+            setMessages((prev) => {
+                if (prev.some((message) => message.id === newMessage.id)) {
+                    return prev
+                }
+
+                return [...prev, newMessage]
+            })
+
             setContent("")
 
             if (textareaRef.current) {
@@ -320,7 +400,7 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
                         <Smile className="size-4 sm:size-5" />
                     </button>
 
-                    <textarea ref={textareaRef} value={content} onKeyDown={handleKeyDown} onFocus={scrollToBottom} onChange={(event) => { setContent(event.target.value); setError(""); event.currentTarget.style.height = "38px"; const nextHeight = Math.min(event.currentTarget.scrollHeight, 100); event.currentTarget.style.height = `${nextHeight}px`; event.currentTarget.style.overflowY = event.currentTarget.scrollHeight > 100 ? "auto" : "hidden" }} placeholder="Написать сообщение..." maxLength={4000} rows={1} className="min-h-[38] max-h-[100] min-w-0 flex-1 resize-none overflow-y-hidden border-0 bg-transparent px-1 py-2 text-sm leading-5.5 text-gray-900 outline-none placeholder:text-main-gray" />
+                    <textarea ref={textareaRef} value={content} onKeyDown={handleKeyDown} onFocus={() => scrollToBottom()} onChange={(event) => { setContent(event.target.value); setError(""); event.currentTarget.style.height = "38px"; const nextHeight = Math.min(event.currentTarget.scrollHeight, 100); event.currentTarget.style.height = `${nextHeight}px`; event.currentTarget.style.overflowY = event.currentTarget.scrollHeight > 100 ? "auto" : "hidden" }} placeholder="Написать сообщение..." maxLength={4000} rows={1} className="min-h-[38] max-h-[100] min-w-0 flex-1 resize-none overflow-y-hidden border-0 bg-transparent px-1 py-2 text-sm leading-5.5 text-gray-900 outline-none placeholder:text-main-gray" />
 
                     <button type="button" onClick={() => void handleSubmit()} disabled={isPending || !content.trim()} aria-label="Отправить" className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-main-green text-white transition-colors hover:bg-hover-green disabled:pointer-events-none disabled:opacity-40 sm:size-10">
                         <Send className="size-4" />
