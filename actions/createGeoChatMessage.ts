@@ -10,6 +10,7 @@ type Result =
             chat_id: string
             user_id: string
             content: string
+            reply_to_id: string | null
             created_at: string
             updated_at: string
         }
@@ -19,7 +20,7 @@ type Result =
         error: string
     }
 
-export async function createGeoChatMessage(chatId: string, content: string): Promise<Result> {
+export async function createGeoChatMessage(chatId: string, content: string, replyToId: string | null = null): Promise<Result> {
     const normalizedContent = content.trim()
 
     if (!normalizedContent) {
@@ -70,14 +71,35 @@ export async function createGeoChatMessage(chatId: string, content: string): Pro
         }
     }
 
+    if (replyToId) {
+        const { data: replyTarget, error: replyError } = await supabase.from("geo_chat_messages").select("id").eq("id", replyToId).eq("chat_id", chatId).maybeSingle()
+
+        if (replyError) {
+            console.error("GEO CHAT REPLY TARGET ERROR:", replyError)
+
+            return {
+                success: false,
+                error: "Не удалось проверить сообщение, на которое вы отвечаете"
+            }
+        }
+
+        if (!replyTarget) {
+            return {
+                success: false,
+                error: "Исходное сообщение не найдено"
+            }
+        }
+    }
+
     const { data, error } = await supabase
         .from("geo_chat_messages")
         .insert({
             chat_id: chatId,
             user_id: user.id,
-            content: normalizedContent
+            content: normalizedContent,
+            reply_to_id: replyToId
         })
-        .select("id,chat_id,user_id,content,created_at,updated_at")
+        .select("id,chat_id,user_id,content,reply_to_id,created_at,updated_at")
         .single()
 
     if (error || !data) {

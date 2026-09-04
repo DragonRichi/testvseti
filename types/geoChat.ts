@@ -28,6 +28,13 @@ export type GeoChatRoom = {
     createdAt: string
 }
 
+export type GeoChatMessageReply = {
+    id: string
+    authorUsername: string
+    authorDisplayName: string
+    content: string
+}
+
 export type GeoChatMessage = {
     id: string
     chatId: string
@@ -38,4 +45,5 @@ export type GeoChatMessage = {
     authorUsername: string
     authorDisplayName: string
     authorAvatarUrl: string | null
+    replyTo: GeoChatMessageReply | null
 }

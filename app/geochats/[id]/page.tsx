@@ -32,6 +32,10 @@ type MessageRow = {
     author_username: string
     author_display_name: string | null
     author_avatar_url: string | null
+    reply_to_id: string | null
+    reply_author_username: string | null
+    reply_author_display_name: string | null
+    reply_content: string | null
 }
 
 async function Page({ params }: Props) {
@@ -113,7 +117,13 @@ async function Page({ params }: Props) {
         updatedAt: message.updated_at,
         authorUsername: message.author_username,
         authorDisplayName: message.author_display_name ?? message.author_username,
-        authorAvatarUrl: message.author_avatar_url
+        authorAvatarUrl: message.author_avatar_url,
+        replyTo: message.reply_to_id && message.reply_author_username && message.reply_content ? {
+            id: message.reply_to_id,
+            authorUsername: message.reply_author_username,
+            authorDisplayName: message.reply_author_display_name ?? message.reply_author_username,
+            content: message.reply_content
+        } : null
     }))
 
     return (
