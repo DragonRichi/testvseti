@@ -10,6 +10,7 @@ import Image from "next/image"
 import Link from "next/link"
 import type { KeyboardEvent, TouchEvent } from "react"
 import { useCallback, useEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import useGeoChatLiveAccess from "./useGeoChatLiveAccess"
 
 type Props = {
@@ -18,8 +19,17 @@ type Props = {
     currentProfile: Profile
 }
 
+type MenuPosition = {
+    top: number
+    left: number
+}
+
 const REFRESH_THRESHOLD = 70
 const MAX_PULL_DISTANCE = 95
+const MESSAGE_MENU_WIDTH = 170
+const MESSAGE_MENU_HEIGHT = 88
+const MESSAGE_MENU_GAP = 6
+const VIEWPORT_MARGIN = 8
 
 function formatMessageDate(value: string) {
     return new Intl.DateTimeFormat("ru-RU", {
@@ -40,6 +50,7 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
     const [pullDistance, setPullDistance] = useState(0)
     const [replyingTo, setReplyingTo] = useState<GeoChatMessage | null>(null)
     const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+    const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null)
     const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
 
     const { status: accessStatus, error: accessError, accuracy, isTestAccess, canSend } = useGeoChatLiveAccess(room.id)
@@ -53,6 +64,7 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
     const touchStartYRef = useRef<number | null>(null)
     const isPullingRef = useRef(false)
     const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+    const messageMenuRef = useRef<HTMLDivElement>(null)
     const longPressTimerRef = useRef<number | null>(null)
     const highlightTimerRef = useRef<number | null>(null)
 
@@ -86,6 +98,45 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
             }
         }
     }, [])
+
+    const closeMessageMenu = useCallback(() => {
+        setOpenMenuId(null)
+        setMenuPosition(null)
+    }, [])
+
+    useEffect(() => {
+        if (!openMenuId) return
+
+        const handlePointerDown = (event: PointerEvent) => {
+            const target = event.target as Node
+
+            if (messageMenuRef.current?.contains(target)) return
+
+            closeMessageMenu()
+        }
+
+        const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+            if (event.key === "Escape") {
+                closeMessageMenu()
+            }
+        }
+
+        const handleViewportChange = () => {
+            closeMessageMenu()
+        }
+
+        document.addEventListener("pointerdown", handlePointerDown)
+        document.addEventListener("keydown", handleKeyDown)
+        window.addEventListener("resize", handleViewportChange)
+        window.addEventListener("orientationchange", handleViewportChange)
+
+        return () => {
+            document.removeEventListener("pointerdown", handlePointerDown)
+            document.removeEventListener("keydown", handleKeyDown)
+            window.removeEventListener("resize", handleViewportChange)
+            window.removeEventListener("orientationchange", handleViewportChange)
+        }
+    }, [closeMessageMenu, openMenuId])
 
     const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
         requestAnimationFrame(() => {
@@ -255,6 +306,7 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
         refreshLockRef.current = true
         setIsRefreshing(true)
         setError("")
+        closeMessageMenu()
 
         try {
             const result = await getGeoChatMessages(room.id)
@@ -329,6 +381,56 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
         setPullDistance(0)
     }
 
+    const getMenuPosition = (element: HTMLElement): MenuPosition => {
+        const rect = element.getBoundingClientRect()
+        const viewportWidth = window.innerWidth
+        const viewportHeight = window.innerHeight
+
+        const spaceBelow = viewportHeight - rect.bottom
+        const spaceAbove = rect.top
+
+        let top: number
+
+        if (spaceBelow >= MESSAGE_MENU_HEIGHT + MESSAGE_MENU_GAP + VIEWPORT_MARGIN) {
+            top = rect.bottom + MESSAGE_MENU_GAP
+        } else if (spaceAbove >= MESSAGE_MENU_HEIGHT + MESSAGE_MENU_GAP + VIEWPORT_MARGIN) {
+            top = rect.top - MESSAGE_MENU_HEIGHT - MESSAGE_MENU_GAP
+        } else {
+            top = Math.max(VIEWPORT_MARGIN, Math.min(rect.top, viewportHeight - MESSAGE_MENU_HEIGHT - VIEWPORT_MARGIN))
+        }
+
+        const left = Math.max(
+            VIEWPORT_MARGIN,
+            Math.min(
+                rect.right - MESSAGE_MENU_WIDTH,
+                viewportWidth - MESSAGE_MENU_WIDTH - VIEWPORT_MARGIN
+            )
+        )
+
+        return {
+            top,
+            left
+        }
+    }
+
+    const openMessageMenu = (messageId: string, anchor?: HTMLElement) => {
+        const element = anchor ?? messageRefs.current.get(messageId)
+
+        if (!element) return
+
+        setMenuPosition(getMenuPosition(element))
+        setOpenMenuId(messageId)
+    }
+
+    const toggleMessageMenu = (messageId: string, anchor: HTMLElement) => {
+        if (openMenuId === messageId) {
+            closeMessageMenu()
+            return
+        }
+
+        openMessageMenu(messageId, anchor)
+    }
+
     const clearLongPress = () => {
         if (longPressTimerRef.current !== null) {
             window.clearTimeout(longPressTimerRef.current)
@@ -340,7 +442,7 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
         clearLongPress()
 
         longPressTimerRef.current = window.setTimeout(() => {
-            setOpenMenuId(messageId)
+            openMessageMenu(messageId)
             longPressTimerRef.current = null
         }, 500)
     }
@@ -349,7 +451,7 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
         if (!canSend) return
 
         setReplyingTo(message)
-        setOpenMenuId(null)
+        closeMessageMenu()
         setError("")
 
         requestAnimationFrame(() => {
@@ -358,7 +460,7 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
     }
 
     const handleCopyMessage = async (message: GeoChatMessage) => {
-        setOpenMenuId(null)
+        closeMessageMenu()
 
         try {
             await navigator.clipboard.writeText(message.content)
@@ -375,6 +477,8 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
             setError("Исходное сообщение пока не загружено")
             return
         }
+
+        closeMessageMenu()
 
         element.scrollIntoView({
             behavior: "smooth",
@@ -408,6 +512,7 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
         submitLockRef.current = true
         setIsPending(true)
         setError("")
+        closeMessageMenu()
 
         try {
             const result = await createGeoChatMessage(room.id, normalizedContent, replyingTo?.id ?? null)
@@ -470,217 +575,217 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
     }
 
     const refreshReady = pullDistance >= REFRESH_THRESHOLD
+    const openMenuMessage = openMenuId ? messages.find((message) => message.id === openMenuId) ?? null : null
 
     return (
-        <div className="fixed inset-x-0 bottom-0 top-[64] z-40 flex flex-col overflow-hidden bg-white lg:static lg:z-auto lg:h-[calc(100dvh-32px)] lg:min-h-[520] lg:rounded-3xl lg:border lg:border-green-100">
-            <div className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-gray-100 bg-white px-3 sm:h-16 sm:px-5">
-                <div className="flex min-w-0 items-center gap-2.5">
-                    <Link href="/geochats" aria-label="Назад к геочатам" className="flex size-8 shrink-0 items-center justify-center rounded-full text-main-gray transition-colors hover:bg-gray-100 hover:text-gray-900 sm:size-9">
-                        <ArrowLeft className="size-5" />
-                    </Link>
+        <>
+            <div className="fixed inset-x-0 bottom-0 top-[64] z-40 flex flex-col overflow-hidden bg-white lg:static lg:z-auto lg:h-[calc(100dvh-32px)] lg:min-h-[520] lg:rounded-3xl lg:border lg:border-green-100">
+                <div className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-gray-100 bg-white px-3 sm:h-16 sm:px-5">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                        <Link href="/geochats" aria-label="Назад к геочатам" className="flex size-8 shrink-0 items-center justify-center rounded-full text-main-gray transition-colors hover:bg-gray-100 hover:text-gray-900 sm:size-9">
+                            <ArrowLeft className="size-5" />
+                        </Link>
 
-                    <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-green-50 text-main-green sm:size-10">
-                        <Hash className="size-5" />
+                        <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-green-50 text-main-green sm:size-10">
+                            <Hash className="size-5" />
+                        </div>
+
+                        <div className="min-w-0">
+                            <div className="truncate text-[15px] font-bold text-gray-900 sm:text-lg">#{room.name}</div>
+
+                            <div className="flex items-center gap-1.5 text-[11px] text-main-gray sm:text-xs">
+                                <span>Радиус {Math.round(room.radiusM / 1000)} км</span>
+
+                                {isTestAccess ? (
+                                    <span className="text-main-green">· тест</span>
+                                ) : accuracy !== null ? (
+                                    <span>· ±{Math.round(accuracy)} м</span>
+                                ) : null}
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="min-w-0">
-                        <div className="truncate text-[15px] font-bold text-gray-900 sm:text-lg">#{room.name}</div>
+                    <button type="button" aria-label="Меню геочата" className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-main-gray transition-colors hover:bg-gray-100 hover:text-gray-900 sm:size-10">
+                        <MoreHorizontal className="size-5" />
+                    </button>
+                </div>
 
-                        <div className="flex items-center gap-1.5 text-[11px] text-main-gray sm:text-xs">
-                            <span>Радиус {Math.round(room.radiusM / 1000)} км</span>
-
-                            {isTestAccess ? (
-                                <span className="text-main-green">· тест</span>
-                            ) : accuracy !== null ? (
-                                <span>· ±{Math.round(accuracy)} м</span>
+                <div className="relative min-h-0 flex-1 overflow-hidden">
+                    <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center overflow-hidden" style={{ height: `${isRefreshing ? 54 : pullDistance}px` }}>
+                        <div className="flex h-[54] items-center justify-center gap-2 text-xs font-medium text-main-gray">
+                            {isRefreshing ? (
+                                <>
+                                    <RefreshCw className="size-4 animate-spin text-main-green" />
+                                    <span>Обновляем сообщения...</span>
+                                </>
+                            ) : refreshReady ? (
+                                <>
+                                    <RefreshCw className="size-4 text-main-green" />
+                                    <span className="text-main-green">Отпустите для обновления</span>
+                                </>
+                            ) : pullDistance > 8 ? (
+                                <>
+                                    <ArrowDown className="size-4 text-main-green" />
+                                    <span>Потяните для обновления</span>
+                                </>
                             ) : null}
                         </div>
                     </div>
-                </div>
 
-                <button type="button" aria-label="Меню геочата" className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-main-gray transition-colors hover:bg-gray-100 hover:text-gray-900 sm:size-10">
-                    <MoreHorizontal className="size-5" />
-                </button>
-            </div>
-
-            <div className="relative min-h-0 flex-1 overflow-hidden">
-                <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center overflow-hidden" style={{ height: `${isRefreshing ? 54 : pullDistance}px` }}>
-                    <div className="flex h-[54] items-center justify-center gap-2 text-xs font-medium text-main-gray">
-                        {isRefreshing ? (
-                            <>
-                                <RefreshCw className="size-4 animate-spin text-main-green" />
-                                <span>Обновляем сообщения...</span>
-                            </>
-                        ) : refreshReady ? (
-                            <>
-                                <RefreshCw className="size-4 text-main-green" />
-                                <span className="text-main-green">Отпустите для обновления</span>
-                            </>
-                        ) : pullDistance > 8 ? (
-                            <>
-                                <ArrowDown className="size-4 text-main-green" />
-                                <span>Потяните для обновления</span>
-                            </>
-                        ) : null}
-                    </div>
-                </div>
-
-                <div ref={messagesContainerRef} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onTouchCancel={handleTouchEnd} className="h-full overflow-y-auto overscroll-contain px-3 py-4 sm:px-5 sm:py-5" style={{ transform: `translateY(${isRefreshing ? 54 : pullDistance}px)`, transition: isPullingRef.current ? "none" : "transform 180ms ease-out" }}>
-                    {messages.length === 0 ? (
-                        <div className="flex h-full min-h-[220] items-center justify-center text-center">
-                            <div className="max-w-[360]">
-                                <div className="text-base font-semibold text-gray-900">Пока здесь тихо</div>
-                                <div className="mt-2 text-sm leading-6 text-main-gray">Напишите первое сообщение в этом геочате.</div>
+                    <div ref={messagesContainerRef} onScroll={() => { if (openMenuId) closeMessageMenu() }} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onTouchCancel={handleTouchEnd} className="h-full overflow-y-auto overscroll-contain px-3 py-4 sm:px-5 sm:py-5" style={{ transform: `translateY(${isRefreshing ? 54 : pullDistance}px)`, transition: isPullingRef.current ? "none" : "transform 180ms ease-out" }}>
+                        {messages.length === 0 ? (
+                            <div className="flex h-full min-h-[220] items-center justify-center text-center">
+                                <div className="max-w-[360]">
+                                    <div className="text-base font-semibold text-gray-900">Пока здесь тихо</div>
+                                    <div className="mt-2 text-sm leading-6 text-main-gray">Напишите первое сообщение в этом геочате.</div>
+                                </div>
                             </div>
-                        </div>
-                    ) : (
-                        <div className="flex flex-col gap-3.5 sm:gap-4">
-                            {messages.map((message) => (
-                                <div key={message.id} ref={(element) => { if (element) messageRefs.current.set(message.id, element); else messageRefs.current.delete(message.id) }} onContextMenu={(event) => { event.preventDefault(); setOpenMenuId(message.id) }} onTouchStart={() => startLongPress(message.id)} onTouchEnd={clearLongPress} onTouchMove={clearLongPress} onTouchCancel={clearLongPress} className={`flex items-end gap-2 rounded-2xl transition-colors ${highlightedMessageId === message.id ? "bg-green-50" : ""}`}>
-                                    <Link href={`/profile/${message.authorUsername}`} className="relative mb-5 size-8 shrink-0 overflow-hidden rounded-full bg-bg-green sm:size-9">
-                                        <Image src={message.authorAvatarUrl ?? "/user-avatar.svg"} alt={message.authorDisplayName} fill sizes="36px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
-                                    </Link>
+                        ) : (
+                            <div className="flex flex-col gap-3.5 sm:gap-4">
+                                {messages.map((message) => (
+                                    <div key={message.id} ref={(element) => { if (element) messageRefs.current.set(message.id, element); else messageRefs.current.delete(message.id) }} onContextMenu={(event) => { event.preventDefault(); openMessageMenu(message.id, event.currentTarget) }} onTouchStart={() => startLongPress(message.id)} onTouchEnd={clearLongPress} onTouchMove={clearLongPress} onTouchCancel={clearLongPress} className={`flex items-end gap-2 rounded-2xl transition-colors ${highlightedMessageId === message.id ? "bg-green-50" : ""}`}>
+                                        <Link href={`/profile/${message.authorUsername}`} className="relative mb-5 size-8 shrink-0 overflow-hidden rounded-full bg-bg-green sm:size-9">
+                                            <Image src={message.authorAvatarUrl ?? "/user-avatar.svg"} alt={message.authorDisplayName} fill sizes="36px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
+                                        </Link>
 
-                                    <div className="min-w-0 max-w-[620] flex-1">
-                                        <div className="group relative rounded-[18px] bg-[#f2f3f2] px-3 py-2.5 pr-9 sm:rounded-[20px] sm:px-4 sm:pr-10">
-                                            <Link href={`/profile/${message.authorUsername}`} className="text-xs font-semibold text-main-green hover:underline sm:text-sm">
-                                                {message.authorDisplayName}
-                                            </Link>
+                                        <div className="min-w-0 max-w-[620] flex-1">
+                                            <div className="group relative rounded-[18px] bg-[#f2f3f2] px-3 py-2.5 pr-9 sm:rounded-[20px] sm:px-4 sm:pr-10">
+                                                <Link href={`/profile/${message.authorUsername}`} className="text-xs font-semibold text-main-green hover:underline sm:text-sm">
+                                                    {message.authorDisplayName}
+                                                </Link>
 
-                                            <button type="button" onClick={() => setOpenMenuId((current) => current === message.id ? null : message.id)} aria-label="Меню сообщения" className="absolute right-2 top-2 flex size-6 cursor-pointer items-center justify-center rounded-full text-main-gray transition-colors hover:bg-white hover:text-gray-900 sm:opacity-0 sm:group-hover:opacity-100">
-                                                <MoreHorizontal className="size-4" />
-                                            </button>
-
-                                            {message.replyTo && (
-                                                <button type="button" onClick={() => scrollToMessage(message.replyTo!.id)} className="mt-1.5 mb-2 block w-full cursor-pointer rounded-xl border-l-2 border-main-green bg-white/70 px-3 py-2 text-left transition-colors hover:bg-white">
-                                                    <div className="truncate text-xs font-semibold text-main-green">
-                                                        Ответ {message.replyTo.authorDisplayName}
-                                                    </div>
-
-                                                    <div className="mt-0.5 truncate text-xs text-main-gray">
-                                                        {message.replyTo.content}
-                                                    </div>
+                                                <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => toggleMessageMenu(message.id, event.currentTarget)} aria-label="Меню сообщения" className="absolute right-2 top-2 flex size-6 cursor-pointer items-center justify-center rounded-full text-main-gray transition-colors hover:bg-white hover:text-gray-900 sm:opacity-0 sm:group-hover:opacity-100">
+                                                    <MoreHorizontal className="size-4" />
                                                 </button>
-                                            )}
 
-                                            <div className="mt-0.5 whitespace-pre-wrap wrap-break-word text-sm leading-5 text-gray-900 sm:text-[15px] sm:leading-6">
-                                                {message.content}
+                                                {message.replyTo && (
+                                                    <button type="button" onClick={() => scrollToMessage(message.replyTo!.id)} className="mt-1.5 mb-2 block w-full cursor-pointer rounded-xl border-l-2 border-main-green bg-white/70 px-3 py-2 text-left transition-colors hover:bg-white">
+                                                        <div className="truncate text-xs font-semibold text-main-green">
+                                                            Ответ {message.replyTo.authorDisplayName}
+                                                        </div>
+
+                                                        <div className="mt-0.5 truncate text-xs text-main-gray">
+                                                            {message.replyTo.content}
+                                                        </div>
+                                                    </button>
+                                                )}
+
+                                                <div className="mt-0.5 whitespace-pre-wrap wrap-break-word text-sm leading-5 text-gray-900 sm:text-[15px] sm:leading-6">
+                                                    {message.content}
+                                                </div>
                                             </div>
 
-                                            {openMenuId === message.id && (
-                                                <>
-                                                    <button type="button" aria-label="Закрыть меню" onClick={() => setOpenMenuId(null)} className="fixed inset-0 z-60 cursor-default" />
-
-                                                    <div className="absolute right-2 top-9 z-70 w-[170] overflow-hidden rounded-xl border border-gray-100 bg-white py-1 shadow-lg">
-                                                        <button type="button" disabled={!canSend} onClick={() => handleReplyToMessage(message)} className="flex h-10 w-full cursor-pointer items-center gap-2.5 px-3 text-left text-sm text-gray-800 transition-colors hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-40">
-                                                            <CornerUpLeft className="size-4 text-main-gray" />
-                                                            <span>Ответить</span>
-                                                        </button>
-
-                                                        <button type="button" onClick={() => void handleCopyMessage(message)} className="flex h-10 w-full cursor-pointer items-center gap-2.5 px-3 text-left text-sm text-gray-800 transition-colors hover:bg-gray-50">
-                                                            <Copy className="size-4 text-main-gray" />
-                                                            <span>Копировать</span>
-                                                        </button>
-                                                    </div>
-                                                </>
-                                            )}
-                                        </div>
-
-                                        <div className="mt-1 px-1 text-[10px] text-main-gray sm:text-xs">
-                                            {formatMessageDate(message.createdAt)}
+                                            <div className="mt-1 px-1 text-[10px] text-main-gray sm:text-xs">
+                                                {formatMessageDate(message.createdAt)}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))}
 
-                            <div ref={messagesEndRef} />
+                                <div ref={messagesEndRef} />
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {accessStatus !== "active" && (
+                    <div className="shrink-0 border-t border-gray-100 bg-white px-2 pt-2 sm:px-4 sm:pt-3">
+                        <div className={`rounded-2xl px-3 py-2.5 sm:px-4 sm:py-3 ${accessStatus === "outside" ? "bg-amber-50" : accessStatus === "checking" ? "bg-gray-50" : "bg-red-50"}`}>
+                            <div className="flex items-start gap-2.5">
+                                {accessStatus === "checking" ? (
+                                    <RefreshCw className="mt-0.5 size-4 shrink-0 animate-spin text-main-green" />
+                                ) : (
+                                    <MapPin className={`mt-0.5 size-4 shrink-0 ${accessStatus === "outside" ? "text-amber-600" : "text-red-500"}`} />
+                                )}
+
+                                <div className="min-w-0 flex-1">
+                                    <div className="text-sm font-semibold text-gray-900">
+                                        {accessStatus === "checking" && "Проверяем местоположение"}
+                                        {accessStatus === "outside" && "Вы вышли из зоны геочата"}
+                                        {accessStatus === "denied" && "Доступ к геолокации запрещён"}
+                                        {accessStatus === "unsupported" && "Геолокация недоступна"}
+                                        {accessStatus === "error" && "Не удалось проверить местоположение"}
+                                    </div>
+
+                                    <div className="mt-1 text-xs leading-5 text-main-gray">
+                                        {accessStatus === "checking" && "Проверяем, находитесь ли вы в зоне этого геочата."}
+                                        {accessStatus === "outside" && "Отправка сообщений временно недоступна. Вернитесь в зону геочата, и отправка включится автоматически."}
+                                        {accessStatus === "denied" && "Разрешите ВСети доступ к местоположению в настройках браузера или телефона."}
+                                        {accessStatus === "unsupported" && "На этом устройстве невозможно получить текущее местоположение."}
+                                        {accessStatus === "error" && (accessError || "Не удалось получить актуальную геопозицию.")}
+                                    </div>
+
+                                    {accessStatus !== "checking" && (
+                                        <Link href="/geochats" className="mt-1.5 inline-flex text-xs font-semibold text-main-green hover:underline">
+                                            Вернуться к геочатам
+                                        </Link>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                <div className="shrink-0 border-t border-gray-100 bg-white px-2 py-2 sm:p-4">
+                    {error && (
+                        <div className="mb-2 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-600">
+                            {error}
                         </div>
                     )}
-                </div>
-            </div>
 
-            {accessStatus !== "active" && (
-                <div className="shrink-0 border-t border-gray-100 bg-white px-2 pt-2 sm:px-4 sm:pt-3">
-                    <div className={`rounded-2xl px-3 py-2.5 sm:px-4 sm:py-3 ${accessStatus === "outside" ? "bg-amber-50" : accessStatus === "checking" ? "bg-gray-50" : "bg-red-50"}`}>
-                        <div className="flex items-start gap-2.5">
-                            {accessStatus === "checking" ? (
-                                <RefreshCw className="mt-0.5 size-4 shrink-0 animate-spin text-main-green" />
-                            ) : (
-                                <MapPin className={`mt-0.5 size-4 shrink-0 ${accessStatus === "outside" ? "text-amber-600" : "text-red-500"}`} />
-                            )}
+                    {replyingTo && (
+                        <div className="mb-2 flex items-center gap-2 rounded-xl bg-green-50 px-3 py-2">
+                            <CornerUpLeft className="size-4 shrink-0 text-main-green" />
 
                             <div className="min-w-0 flex-1">
-                                <div className="text-sm font-semibold text-gray-900">
-                                    {accessStatus === "checking" && "Проверяем местоположение"}
-                                    {accessStatus === "outside" && "Вы вышли из зоны геочата"}
-                                    {accessStatus === "denied" && "Доступ к геолокации запрещён"}
-                                    {accessStatus === "unsupported" && "Геолокация недоступна"}
-                                    {accessStatus === "error" && "Не удалось проверить местоположение"}
+                                <div className="truncate text-xs font-semibold text-main-green">
+                                    Ответ {replyingTo.authorDisplayName}
                                 </div>
 
-                                <div className="mt-1 text-xs leading-5 text-main-gray">
-                                    {accessStatus === "checking" && "Проверяем, находитесь ли вы в зоне этого геочата."}
-                                    {accessStatus === "outside" && "Отправка сообщений временно недоступна. Вернитесь в зону геочата, и отправка включится автоматически."}
-                                    {accessStatus === "denied" && "Разрешите ВСети доступ к местоположению в настройках браузера или телефона."}
-                                    {accessStatus === "unsupported" && "На этом устройстве невозможно получить текущее местоположение."}
-                                    {accessStatus === "error" && (accessError || "Не удалось получить актуальную геопозицию.")}
+                                <div className="mt-0.5 truncate text-xs text-main-gray">
+                                    {replyingTo.content}
                                 </div>
-
-                                {accessStatus !== "checking" && (
-                                    <Link href="/geochats" className="mt-1.5 inline-flex text-xs font-semibold text-main-green hover:underline">
-                                        Вернуться к геочатам
-                                    </Link>
-                                )}
                             </div>
+
+                            <button type="button" onClick={() => setReplyingTo(null)} aria-label="Отменить ответ" className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-main-gray transition-colors hover:bg-white hover:text-gray-900">
+                                <X className="size-4" />
+                            </button>
                         </div>
-                    </div>
-                </div>
-            )}
+                    )}
 
-            <div className="shrink-0 border-t border-gray-100 bg-white px-2 py-2 sm:p-4">
-                {error && (
-                    <div className="mb-2 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-600">
-                        {error}
-                    </div>
-                )}
+                    <div className="flex items-end gap-1 rounded-2xl border border-gray-200 bg-white p-1.5 sm:gap-2 sm:p-2">
+                        <button type="button" disabled={!canSend} aria-label="Прикрепить файл" className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-main-green transition-colors hover:bg-green-50 disabled:pointer-events-none disabled:opacity-40 sm:size-9">
+                            <Paperclip className="size-4 sm:size-5" />
+                        </button>
 
-                {replyingTo && (
-                    <div className="mb-2 flex items-center gap-2 rounded-xl bg-green-50 px-3 py-2">
-                        <CornerUpLeft className="size-4 shrink-0 text-main-green" />
+                        <button type="button" disabled={!canSend} aria-label="Эмодзи" className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-main-green transition-colors hover:bg-green-50 disabled:pointer-events-none disabled:opacity-40 sm:size-9">
+                            <Smile className="size-4 sm:size-5" />
+                        </button>
 
-                        <div className="min-w-0 flex-1">
-                            <div className="truncate text-xs font-semibold text-main-green">
-                                Ответ {replyingTo.authorDisplayName}
-                            </div>
+                        <textarea ref={textareaRef} value={content} disabled={!canSend} onKeyDown={handleKeyDown} onFocus={() => scrollToBottom()} onChange={(event) => { setContent(event.target.value); setError(""); event.currentTarget.style.height = "38px"; const nextHeight = Math.min(event.currentTarget.scrollHeight, 100); event.currentTarget.style.height = `${nextHeight}px`; event.currentTarget.style.overflowY = event.currentTarget.scrollHeight > 100 ? "auto" : "hidden" }} placeholder={canSend ? replyingTo ? `Ответ ${replyingTo.authorDisplayName}...` : "Написать сообщение..." : accessStatus === "checking" ? "Проверяем местоположение..." : "Вы вне зоны геочата"} maxLength={4000} rows={1} className="min-h-[38] max-h-[100] min-w-0 flex-1 resize-none overflow-y-hidden border-0 bg-transparent px-1 py-2 text-sm leading-5.5 text-gray-900 outline-none placeholder:text-main-gray disabled:cursor-not-allowed disabled:opacity-50" />
 
-                            <div className="mt-0.5 truncate text-xs text-main-gray">
-                                {replyingTo.content}
-                            </div>
-                        </div>
-
-                        <button type="button" onClick={() => setReplyingTo(null)} aria-label="Отменить ответ" className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-main-gray transition-colors hover:bg-white hover:text-gray-900">
-                            <X className="size-4" />
+                        <button type="button" onClick={() => void handleSubmit()} disabled={!canSend || isPending || !content.trim()} aria-label="Отправить" className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-main-green text-white transition-colors hover:bg-hover-green disabled:pointer-events-none disabled:opacity-40 sm:size-10">
+                            <Send className="size-4" />
                         </button>
                     </div>
-                )}
-
-                <div className="flex items-end gap-1 rounded-2xl border border-gray-200 bg-white p-1.5 sm:gap-2 sm:p-2">
-                    <button type="button" disabled={!canSend} aria-label="Прикрепить файл" className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-main-green transition-colors hover:bg-green-50 disabled:pointer-events-none disabled:opacity-40 sm:size-9">
-                        <Paperclip className="size-4 sm:size-5" />
-                    </button>
-
-                    <button type="button" disabled={!canSend} aria-label="Эмодзи" className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-main-green transition-colors hover:bg-green-50 disabled:pointer-events-none disabled:opacity-40 sm:size-9">
-                        <Smile className="size-4 sm:size-5" />
-                    </button>
-
-                    <textarea ref={textareaRef} value={content} disabled={!canSend} onKeyDown={handleKeyDown} onFocus={() => scrollToBottom()} onChange={(event) => { setContent(event.target.value); setError(""); event.currentTarget.style.height = "38px"; const nextHeight = Math.min(event.currentTarget.scrollHeight, 100); event.currentTarget.style.height = `${nextHeight}px`; event.currentTarget.style.overflowY = event.currentTarget.scrollHeight > 100 ? "auto" : "hidden" }} placeholder={canSend ? replyingTo ? `Ответ ${replyingTo.authorDisplayName}...` : "Написать сообщение..." : accessStatus === "checking" ? "Проверяем местоположение..." : "Вы вне зоны геочата"} maxLength={4000} rows={1} className="min-h-[38] max-h-[100] min-w-0 flex-1 resize-none overflow-y-hidden border-0 bg-transparent px-1 py-2 text-sm leading-5.5 text-gray-900 outline-none placeholder:text-main-gray disabled:cursor-not-allowed disabled:opacity-50" />
-
-                    <button type="button" onClick={() => void handleSubmit()} disabled={!canSend || isPending || !content.trim()} aria-label="Отправить" className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-main-green text-white transition-colors hover:bg-hover-green disabled:pointer-events-none disabled:opacity-40 sm:size-10">
-                        <Send className="size-4" />
-                    </button>
                 </div>
             </div>
-        </div>
+
+            {typeof document !== "undefined" && openMenuMessage && menuPosition && createPortal(
+                <div ref={messageMenuRef} onPointerDown={(event) => event.stopPropagation()} className="fixed z-10000 w-[170] overflow-hidden rounded-xl border border-gray-100 bg-white py-1 shadow-xl" style={{ top: menuPosition.top, left: menuPosition.left }}>
+                    <button type="button" disabled={!canSend} onClick={() => handleReplyToMessage(openMenuMessage)} className="flex h-10 w-full cursor-pointer items-center gap-2.5 px-3 text-left text-sm text-gray-800 transition-colors hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-40">
+                        <CornerUpLeft className="size-4 text-main-gray" />
+                        <span>Ответить</span>
+                    </button>
+
+                    <button type="button" onClick={() => void handleCopyMessage(openMenuMessage)} className="flex h-10 w-full cursor-pointer items-center gap-2.5 px-3 text-left text-sm text-gray-800 transition-colors hover:bg-gray-50">
+                        <Copy className="size-4 text-main-gray" />
+                        <span>Копировать</span>
+                    </button>
+                </div>,
+                document.body
+            )}
+        </>
     )
 }
 
