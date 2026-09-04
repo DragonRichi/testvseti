@@ -5,11 +5,12 @@ import { getGeoChatMessages } from "@/actions/getGeoChatMessages"
 import { createClient } from "@/lib/supabase/client"
 import type { GeoChatMessage, GeoChatRoom as GeoChatRoomType } from "@/types/geoChat"
 import type { Profile } from "@/types/social"
-import { ArrowDown, ArrowLeft, Hash, MoreHorizontal, Paperclip, RefreshCw, Send, Smile } from "lucide-react"
+import { ArrowDown, ArrowLeft, Hash, MapPin, MoreHorizontal, Paperclip, RefreshCw, Send, Smile } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import type { KeyboardEvent, TouchEvent } from "react"
 import { useCallback, useEffect, useRef, useState } from "react"
+import useGeoChatLiveAccess from "./useGeoChatLiveAccess"
 
 type Props = {
     room: GeoChatRoomType
@@ -38,10 +39,10 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
     const [isRefreshing, setIsRefreshing] = useState(false)
     const [pullDistance, setPullDistance] = useState(0)
 
+    const { status: accessStatus, error: accessError, accuracy, isTestAccess, canSend } = useGeoChatLiveAccess(room.id)
+
     const submitLockRef = useRef(false)
     const refreshLockRef = useRef(false)
-    const realtimeRefreshLockRef = useRef(false)
-    const realtimeRefreshQueuedRef = useRef(false)
 
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -87,38 +88,6 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
         return distanceFromBottom < 160
     }, [])
 
-    const refreshMessagesFromRealtime = useCallback(async (scrollAfterRefresh: boolean) => {
-        if (realtimeRefreshLockRef.current) {
-            realtimeRefreshQueuedRef.current = true
-            return
-        }
-
-        realtimeRefreshLockRef.current = true
-
-        try {
-            do {
-                realtimeRefreshQueuedRef.current = false
-
-                const result = await getGeoChatMessages(room.id)
-
-                if (result.success === false) {
-                    console.error("GEO CHAT REALTIME REFRESH ERROR:", result.error)
-                    return
-                }
-
-                setMessages(result.messages)
-            } while (realtimeRefreshQueuedRef.current)
-
-            if (scrollAfterRefresh) {
-                scrollToBottom("smooth")
-            }
-        } catch (error) {
-            console.error("GEO CHAT REALTIME ERROR:", error)
-        } finally {
-            realtimeRefreshLockRef.current = false
-        }
-    }, [room.id, scrollToBottom])
-
     useEffect(() => {
         scrollToBottom("instant")
     }, [scrollToBottom])
@@ -137,7 +106,9 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
                     filter: `chat_id=eq.${room.id}`
                 },
                 async (payload) => {
-                    console.log("GEO CHAT REALTIME INSERT:", payload)
+                    if (process.env.NODE_ENV === "development") {
+                        console.log("GEO CHAT REALTIME INSERT:", payload)
+                    }
 
                     const row = payload.new as {
                         id: string
@@ -205,15 +176,13 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
 
             supabase.realtime.setAuth(session.access_token)
 
-            channel.subscribe((status, error) => {
-                console.log("GEO CHAT REALTIME STATUS:", status, error ?? "")
-
-                if (status === "CHANNEL_ERROR") {
-                    console.error("GEO CHAT REALTIME CHANNEL ERROR:", error)
+            channel.subscribe((status, realtimeError) => {
+                if (process.env.NODE_ENV === "development") {
+                    console.log("GEO CHAT REALTIME STATUS:", status, realtimeError ?? "")
                 }
 
-                if (status === "TIMED_OUT") {
-                    console.error("GEO CHAT REALTIME TIMED OUT")
+                if (status === "CHANNEL_ERROR") {
+                    console.error("GEO CHAT REALTIME CHANNEL ERROR:", realtimeError)
                 }
             })
         }
@@ -308,6 +277,11 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
     const handleSubmit = async () => {
         if (submitLockRef.current) return
 
+        if (!canSend) {
+            setError("Вы находитесь вне зоны этого геочата")
+            return
+        }
+
         const normalizedContent = content.trim()
 
         if (!normalizedContent) return
@@ -385,7 +359,16 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
 
                     <div className="min-w-0">
                         <div className="truncate text-[15px] font-bold text-gray-900 sm:text-lg">#{room.name}</div>
-                        <div className="text-[11px] text-main-gray sm:text-xs">Радиус {Math.round(room.radiusM / 1000)} км</div>
+
+                        <div className="flex items-center gap-1.5 text-[11px] text-main-gray sm:text-xs">
+                            <span>Радиус {Math.round(room.radiusM / 1000)} км</span>
+
+                            {isTestAccess ? (
+                                <span className="text-main-green">· тест</span>
+                            ) : accuracy !== null ? (
+                                <span>· ±{Math.round(accuracy)} м</span>
+                            ) : null}
+                        </div>
                     </div>
                 </div>
 
@@ -456,6 +439,44 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
                 </div>
             </div>
 
+            {accessStatus !== "active" && (
+                <div className="shrink-0 border-t border-gray-100 bg-white px-2 pt-2 sm:px-4 sm:pt-3">
+                    <div className={`rounded-2xl px-3 py-2.5 sm:px-4 sm:py-3 ${accessStatus === "outside" ? "bg-amber-50" : accessStatus === "checking" ? "bg-gray-50" : "bg-red-50"}`}>
+                        <div className="flex items-start gap-2.5">
+                            {accessStatus === "checking" ? (
+                                <RefreshCw className="mt-0.5 size-4 shrink-0 animate-spin text-main-green" />
+                            ) : (
+                                <MapPin className={`mt-0.5 size-4 shrink-0 ${accessStatus === "outside" ? "text-amber-600" : "text-red-500"}`} />
+                            )}
+
+                            <div className="min-w-0 flex-1">
+                                <div className="text-sm font-semibold text-gray-900">
+                                    {accessStatus === "checking" && "Проверяем местоположение"}
+                                    {accessStatus === "outside" && "Вы вышли из зоны геочата"}
+                                    {accessStatus === "denied" && "Доступ к геолокации запрещён"}
+                                    {accessStatus === "unsupported" && "Геолокация недоступна"}
+                                    {accessStatus === "error" && "Не удалось проверить местоположение"}
+                                </div>
+
+                                <div className="mt-1 text-xs leading-5 text-main-gray">
+                                    {accessStatus === "checking" && "Проверяем, находитесь ли вы в зоне этого геочата."}
+                                    {accessStatus === "outside" && "Отправка сообщений временно недоступна. Вернитесь в зону геочата, и отправка включится автоматически."}
+                                    {accessStatus === "denied" && "Разрешите ВСети доступ к местоположению в настройках браузера или телефона."}
+                                    {accessStatus === "unsupported" && "На этом устройстве невозможно получить текущее местоположение."}
+                                    {accessStatus === "error" && (accessError || "Не удалось получить актуальную геопозицию.")}
+                                </div>
+
+                                {accessStatus !== "checking" && (
+                                    <Link href="/geochats" className="mt-1.5 inline-flex text-xs font-semibold text-main-green hover:underline">
+                                        Вернуться к геочатам
+                                    </Link>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="shrink-0 border-t border-gray-100 bg-white px-2 py-2 sm:p-4">
                 {error && (
                     <div className="mb-2 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-600">
@@ -464,17 +485,17 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
                 )}
 
                 <div className="flex items-end gap-1 rounded-2xl border border-gray-200 bg-white p-1.5 sm:gap-2 sm:p-2">
-                    <button type="button" aria-label="Прикрепить файл" className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-main-green transition-colors hover:bg-green-50 sm:size-9">
+                    <button type="button" disabled={!canSend} aria-label="Прикрепить файл" className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-main-green transition-colors hover:bg-green-50 disabled:pointer-events-none disabled:opacity-40 sm:size-9">
                         <Paperclip className="size-4 sm:size-5" />
                     </button>
 
-                    <button type="button" aria-label="Эмодзи" className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-main-green transition-colors hover:bg-green-50 sm:size-9">
+                    <button type="button" disabled={!canSend} aria-label="Эмодзи" className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-main-green transition-colors hover:bg-green-50 disabled:pointer-events-none disabled:opacity-40 sm:size-9">
                         <Smile className="size-4 sm:size-5" />
                     </button>
 
-                    <textarea ref={textareaRef} value={content} onKeyDown={handleKeyDown} onFocus={() => scrollToBottom()} onChange={(event) => { setContent(event.target.value); setError(""); event.currentTarget.style.height = "38px"; const nextHeight = Math.min(event.currentTarget.scrollHeight, 100); event.currentTarget.style.height = `${nextHeight}px`; event.currentTarget.style.overflowY = event.currentTarget.scrollHeight > 100 ? "auto" : "hidden" }} placeholder="Написать сообщение..." maxLength={4000} rows={1} className="min-h-[38] max-h-[100] min-w-0 flex-1 resize-none overflow-y-hidden border-0 bg-transparent px-1 py-2 text-sm leading-5.5 text-gray-900 outline-none placeholder:text-main-gray" />
+                    <textarea ref={textareaRef} value={content} disabled={!canSend} onKeyDown={handleKeyDown} onFocus={() => scrollToBottom()} onChange={(event) => { setContent(event.target.value); setError(""); event.currentTarget.style.height = "38px"; const nextHeight = Math.min(event.currentTarget.scrollHeight, 100); event.currentTarget.style.height = `${nextHeight}px`; event.currentTarget.style.overflowY = event.currentTarget.scrollHeight > 100 ? "auto" : "hidden" }} placeholder={canSend ? "Написать сообщение..." : accessStatus === "checking" ? "Проверяем местоположение..." : "Вы вне зоны геочата"} maxLength={4000} rows={1} className="min-h-[38] max-h-[100] min-w-0 flex-1 resize-none overflow-y-hidden border-0 bg-transparent px-1 py-2 text-sm leading-5.5 text-gray-900 outline-none placeholder:text-main-gray disabled:cursor-not-allowed disabled:opacity-50" />
 
-                    <button type="button" onClick={() => void handleSubmit()} disabled={isPending || !content.trim()} aria-label="Отправить" className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-main-green text-white transition-colors hover:bg-hover-green disabled:pointer-events-none disabled:opacity-40 sm:size-10">
+                    <button type="button" onClick={() => void handleSubmit()} disabled={!canSend || isPending || !content.trim()} aria-label="Отправить" className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-main-green text-white transition-colors hover:bg-hover-green disabled:pointer-events-none disabled:opacity-40 sm:size-10">
                         <Send className="size-4" />
                     </button>
                 </div>
