@@ -126,8 +126,7 @@ export async function getGeoFeed({ cursor = null }: Props = {}): Promise<Result>
         5: 0
     }
 
-    const selectedPosts: Post[] = []
-
+    let selectedCount = 0
     let carry = 0
 
     for (const level of LEVELS) {
@@ -135,12 +134,12 @@ export async function getGeoFeed({ cursor = null }: Props = {}): Promise<Result>
         const target = level.quota + carry
         const take = Math.min(target, bucket.length)
 
-        selectedPosts.push(...bucket.slice(0, take))
         consumed[level.level] = take
+        selectedCount += take
         carry = target - take
     }
 
-    let missing = PAGE_SIZE - selectedPosts.length
+    let missing = PAGE_SIZE - selectedCount
 
     if (missing > 0) {
         for (const level of LEVELS) {
@@ -154,11 +153,14 @@ export async function getGeoFeed({ cursor = null }: Props = {}): Promise<Result>
 
             const take = Math.min(missing, available)
 
-            selectedPosts.push(...bucket.slice(start, start + take))
             consumed[level.level] += take
             missing -= take
         }
     }
+
+    const selectedPosts = LEVELS.flatMap((level) => {
+        return buckets[level.level].slice(0, consumed[level.level])
+    })
 
     const nextCursor: GeoFeedCursor = {
         city: cursor?.city ?? null,
@@ -186,8 +188,6 @@ export async function getGeoFeed({ cursor = null }: Props = {}): Promise<Result>
     const hasMore = LEVELS.some((level) => {
         return buckets[level.level].length > consumed[level.level]
     })
-
-    selectedPosts.sort(comparePosts)
 
     return {
         success: true,
