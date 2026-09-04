@@ -38,7 +38,8 @@ function formatMessageDate(value: string) {
         month: "2-digit",
         year: "2-digit",
         hour: "2-digit",
-        minute: "2-digit"
+        minute: "2-digit",
+        timeZone: "Europe/Minsk"
     }).format(new Date(value))
 }
 
@@ -175,225 +176,408 @@ function GeoChatRoom({ room, initialMessages, currentProfile }: Props) {
 
     useEffect(() => {
         const supabase = createClient()
+        let channel: ReturnType<typeof supabase.channel> | null = null
+        let disposed = false
+        let subscribed = false
+        let connectInProgress = false
+        let syncInProgress = false
+        let syncQueued = false
+        let reconnectAttempt = 0
+        let reconnectTimer: number | null = null
 
-        const channel = supabase
-            .channel(`geo-chat:${room.id}`)
-            .on(
-                "postgres_changes",
-                {
-                    event: "INSERT",
-                    schema: "public",
-                    table: "geo_chat_messages",
-                    filter: `chat_id=eq.${room.id}`
-                },
-                async (payload) => {
-                    const row = payload.new as {
-                        id: string
-                        chat_id: string
-                        user_id: string
-                        content: string
-                        reply_to_id: string | null
-                        created_at: string
-                        updated_at: string
+        const syncMessagesSilently = async () => {
+            if (disposed) return
+
+            if (syncInProgress) {
+                syncQueued = true
+                return
+            }
+
+            syncInProgress = true
+
+            try {
+                const result = await getGeoChatMessages(room.id)
+
+                if (disposed) return
+
+                if (result.success === false) {
+                    console.error("GEO CHAT REALTIME SYNC ERROR:", result.error)
+                    return
+                }
+
+                const messageIds = new Set(result.messages.map((message) => message.id))
+
+                setMessages(result.messages)
+                setReplyingTo((current) => current && !messageIds.has(current.id) ? null : current)
+                setEditingMessage((current) => current && !messageIds.has(current.id) ? null : current)
+                setDeleteTarget((current) => current && !messageIds.has(current.id) ? null : current)
+            } catch (error) {
+                console.error("GEO CHAT REALTIME SYNC ERROR:", error)
+            } finally {
+                syncInProgress = false
+
+                if (syncQueued && !disposed) {
+                    syncQueued = false
+                    void syncMessagesSilently()
+                }
+            }
+        }
+
+        const scheduleReconnect = (immediate = false) => {
+            if (disposed || reconnectTimer !== null) return
+
+            subscribed = false
+
+            const delay = immediate ? 0 : Math.min(1000 * 2 ** reconnectAttempt, 8000)
+
+            reconnectAttempt = Math.min(reconnectAttempt + 1, 4)
+
+            reconnectTimer = window.setTimeout(() => {
+                reconnectTimer = null
+                void connect()
+            }, delay)
+        }
+
+        const connect = async () => {
+            if (disposed || connectInProgress) return
+
+            connectInProgress = true
+
+            try {
+                const {
+                    data: { session },
+                    error: sessionError
+                } = await supabase.auth.getSession()
+
+                if (disposed) return
+
+                if (sessionError) {
+                    console.error("GEO CHAT REALTIME SESSION ERROR:", sessionError)
+                    scheduleReconnect()
+                    return
+                }
+
+                if (!session) {
+                    console.error("GEO CHAT REALTIME: NO SESSION")
+                    scheduleReconnect()
+                    return
+                }
+
+                supabase.realtime.setAuth(session.access_token)
+
+                const previousChannel = channel
+
+                channel = null
+                subscribed = false
+
+                if (previousChannel) {
+                    await supabase.removeChannel(previousChannel)
+                }
+
+                if (disposed) return
+
+                const nextChannel = supabase
+                    .channel(`geo-chat:${room.id}:${Date.now()}`)
+                    .on(
+                        "postgres_changes",
+                        {
+                            event: "INSERT",
+                            schema: "public",
+                            table: "geo_chat_messages",
+                            filter: `chat_id=eq.${room.id}`
+                        },
+                        async (payload) => {
+                            const row = payload.new as {
+                                id: string
+                                chat_id: string
+                                user_id: string
+                                content: string
+                                reply_to_id: string | null
+                                created_at: string
+                                updated_at: string
+                            }
+
+                            const shouldScroll = isNearBottom()
+
+                            const { data: author, error: authorError } = await supabase
+                                .from("profiles")
+                                .select("username,display_name,avatar_url")
+                                .eq("id", row.user_id)
+                                .maybeSingle()
+
+                            if (authorError || !author) {
+                                console.error("GEO CHAT REALTIME AUTHOR ERROR:", authorError)
+                                void syncMessagesSilently()
+                                return
+                            }
+
+                            let replyTo: GeoChatMessage["replyTo"] = null
+                            let requiresSync = false
+
+                            if (row.reply_to_id) {
+                                const { data: replyMessage, error: replyMessageError } = await supabase
+                                    .from("geo_chat_messages")
+                                    .select("id,user_id,content")
+                                    .eq("id", row.reply_to_id)
+                                    .maybeSingle()
+
+                                if (replyMessageError) {
+                                    console.error("GEO CHAT REALTIME REPLY LOAD ERROR:", replyMessageError)
+                                    requiresSync = true
+                                }
+
+                                if (replyMessage) {
+                                    const { data: replyAuthor, error: replyAuthorError } = await supabase
+                                        .from("profiles")
+                                        .select("username,display_name")
+                                        .eq("id", replyMessage.user_id)
+                                        .maybeSingle()
+
+                                    if (replyAuthorError) {
+                                        console.error("GEO CHAT REALTIME REPLY AUTHOR ERROR:", replyAuthorError)
+                                        requiresSync = true
+                                    }
+
+                                    if (replyAuthor) {
+                                        replyTo = {
+                                            id: replyMessage.id,
+                                            authorUsername: replyAuthor.username,
+                                            authorDisplayName: replyAuthor.display_name ?? replyAuthor.username,
+                                            content: replyMessage.content
+                                        }
+                                    } else {
+                                        requiresSync = true
+                                    }
+                                } else if (!replyMessageError) {
+                                    requiresSync = true
+                                }
+                            }
+
+                            const newMessage: GeoChatMessage = {
+                                id: row.id,
+                                chatId: row.chat_id,
+                                userId: row.user_id,
+                                content: row.content,
+                                createdAt: row.created_at,
+                                updatedAt: row.updated_at,
+                                authorUsername: author.username,
+                                authorDisplayName: author.display_name ?? author.username,
+                                authorAvatarUrl: author.avatar_url,
+                                replyTo
+                            }
+
+                            setMessages((currentMessages) => {
+                                if (currentMessages.some((message) => message.id === newMessage.id)) {
+                                    return currentMessages
+                                }
+
+                                return [...currentMessages, newMessage]
+                            })
+
+                            if (shouldScroll) {
+                                scrollToBottom()
+                            }
+
+                            if (requiresSync) {
+                                void syncMessagesSilently()
+                            }
+                        }
+                    )
+                    .on(
+                        "postgres_changes",
+                        {
+                            event: "UPDATE",
+                            schema: "public",
+                            table: "geo_chat_messages",
+                            filter: `chat_id=eq.${room.id}`
+                        },
+                        (payload) => {
+                            const row = payload.new as {
+                                id: string
+                                content: string
+                                reply_to_id: string | null
+                                updated_at: string
+                            }
+
+                            setMessages((currentMessages) =>
+                                currentMessages.map((message) => {
+                                    let nextMessage = message
+
+                                    if (message.id === row.id) {
+                                        nextMessage = {
+                                            ...nextMessage,
+                                            content: row.content,
+                                            updatedAt: row.updated_at,
+                                            replyTo: row.reply_to_id === null ? null : nextMessage.replyTo
+                                        }
+                                    }
+
+                                    if (nextMessage.replyTo?.id === row.id) {
+                                        nextMessage = {
+                                            ...nextMessage,
+                                            replyTo: {
+                                                ...nextMessage.replyTo,
+                                                content: row.content
+                                            }
+                                        }
+                                    }
+
+                                    return nextMessage
+                                })
+                            )
+
+                            setEditingMessage((current) => {
+                                if (!current || current.id !== row.id) return current
+
+                                return {
+                                    ...current,
+                                    content: row.content,
+                                    updatedAt: row.updated_at
+                                }
+                            })
+                        }
+                    )
+                    .on(
+                        "postgres_changes",
+                        {
+                            event: "DELETE",
+                            schema: "public",
+                            table: "geo_chat_messages"
+                        },
+                        (payload) => {
+                            const row = payload.old as {
+                                id?: string
+                            }
+
+                            if (!row.id) {
+                                void syncMessagesSilently()
+                                return
+                            }
+
+                            setMessages((currentMessages) =>
+                                currentMessages
+                                    .filter((message) => message.id !== row.id)
+                                    .map((message) => {
+                                        if (message.replyTo?.id !== row.id) {
+                                            return message
+                                        }
+
+                                        return {
+                                            ...message,
+                                            replyTo: null
+                                        }
+                                    })
+                            )
+
+                            setReplyingTo((current) => current?.id === row.id ? null : current)
+                            setEditingMessage((current) => current?.id === row.id ? null : current)
+                            setDeleteTarget((current) => current?.id === row.id ? null : current)
+                        }
+                    )
+
+                channel = nextChannel
+
+                nextChannel.subscribe((status, realtimeError) => {
+                    if (disposed || channel !== nextChannel) return
+
+                    if (process.env.NODE_ENV === "development") {
+                        console.log("GEO CHAT REALTIME STATUS:", status, realtimeError ?? "")
                     }
 
-                    const shouldScroll = isNearBottom()
-
-                    const { data: author, error: authorError } = await supabase
-                        .from("profiles")
-                        .select("username,display_name,avatar_url")
-                        .eq("id", row.user_id)
-                        .single()
-
-                    if (authorError || !author) {
-                        console.error("GEO CHAT REALTIME AUTHOR ERROR:", authorError)
+                    if (status === "SUBSCRIBED") {
+                        subscribed = true
+                        reconnectAttempt = 0
+                        void syncMessagesSilently()
                         return
                     }
 
-                    let replyTo: GeoChatMessage["replyTo"] = null
-
-                    if (row.reply_to_id) {
-                        const { data: replyMessage, error: replyMessageError } = await supabase
-                            .from("geo_chat_messages")
-                            .select("id,user_id,content")
-                            .eq("id", row.reply_to_id)
-                            .maybeSingle()
-
-                        if (replyMessageError) {
-                            console.error("GEO CHAT REALTIME REPLY LOAD ERROR:", replyMessageError)
-                        }
-
-                        if (replyMessage) {
-                            const { data: replyAuthor, error: replyAuthorError } = await supabase
-                                .from("profiles")
-                                .select("username,display_name")
-                                .eq("id", replyMessage.user_id)
-                                .maybeSingle()
-
-                            if (replyAuthorError) {
-                                console.error("GEO CHAT REALTIME REPLY AUTHOR ERROR:", replyAuthorError)
-                            }
-
-                            if (replyAuthor) {
-                                replyTo = {
-                                    id: replyMessage.id,
-                                    authorUsername: replyAuthor.username,
-                                    authorDisplayName: replyAuthor.display_name ?? replyAuthor.username,
-                                    content: replyMessage.content
-                                }
-                            }
-                        }
+                    if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+                        subscribed = false
+                        console.error("GEO CHAT REALTIME CONNECTION LOST:", status, realtimeError ?? "")
+                        scheduleReconnect()
                     }
-
-                    const newMessage: GeoChatMessage = {
-                        id: row.id,
-                        chatId: row.chat_id,
-                        userId: row.user_id,
-                        content: row.content,
-                        createdAt: row.created_at,
-                        updatedAt: row.updated_at,
-                        authorUsername: author.username,
-                        authorDisplayName: author.display_name ?? author.username,
-                        authorAvatarUrl: author.avatar_url,
-                        replyTo
-                    }
-
-                    setMessages((currentMessages) => {
-                        if (currentMessages.some((message) => message.id === newMessage.id)) {
-                            return currentMessages
-                        }
-
-                        return [...currentMessages, newMessage]
-                    })
-
-                    if (shouldScroll) {
-                        scrollToBottom()
-                    }
-                }
-            )
-            .on(
-                "postgres_changes",
-                {
-                    event: "UPDATE",
-                    schema: "public",
-                    table: "geo_chat_messages",
-                    filter: `chat_id=eq.${room.id}`
-                },
-                (payload) => {
-                    const row = payload.new as {
-                        id: string
-                        content: string
-                        reply_to_id: string | null
-                        updated_at: string
-                    }
-
-                    setMessages((currentMessages) =>
-                        currentMessages.map((message) => {
-                            let nextMessage = message
-
-                            if (message.id === row.id) {
-                                nextMessage = {
-                                    ...nextMessage,
-                                    content: row.content,
-                                    updatedAt: row.updated_at,
-                                    replyTo: row.reply_to_id === null ? null : nextMessage.replyTo
-                                }
-                            }
-
-                            if (nextMessage.replyTo?.id === row.id) {
-                                nextMessage = {
-                                    ...nextMessage,
-                                    replyTo: {
-                                        ...nextMessage.replyTo,
-                                        content: row.content
-                                    }
-                                }
-                            }
-
-                            return nextMessage
-                        })
-                    )
-
-                    setEditingMessage((current) => {
-                        if (!current || current.id !== row.id) return current
-
-                        return {
-                            ...current,
-                            content: row.content,
-                            updatedAt: row.updated_at
-                        }
-                    })
-                }
-            )
-            .on(
-                "postgres_changes",
-                {
-                    event: "DELETE",
-                    schema: "public",
-                    table: "geo_chat_messages",
-                    filter: `chat_id=eq.${room.id}`
-                },
-                (payload) => {
-                    const row = payload.old as {
-                        id: string
-                    }
-
-                    if (!row.id) return
-
-                    setMessages((currentMessages) =>
-                        currentMessages
-                            .filter((message) => message.id !== row.id)
-                            .map((message) => {
-                                if (message.replyTo?.id !== row.id) {
-                                    return message
-                                }
-
-                                return {
-                                    ...message,
-                                    replyTo: null
-                                }
-                            })
-                    )
-
-                    setReplyingTo((current) => current?.id === row.id ? null : current)
-                    setEditingMessage((current) => current?.id === row.id ? null : current)
-                    setDeleteTarget((current) => current?.id === row.id ? null : current)
-                }
-            )
-
-        const subscribe = async () => {
-            const {
-                data: { session },
-                error: sessionError
-            } = await supabase.auth.getSession()
-
-            if (sessionError) {
-                console.error("GEO CHAT REALTIME SESSION ERROR:", sessionError)
-                return
+                })
+            } catch (error) {
+                console.error("GEO CHAT REALTIME CONNECT ERROR:", error)
+                scheduleReconnect()
+            } finally {
+                connectInProgress = false
             }
-
-            if (!session) {
-                console.error("GEO CHAT REALTIME: NO SESSION")
-                return
-            }
-
-            supabase.realtime.setAuth(session.access_token)
-
-            channel.subscribe((status, realtimeError) => {
-                if (process.env.NODE_ENV === "development") {
-                    console.log("GEO CHAT REALTIME STATUS:", status, realtimeError ?? "")
-                }
-
-                if (status === "CHANNEL_ERROR") {
-                    console.error("GEO CHAT REALTIME CHANNEL ERROR:", realtimeError)
-                }
-            })
         }
 
-        void subscribe()
+        const recoverRealtime = async () => {
+            if (disposed) return
+
+            try {
+                const {
+                    data: { session },
+                    error: sessionError
+                } = await supabase.auth.getSession()
+
+                if (sessionError) {
+                    console.error("GEO CHAT REALTIME RECOVERY SESSION ERROR:", sessionError)
+                } else if (session?.access_token) {
+                    supabase.realtime.setAuth(session.access_token)
+                }
+            } catch (error) {
+                console.error("GEO CHAT REALTIME RECOVERY ERROR:", error)
+            }
+
+            void syncMessagesSilently()
+
+            if (!subscribed) {
+                scheduleReconnect(true)
+            }
+        }
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === "visible") {
+                void recoverRealtime()
+            }
+        }
+
+        const handleOnline = () => {
+            void recoverRealtime()
+        }
+
+        const handleFocus = () => {
+            void recoverRealtime()
+        }
+
+        const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (disposed) return
+
+            if (session?.access_token) {
+                supabase.realtime.setAuth(session.access_token)
+            }
+        })
+
+        document.addEventListener("visibilitychange", handleVisibilityChange)
+        window.addEventListener("online", handleOnline)
+        window.addEventListener("focus", handleFocus)
+
+        void connect()
 
         return () => {
-            void supabase.removeChannel(channel)
+            disposed = true
+            subscribed = false
+
+            if (reconnectTimer !== null) {
+                window.clearTimeout(reconnectTimer)
+            }
+
+            document.removeEventListener("visibilitychange", handleVisibilityChange)
+            window.removeEventListener("online", handleOnline)
+            window.removeEventListener("focus", handleFocus)
+            authListener.subscription.unsubscribe()
+
+            const currentChannel = channel
+
+            channel = null
+
+            if (currentChannel) {
+                void supabase.removeChannel(currentChannel)
+            }
         }
     }, [isNearBottom, room.id, scrollToBottom])
 
