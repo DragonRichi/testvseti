@@ -14,10 +14,16 @@ function NavigationBlur() {
             setIsNavigating(true)
         }
 
+        const handleNavigationEnd = () => {
+            setIsNavigating(false)
+        }
+
         window.addEventListener("vseti:navigation-start", handleNavigationStart)
+        window.addEventListener("vseti:navigation-end", handleNavigationEnd)
 
         return () => {
             window.removeEventListener("vseti:navigation-start", handleNavigationStart)
+            window.removeEventListener("vseti:navigation-end", handleNavigationEnd)
         }
     }, [])
 
