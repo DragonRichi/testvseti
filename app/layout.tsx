@@ -3,6 +3,7 @@ import { Montserrat } from "next/font/google"
 import "./globals.css"
 import "leaflet/dist/leaflet.css"
 import NavigationBlur from "@/components/ui/NavigationBlur"
+import { Suspense } from "react"
 
 const montserrat = Montserrat({
   variable: "--font-montserrat",
@@ -23,7 +24,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="ru" className={`${montserrat.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         {children}
-        <NavigationBlur />
+        <Suspense fallback={null}>
+          <NavigationBlur />
+        </Suspense>
       </body>
     </html>
   )
