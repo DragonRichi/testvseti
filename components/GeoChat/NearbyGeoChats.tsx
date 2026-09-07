@@ -2,34 +2,40 @@
 
 import { getNearbyGeoChats } from "@/actions/getNearbyGeoChats"
 import type { NearbyGeoChat } from "@/types/geoChat"
-import { MapPin, MessageCircle, Plus, RefreshCw } from "lucide-react"
+import { LocateFixed, MapPin, MessageCircle, Plus, RefreshCw } from "lucide-react"
 import Link from "next/link"
 import { useCallback, useEffect, useState } from "react"
 
 type Props = {
     accuracy: number | null
+    locationVersion: number
+    onRefreshLocation: () => void
 }
 
-function formatDistance(distanceM: number | null) {
+function formatDistance(distanceM: number | null, isApproximate: boolean) {
     if (distanceM === null) {
-        return "Тестовый доступ"
+        return "Расстояние неизвестно"
     }
+
+    const prefix = isApproximate ? "≈ " : ""
 
     if (distanceM < 1000) {
-        return `${Math.max(1, Math.round(distanceM))} м`
+        return `${prefix}${Math.max(1, Math.round(distanceM))} м`
     }
 
-    return `${(distanceM / 1000).toFixed(1)} км`
+    return `${prefix}${(distanceM / 1000).toFixed(1)} км`
 }
 
 function formatRadius(radiusM: number) {
     return `${Math.round(radiusM / 1000)} км`
 }
 
-function NearbyGeoChats({ accuracy }: Props) {
+function NearbyGeoChats({ accuracy, locationVersion, onRefreshLocation }: Props) {
     const [chats, setChats] = useState<NearbyGeoChat[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState("")
+
+    const isApproximate = accuracy !== null && accuracy > 1000
 
     const loadChats = useCallback(async () => {
         setIsLoading(true)
@@ -54,27 +60,33 @@ function NearbyGeoChats({ accuracy }: Props) {
 
     useEffect(() => {
         void loadChats()
-    }, [loadChats])
+    }, [loadChats, locationVersion])
 
     return (
         <div className="space-y-4">
             <div className="rounded-2xl border border-green-100 bg-white p-5 sm:p-6">
                 <div className="flex items-start justify-between gap-4">
-                    <div>
+                    <div className="min-w-0">
                         <h2 className="text-lg font-bold text-gray-900">Геочаты рядом</h2>
                         <div className="mt-1 text-sm text-main-gray">Доступны в вашем текущем местоположении</div>
 
                         {accuracy !== null && (
                             <div className="mt-2 text-xs text-main-gray">
-                                {accuracy > 1000 ? `Примерное местоположение · ±${Math.max(1, Math.round(accuracy / 1000))} км` : `Точность местоположения ±${Math.round(accuracy)} м`}
+                                {isApproximate ? `Примерное местоположение · ±${Math.max(1, Math.round(accuracy / 1000))} км` : `Точность местоположения ±${Math.round(accuracy)} м`}
                             </div>
                         )}
                     </div>
 
-                    <Link href="/geochats/new" className="flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-main-green px-4 text-sm font-medium text-white transition-colors hover:bg-hover-green">
-                        <Plus className="size-4" />
-                        <span className="hidden sm:inline">Создать</span>
-                    </Link>
+                    <div className="flex shrink-0 items-center gap-2">
+                        <button type="button" onClick={onRefreshLocation} className="flex size-10 cursor-pointer items-center justify-center rounded-xl border border-gray-200 bg-white text-main-gray transition-colors hover:border-green-200 hover:bg-green-50 hover:text-main-green" title="Обновить местоположение">
+                            <LocateFixed className="size-4" />
+                        </button>
+
+                        <Link href="/geochats/new" className="flex h-10 items-center justify-center gap-2 rounded-xl bg-main-green px-4 text-sm font-medium text-white transition-colors hover:bg-hover-green">
+                            <Plus className="size-4" />
+                            <span className="hidden sm:inline">Создать</span>
+                        </Link>
+                    </div>
                 </div>
             </div>
 
@@ -92,7 +104,7 @@ function NearbyGeoChats({ accuracy }: Props) {
                     <div className="text-center">
                         <div className="text-sm text-red-600">{error}</div>
 
-                        <button type="button" onClick={() => void loadChats()} className="mt-4 flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-green-200 px-4 text-sm font-medium text-main-green hover:bg-green-50">
+                        <button type="button" onClick={() => void loadChats()} className="mt-4 flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-green-200 px-4 text-sm font-medium text-main-green transition-colors hover:bg-green-50">
                             <RefreshCw className="size-4" />
                             <span>Повторить</span>
                         </button>
@@ -134,7 +146,7 @@ function NearbyGeoChats({ accuracy }: Props) {
 
                                         <div className="flex items-center gap-1 text-xs font-medium text-main-green">
                                             <MapPin className="size-3.5" />
-                                            <span>{formatDistance(chat.distanceM)}</span>
+                                            <span>{formatDistance(chat.distanceM, isApproximate)}</span>
                                         </div>
                                     </div>
 
