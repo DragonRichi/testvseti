@@ -21,7 +21,7 @@ function MainPage({ isAuthenticated }: Props) {
         if (isEntering) return
 
         if (isAuthenticated) {
-            setIsEntering(true)
+            window.dispatchEvent(new Event("vseti:navigation-start"))
             router.push("/feed")
             return
         }
