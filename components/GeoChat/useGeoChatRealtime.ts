@@ -45,6 +45,8 @@ function useGeoChatRealtime({ roomId, initialMessages, isNearBottom, scrollToBot
         let hasSubscribedOnce = false
         let connecting = false
         let reconnectTimer: number | null = null
+        let recoveryInProgress = false
+        let lastRecoveryAt = 0
         let reconnectAttempt = 0
         let syncInProgress = false
         let hiddenAt: number | null = document.visibilityState === "hidden" ? Date.now() : null
