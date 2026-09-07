@@ -4,14 +4,15 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser"
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 
-type SortMode = "latest" | "popular" | "discussed" | "nearest"
+type SortMode = "nearest" | "latest" | "popular" | "discussed"
+type RadiusM = 3000 | 6000 | 9000 | 12000
 
 type Props = {
     name: string
-    sortMode: SortMode
+    sortMode: string
     latitude: number
     longitude: number
-    radiusM: 3000 | 6000 | 9000 | 12000
+    radiusM: number
 }
 
 type Radar = {
@@ -37,10 +38,11 @@ type Result =
         radar?: never
     }
 
-const allowedRadii = [3000, 6000, 9000, 12000]
+const allowedRadii: RadiusM[] = [3000, 6000, 9000, 12000]
+const allowedSortModes: SortMode[] = ["nearest", "latest", "popular", "discussed"]
 
 export async function createTrackingRadar({ name, sortMode, latitude, longitude, radiusM }: Props): Promise<Result> {
-    const normalizedName = name.trim()
+    const normalizedName = typeof name === "string" ? name.trim() : ""
 
     if (!normalizedName) {
         return {
@@ -53,6 +55,13 @@ export async function createTrackingRadar({ name, sortMode, latitude, longitude,
         return {
             success: false,
             error: "Название радара слишком длинное"
+        }
+    }
+
+    if (typeof sortMode !== "string" || !allowedSortModes.includes(sortMode as SortMode)) {
+        return {
+            success: false,
+            error: "Некорректная сортировка"
         }
     }
 
@@ -70,7 +79,7 @@ export async function createTrackingRadar({ name, sortMode, latitude, longitude,
         }
     }
 
-    if (!allowedRadii.includes(radiusM)) {
+    if (!Number.isFinite(radiusM) || !allowedRadii.includes(radiusM as RadiusM)) {
         return {
             success: false,
             error: "Некорректный радиус"
@@ -88,7 +97,6 @@ export async function createTrackingRadar({ name, sortMode, latitude, longitude,
         }
 
         const supabase = await createClient()
-
         const location = `POINT(${longitude} ${latitude})`
 
         const { data: radar, error } = await supabase.from("radars").insert({

@@ -11,36 +11,35 @@ type Props = {
     radarId: string
     currentProfile: Profile
     initialItems: RadarFeedItem[]
-    initialLikedCommentIds: string[]
     initialNextCursor: RadarFeedCursor | null
     canPaginate: boolean
 }
 
-function RadarFeedList({ radarId, currentProfile, initialItems, initialLikedCommentIds, initialNextCursor, canPaginate }: Props) {
+function RadarFeedList({ radarId, currentProfile, initialItems, initialNextCursor, canPaginate }: Props) {
     const [items, setItems] = useState<RadarFeedItem[]>(initialItems)
-    const [likedCommentIds, setLikedCommentIds] = useState<string[]>(initialLikedCommentIds)
     const [nextCursor, setNextCursor] = useState<RadarFeedCursor | null>(initialNextCursor)
-    const [isLoading, setIsLoading] = useState<boolean>(false)
-    const [loadError, setLoadError] = useState<string>("")
+    const [isLoading, setIsLoading] = useState(false)
+    const [loadError, setLoadError] = useState("")
 
     const loadMoreRef = useRef<HTMLDivElement>(null)
     const loadingLock = useRef(false)
-
+    const observerArmedRef = useRef(true)
     const initialItemsVersion = useMemo(() => initialItems.map((item) => item.post.id).join("|"), [initialItems])
 
     useEffect(() => {
         setItems(initialItems)
-        setLikedCommentIds(initialLikedCommentIds)
         setNextCursor(initialNextCursor)
         setLoadError("")
-        loadingLock.current = false
         setIsLoading(false)
-    }, [radarId, initialItemsVersion])
+        loadingLock.current = false
+        observerArmedRef.current = true
+    }, [radarId, initialItems, initialItemsVersion, initialNextCursor])
 
     const loadMore = useCallback(async () => {
         if (!canPaginate || !nextCursor || loadingLock.current) return
 
         loadingLock.current = true
+        observerArmedRef.current = false
         setIsLoading(true)
         setLoadError("")
 
@@ -59,7 +58,6 @@ function RadarFeedList({ radarId, currentProfile, initialItems, initialLikedComm
                 return [...currentItems, ...newItems]
             })
 
-            setLikedCommentIds((currentIds) => Array.from(new Set([...currentIds, ...result.likedCommentIds])))
             setNextCursor(result.nextCursor)
         } catch (error) {
             console.error("RADAR LOAD MORE ERROR:", error)
@@ -81,9 +79,17 @@ function RadarFeedList({ radarId, currentProfile, initialItems, initialLikedComm
             (entries) => {
                 const entry = entries[0]
 
-                if (entry?.isIntersecting) {
-                    void loadMore()
+                if (!entry) return
+
+                if (!entry.isIntersecting) {
+                    observerArmedRef.current = true
+                    return
                 }
+
+                if (!observerArmedRef.current || loadingLock.current) return
+
+                observerArmedRef.current = false
+                void loadMore()
             },
             {
                 rootMargin: "600px 0px",
@@ -98,11 +104,17 @@ function RadarFeedList({ radarId, currentProfile, initialItems, initialLikedComm
         }
     }, [canPaginate, nextCursor, loadError, loadMore])
 
+    const handleRetry = () => {
+        setLoadError("")
+        observerArmedRef.current = true
+        void loadMore()
+    }
+
     return (
         <>
             <div className="flex flex-col gap-4">
                 {items.map((item, index) => (
-                    <PostCard eagerMedia={index === 0} key={item.post.id} post={item.post} profile={item.author} currentProfile={currentProfile} isOwnProfile={item.post.user_id === currentProfile.id} initialLiked={item.initialLiked} initialComments={item.initialComments} likedCommentIds={likedCommentIds} />
+                    <PostCard key={item.post.id} post={item.post} profile={item.author} currentProfile={currentProfile} isOwnProfile={item.post.user_id === currentProfile.id} initialLiked={item.initialLiked} eagerMedia={index === 0} />
                 ))}
             </div>
 
@@ -121,17 +133,13 @@ function RadarFeedList({ radarId, currentProfile, initialItems, initialLikedComm
                 <div className="mt-4 flex flex-col items-center gap-2 rounded-2xl border border-red-100 bg-white p-4 text-center">
                     <div className="text-sm text-red-500">{loadError}</div>
 
-                    <button type="button" onClick={() => { setLoadError(""); void loadMore() }} className="cursor-pointer rounded-xl bg-green-50 px-4 py-2 text-sm font-medium text-main-green transition-colors hover:bg-green-100">
+                    <button type="button" onClick={handleRetry} className="cursor-pointer rounded-xl bg-green-50 px-4 py-2 text-sm font-medium text-main-green transition-colors hover:bg-green-100">
                         Повторить
                     </button>
                 </div>
             )}
 
-            {canPaginate && !nextCursor && items.length >= 20 && (
-                <div className="py-6 text-center text-xs text-main-gray">
-                    Все публикации загружены
-                </div>
-            )}
+            {canPaginate && !nextCursor && items.length >= 20 && <div className="py-6 text-center text-xs text-main-gray">Все публикации загружены</div>}
         </>
     )
 }

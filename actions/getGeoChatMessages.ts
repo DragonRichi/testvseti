@@ -55,7 +55,7 @@ export async function getGeoChatMessages(chatId: string): Promise<Result> {
     }
 
     try {
-        const messages = await loadGeoChatMessages(supabase, chatId)
+        const messages = await loadGeoChatMessages(chatId)
 
         return {
             success: true,

@@ -1,7 +1,7 @@
 import EnvironmentPage from "@/components/EnvironmentPage/EnvironmentPage"
 import SocialLayout from "@/components/Layout/SocialLayout"
+import { loadProfileConnections } from "@/lib/follows/loadProfileConnections"
 import { createClient } from "@/lib/supabase/server"
-import type { ProfileConnectionItem } from "@/types/follows"
 import { redirect } from "next/navigation"
 
 async function Page() {
@@ -14,79 +14,54 @@ async function Page() {
 
     if (userError || !user) redirect("/")
 
-    const { data: currentProfile, error: currentProfileError } = await supabase.from("profiles").select("id,username,display_name,avatar_url").eq("id", user.id).single()
+    const { data: currentProfile, error: currentProfileError } = await supabase.from("profiles").select("id,username,display_name,avatar_url,subscriber_count,following_count").eq("id", user.id).single()
 
     if (currentProfileError || !currentProfile) {
         console.error("ENVIRONMENT CURRENT PROFILE LOAD ERROR:", currentProfileError)
         redirect("/")
     }
 
-    const [{ data: followerRelations, error: followersError }, { data: followingRelations, error: followingError }] = await Promise.all([
-        supabase.from("follows").select("follower_id,created_at").eq("following_id", user.id).order("created_at", { ascending: false }),
-        supabase.from("follows").select("following_id,created_at").eq("follower_id", user.id).order("created_at", { ascending: false })
+    const [followersResult, followingResult] = await Promise.allSettled([
+        loadProfileConnections({
+            supabase,
+            viewerId: user.id,
+            profileId: user.id,
+            type: "followers"
+        }),
+        loadProfileConnections({
+            supabase,
+            viewerId: user.id,
+            profileId: user.id,
+            type: "following"
+        })
     ])
 
-    if (followersError) {
-        console.error("ENVIRONMENT FOLLOWERS LOAD ERROR:", followersError)
+    if (followersResult.status === "rejected") {
+        console.error("ENVIRONMENT FOLLOWERS LOAD ERROR:", followersResult.reason)
     }
 
-    if (followingError) {
-        console.error("ENVIRONMENT FOLLOWING LOAD ERROR:", followingError)
+    if (followingResult.status === "rejected") {
+        console.error("ENVIRONMENT FOLLOWING LOAD ERROR:", followingResult.reason)
     }
 
-    const followerIds = (followerRelations ?? []).map((relation) => relation.follower_id)
-    const followingIds = (followingRelations ?? []).map((relation) => relation.following_id)
-
-    const allProfileIds = Array.from(new Set([...followerIds, ...followingIds]))
-
-    const { data: profiles, error: profilesError } = allProfileIds.length > 0
-        ? await supabase.from("profiles").select("id,username,display_name,avatar_url").in("id", allProfileIds)
-        : { data: [], error: null }
-
-    if (profilesError) {
-        console.error("ENVIRONMENT PROFILES LOAD ERROR:", profilesError)
+    const followersPage = followersResult.status === "fulfilled" ? followersResult.value : {
+        items: [],
+        hasMore: false,
+        nextOffset: 0
     }
 
-    const profilesById = new Map((profiles ?? []).map((profile) => [profile.id, profile]))
-    const myFollowingIds = new Set(followingIds)
-
-    const followers: ProfileConnectionItem[] = []
-
-    for (const profileId of followerIds) {
-        const profile = profilesById.get(profileId)
-
-        if (!profile) continue
-
-        followers.push({
-            id: profile.id,
-            username: profile.username,
-            displayName: profile.display_name ?? profile.username,
-            avatarUrl: profile.avatar_url,
-            isFollowing: myFollowingIds.has(profile.id),
-            isCurrentUser: false
-        })
+    const followingPage = followingResult.status === "fulfilled" ? followingResult.value : {
+        items: [],
+        hasMore: false,
+        nextOffset: 0
     }
 
-    const following: ProfileConnectionItem[] = []
-
-    for (const profileId of followingIds) {
-        const profile = profilesById.get(profileId)
-
-        if (!profile) continue
-
-        following.push({
-            id: profile.id,
-            username: profile.username,
-            displayName: profile.display_name ?? profile.username,
-            avatarUrl: profile.avatar_url,
-            isFollowing: true,
-            isCurrentUser: false
-        })
-    }
+    const followerCount = Math.max(0, currentProfile.subscriber_count ?? followersPage.items.length)
+    const followingCount = Math.max(0, currentProfile.following_count ?? followingPage.items.length)
 
     return (
         <SocialLayout profile={currentProfile}>
-            <EnvironmentPage followers={followers} following={following} />
+            <EnvironmentPage key={`${followerCount}:${followingCount}`} profileId={user.id} initialFollowers={followersPage.items} initialFollowing={followingPage.items} followerCount={followerCount} followingCount={followingCount} initialFollowersHasMore={followersPage.hasMore} initialFollowingHasMore={followingPage.hasMore} initialFollowersOffset={followersPage.nextOffset} initialFollowingOffset={followingPage.nextOffset} />
         </SocialLayout>
     )
 }

@@ -1,7 +1,6 @@
 "use client"
 
-import { getGeoChatAccessState } from "@/actions/getGeoChatAccessState"
-import { syncPreciseLocation } from "@/actions/syncPreciseLocation"
+import { syncGeoChatLocationAndAccess } from "@/actions/syncGeoChatLocationAndAccess"
 import { useCallback, useEffect, useRef, useState } from "react"
 
 export type GeoChatAccessStatus = "checking" | "active" | "outside" | "denied" | "unsupported" | "error"
@@ -39,33 +38,9 @@ function useGeoChatLiveAccess(chatId: string) {
     const [status, setStatus] = useState<GeoChatAccessStatus>("checking")
     const [error, setError] = useState("")
     const [accuracy, setAccuracy] = useState<number | null>(null)
-    const [isTestAccess, setIsTestAccess] = useState(false)
 
     const lastSyncedLocationRef = useRef<SyncedLocation | null>(null)
     const syncLockRef = useRef(false)
-
-    const checkAccess = useCallback(async () => {
-        const result = await getGeoChatAccessState(chatId)
-
-        if (result.success === false) {
-            setError(result.error)
-            setStatus("error")
-            return false
-        }
-
-        if (result.testAccess) {
-            setIsTestAccess(true)
-            setStatus("active")
-            setError("")
-            return true
-        }
-
-        setIsTestAccess(false)
-        setStatus(result.canAccess ? "active" : "outside")
-        setError("")
-
-        return result.canAccess
-    }, [chatId])
 
     const savePosition = useCallback(async (position: GeolocationPosition, force: boolean) => {
         const latitude = position.coords.latitude
@@ -95,7 +70,8 @@ function useGeoChatLiveAccess(chatId: string) {
         syncLockRef.current = true
 
         try {
-            const result = await syncPreciseLocation({
+            const result = await syncGeoChatLocationAndAccess({
+                chatId,
                 latitude,
                 longitude,
                 accuracy: Number.isFinite(positionAccuracy) ? positionAccuracy : null
@@ -113,7 +89,8 @@ function useGeoChatLiveAccess(chatId: string) {
                 syncedAt: now
             }
 
-            await checkAccess()
+            setStatus(result.canAccess ? "active" : "outside")
+            setError("")
         } catch (error) {
             console.error("GEO CHAT LIVE LOCATION ERROR:", error)
             setError("Не удалось обновить местоположение")
@@ -121,7 +98,7 @@ function useGeoChatLiveAccess(chatId: string) {
         } finally {
             syncLockRef.current = false
         }
-    }, [checkAccess])
+    }, [chatId])
 
     useEffect(() => {
         let cancelled = false
@@ -146,25 +123,9 @@ function useGeoChatLiveAccess(chatId: string) {
             setError("Не удалось определить текущее местоположение")
         }
 
-        const start = async () => {
+        const start = () => {
             setStatus("checking")
             setError("")
-
-            const initialAccess = await getGeoChatAccessState(chatId)
-
-            if (cancelled) return
-
-            if (initialAccess.success === false) {
-                setStatus("error")
-                setError(initialAccess.error)
-                return
-            }
-
-            if (initialAccess.testAccess) {
-                setIsTestAccess(true)
-                setStatus("active")
-                return
-            }
 
             if (!navigator.geolocation) {
                 setStatus("unsupported")
@@ -200,7 +161,7 @@ function useGeoChatLiveAccess(chatId: string) {
             )
         }
 
-        void start()
+        start()
 
         return () => {
             cancelled = true
@@ -209,13 +170,12 @@ function useGeoChatLiveAccess(chatId: string) {
                 navigator.geolocation.clearWatch(watchId)
             }
         }
-    }, [chatId, savePosition])
+    }, [savePosition])
 
     return {
         status,
         error,
         accuracy,
-        isTestAccess,
         canSend: status === "active"
     }
 }

@@ -10,16 +10,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 type Props = {
     currentProfile: Profile
     initialItems: GeoFeedItem[]
-    initialLikedCommentIds: string[]
     initialNextCursor: GeoFeedCursor | null
 }
 
-function GeoFeedList({ currentProfile, initialItems, initialLikedCommentIds, initialNextCursor }: Props) {
+function GeoFeedList({ currentProfile, initialItems, initialNextCursor }: Props) {
     const [items, setItems] = useState<GeoFeedItem[]>(initialItems)
-    const [likedCommentIds, setLikedCommentIds] = useState<string[]>(initialLikedCommentIds)
     const [nextCursor, setNextCursor] = useState<GeoFeedCursor | null>(initialNextCursor)
-    const [isLoading, setIsLoading] = useState<boolean>(false)
-    const [loadError, setLoadError] = useState<string>("")
+    const [isLoading, setIsLoading] = useState(false)
+    const [loadError, setLoadError] = useState("")
 
     const loadMoreRef = useRef<HTMLDivElement>(null)
     const loadingLock = useRef(false)
@@ -32,23 +30,19 @@ function GeoFeedList({ currentProfile, initialItems, initialLikedCommentIds, ini
         if (appliedInitialVersionRef.current === initialItemsVersion) return
 
         appliedInitialVersionRef.current = initialItemsVersion
-
         setItems(initialItems)
-        setLikedCommentIds(initialLikedCommentIds)
         setNextCursor(initialNextCursor)
         setLoadError("")
         setIsLoading(false)
-
         loadingLock.current = false
         observerArmedRef.current = true
-    }, [initialItems, initialItemsVersion, initialLikedCommentIds, initialNextCursor])
+    }, [initialItems, initialItemsVersion, initialNextCursor])
 
     const loadMore = useCallback(async () => {
         if (!nextCursor || loadingLock.current) return
 
         loadingLock.current = true
         observerArmedRef.current = false
-
         setIsLoading(true)
         setLoadError("")
 
@@ -67,7 +61,6 @@ function GeoFeedList({ currentProfile, initialItems, initialLikedCommentIds, ini
                 return [...currentItems, ...newItems]
             })
 
-            setLikedCommentIds((currentIds) => Array.from(new Set([...currentIds, ...result.likedCommentIds])))
             setNextCursor(result.nextCursor)
         } catch (error) {
             console.error("GEO FEED LOAD MORE ERROR:", error)
@@ -96,11 +89,9 @@ function GeoFeedList({ currentProfile, initialItems, initialLikedCommentIds, ini
                     return
                 }
 
-                if (!observerArmedRef.current) return
-                if (loadingLock.current) return
+                if (!observerArmedRef.current || loadingLock.current) return
 
                 observerArmedRef.current = false
-
                 void loadMore()
             },
             {
@@ -119,7 +110,6 @@ function GeoFeedList({ currentProfile, initialItems, initialLikedCommentIds, ini
     const handleRetry = () => {
         setLoadError("")
         observerArmedRef.current = true
-
         void loadMore()
     }
 
@@ -127,7 +117,7 @@ function GeoFeedList({ currentProfile, initialItems, initialLikedCommentIds, ini
         <>
             <div className="flex flex-col gap-4">
                 {items.map((item, index) => (
-                    <PostCard key={item.post.id} post={item.post} profile={item.author} currentProfile={currentProfile} isOwnProfile={item.post.user_id === currentProfile.id} initialLiked={item.initialLiked} initialComments={item.initialComments} likedCommentIds={likedCommentIds} eagerMedia={index === 0} />
+                    <PostCard key={item.post.id} post={item.post} profile={item.author} currentProfile={currentProfile} isOwnProfile={item.post.user_id === currentProfile.id} initialLiked={item.initialLiked} eagerMedia={index === 0} />
                 ))}
             </div>
 
@@ -152,11 +142,7 @@ function GeoFeedList({ currentProfile, initialItems, initialLikedCommentIds, ini
                 </div>
             )}
 
-            {!nextCursor && items.length >= 20 && (
-                <div className="py-6 text-center text-xs text-main-gray">
-                    Все публикации загружены
-                </div>
-            )}
+            {!nextCursor && items.length >= 20 && <div className="py-6 text-center text-xs text-main-gray">Все публикации загружены</div>}
         </>
     )
 }

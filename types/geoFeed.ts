@@ -1,4 +1,4 @@
-import type { Post, PostCommentNode, Profile } from "@/types/social"
+import type { Post, Profile } from "@/types/social"
 
 export type GeoFeedPointCursor = {
     id: string
@@ -17,5 +17,4 @@ export type GeoFeedItem = {
     post: Post
     author: Profile
     initialLiked: boolean
-    initialComments: PostCommentNode[]
 }

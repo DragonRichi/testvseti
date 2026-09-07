@@ -7,11 +7,10 @@ import Link from "next/link"
 type Props = {
     room: GeoChatRoomType
     accuracy: number | null
-    isTestAccess: boolean
     isAdminMode: boolean
 }
 
-function GeoChatHeader({ room, accuracy, isTestAccess, isAdminMode }: Props) {
+function GeoChatHeader({ room, accuracy, isAdminMode }: Props) {
     return (
         <div className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-gray-100 bg-white px-3 sm:h-16 sm:px-5">
             <div className="flex min-w-0 items-center gap-2.5">
@@ -31,8 +30,6 @@ function GeoChatHeader({ room, accuracy, isTestAccess, isAdminMode }: Props) {
 
                         {isAdminMode ? (
                             <span className="font-semibold text-main-green">· Администратор</span>
-                        ) : isTestAccess ? (
-                            <span className="text-main-green">· тест</span>
                         ) : accuracy !== null ? (
                             <span>· ±{Math.round(accuracy)} м</span>
                         ) : null}

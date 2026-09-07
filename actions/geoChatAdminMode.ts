@@ -1,6 +1,6 @@
 "use server"
 
-import { hasGeoChatAdminMode, createGeoChatAdminToken, GEO_CHAT_ADMIN_COOKIE_NAME } from "@/lib/geochats/geoChatAdminMode"
+import { createGeoChatAdminToken, GEO_CHAT_ADMIN_COOKIE_NAME } from "@/lib/geochats/geoChatAdminMode"
 import { createClient } from "@/lib/supabase/server"
 import { cookies } from "next/headers"
 
@@ -14,18 +14,6 @@ type Result =
     }
 
 const TEMPORARY_ADMIN_PASSWORD = "1234"
-
-export async function getGeoChatAdminModeStatus() {
-    const supabase = await createClient()
-
-    const {
-        data: { user }
-    } = await supabase.auth.getUser()
-
-    if (!user) return false
-
-    return hasGeoChatAdminMode()
-}
 
 export async function enableGeoChatAdminMode(password: string): Promise<Result> {
     const supabase = await createClient()

@@ -1,6 +1,5 @@
 "use server"
 
-import { getCurrentUser } from "@/lib/auth/getCurrentUser"
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 
@@ -9,102 +8,93 @@ type Props = {
     username: string
 }
 
+type RpcStatus = "ok" | "unauthorized" | "post_not_found"
+
+type RpcRow = {
+    status: RpcStatus
+    liked: boolean | null
+    like_count: number | string | null
+}
+
 type TogglePostLikeResult =
     | {
-        success: true,
+        success: true
         error: null
         liked: boolean
         likeCount: number
     }
-    |
-    {
+    | {
         success: false
         error: string
     }
 
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export async function togglePostLike({ postId, username }: Props): Promise<TogglePostLikeResult> {
-
-    if (!postId) {
+    if (typeof postId !== "string" || !uuidPattern.test(postId)) {
         return {
             success: false,
             error: "Публикация не найдена"
         }
     }
 
-    try {
-        const user = await getCurrentUser()
+    const supabase = await createClient()
 
-        if (!user) {
-            return {
-                success: false,
-                error: "Необходимо войти в аккаунт"
-            }
-        }
+    const { data, error } = await supabase.rpc("toggle_post_like", {
+        p_post_id: postId
+    })
 
-        const supabase = await createClient()
+    if (error) {
+        console.error("POST LIKE RPC ERROR:", error)
 
-        const { data: existingLike, error: likeCheckError } = await supabase.from("post_likes").select("post_id").eq("post_id", postId).eq("user_id", user.id).maybeSingle()
-
-        if (likeCheckError) {
-            console.error("POST LIKE CHECK ERROR: ", likeCheckError)
-            return {
-                success: false,
-                error: "Не удалось проверить лайк"
-            }
-        }
-
-        let liked: boolean
-
-        if (existingLike) {
-            const { error: deleteError } = await supabase.from("post_likes").delete().eq("post_id", postId).eq("user_id", user.id)
-
-            if (deleteError) {
-                console.error("POST UNLIKE ERROR: ", deleteError)
-                return {
-                    success: false,
-                    error: "Не удалось убрать лайк"
-                }
-            }
-            liked = false
-        } else {
-            const { error: insertError } = await supabase.from("post_likes").insert({
-                post_id: postId,
-                user_id: user.id
-            })
-
-            if (insertError) {
-                console.error("POST LIKE ERROR: ", insertError)
-                return {
-                    success: false,
-                    error: "Не удалось поставить лайк"
-                }
-            }
-            liked = true
-        }
-
-        const { data: post, error: errorPost } = await supabase.from("posts").select("like_count").eq("id", postId).maybeSingle()
-
-        if (errorPost) {
-            console.error("POST LIKE COUNT ERROR: ", errorPost)
-        }
-
-        revalidatePath("/feed")
-        revalidatePath(`/profile/${username}`)
-
-        return {
-            success: true,
-            error: null,
-            liked,
-            likeCount: post?.like_count ?? 0
-        }
-
-    } catch (error) {
-        console.error("POST LIKE ERROR: ", error)
         return {
             success: false,
-            error: "Ошибка обработки лайка"
+            error: "Не удалось обработать лайк"
         }
     }
 
+    const row = ((data ?? []) as RpcRow[])[0]
+
+    if (!row) {
+        return {
+            success: false,
+            error: "Не удалось обработать лайк"
+        }
+    }
+
+    if (row.status === "unauthorized") {
+        return {
+            success: false,
+            error: "Необходимо войти в аккаунт"
+        }
+    }
+
+    if (row.status === "post_not_found") {
+        return {
+            success: false,
+            error: "Публикация не найдена"
+        }
+    }
+
+    if (row.liked === null || row.like_count === null) {
+        console.error("POST LIKE RPC INVALID RESPONSE:", row)
+
+        return {
+            success: false,
+            error: "Не удалось обработать лайк"
+        }
+    }
+
+    revalidatePath("/feed")
+
+    if (typeof username === "string" && username.trim()) {
+        revalidatePath(`/profile/${username.trim().toLowerCase()}`)
+    }
+
+    return {
+        success: true,
+        error: null,
+        liked: row.liked,
+        likeCount: Number(row.like_count)
+    }
 }

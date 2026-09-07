@@ -1,11 +1,14 @@
 "use client"
 
-import { getGeoChatAdminModeStatus } from "@/actions/geoChatAdminMode"
 import { syncPreciseLocation } from "@/actions/syncPreciseLocation"
 import GeoChatAdminAccess from "@/components/GeoChat/GeoChatAdminAccess"
 import NearbyGeoChats from "@/components/GeoChat/NearbyGeoChats"
 import { LocateFixed, MapPin, RefreshCw, Settings, Shield, TriangleAlert } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
+
+type Props = {
+    initialAdminMode: boolean
+}
 
 type Status = "checking" | "prompt" | "requesting" | "ready" | "denied" | "unsupported" | "error"
 
@@ -36,11 +39,11 @@ function getDistanceMeters(latitude1: number, longitude1: number, latitude2: num
     return earthRadiusM * c
 }
 
-function GeoChatLocationGate() {
+function GeoChatLocationGate({ initialAdminMode }: Props) {
     const [status, setStatus] = useState<Status>("checking")
     const [locationInfo, setLocationInfo] = useState<LocationInfo | null>(null)
     const [locationVersion, setLocationVersion] = useState(0)
-    const [adminBypass, setAdminBypass] = useState(false)
+    const [adminMode, setAdminMode] = useState(initialAdminMode)
     const [error, setError] = useState("")
 
     const watchIdRef = useRef<number | null>(null)
@@ -54,9 +57,7 @@ function GeoChatLocationGate() {
         const accuracy = position.coords.accuracy
         const now = Date.now()
 
-        setLocationInfo({
-            accuracy
-        })
+        setLocationInfo({ accuracy })
 
         const previous = lastSyncedLocationRef.current
 
@@ -205,28 +206,27 @@ function GeoChatLocationGate() {
     }, [startLocationWatch])
 
     useEffect(() => {
-        const initialize = async () => {
-            const adminMode = await getGeoChatAdminModeStatus()
-
-            if (adminMode) {
-                setAdminBypass(true)
-                return
+        if (adminMode) {
+            if (watchIdRef.current !== null && navigator.geolocation) {
+                navigator.geolocation.clearWatch(watchIdRef.current)
+                watchIdRef.current = null
             }
 
-            await checkPermission()
+            return
         }
 
-        void initialize()
+        void checkPermission()
 
         return () => {
-            if (watchIdRef.current !== null) {
+            if (watchIdRef.current !== null && navigator.geolocation) {
                 navigator.geolocation.clearWatch(watchIdRef.current)
+                watchIdRef.current = null
             }
         }
-    }, [checkPermission])
+    }, [adminMode, checkPermission])
 
     useEffect(() => {
-        if (adminBypass) return
+        if (adminMode) return
 
         const handleVisibilityChange = () => {
             if (document.visibilityState === "visible" && hasLocationRef.current) {
@@ -247,10 +247,10 @@ function GeoChatLocationGate() {
             document.removeEventListener("visibilitychange", handleVisibilityChange)
             window.removeEventListener("focus", handleFocus)
         }
-    }, [adminBypass, refreshLocation])
+    }, [adminMode, refreshLocation])
 
-    if (adminBypass) {
-        return <NearbyGeoChats accuracy={locationInfo?.accuracy ?? null} locationVersion={locationVersion} onRefreshLocation={refreshLocation} />
+    if (adminMode) {
+        return <NearbyGeoChats accuracy={locationInfo?.accuracy ?? null} locationVersion={locationVersion} initialAdminMode onAdminModeChange={setAdminMode} />
     }
 
     if (status === "checking") {
@@ -310,13 +310,13 @@ function GeoChatLocationGate() {
 
                     <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
                         <Shield className="size-4 text-main-green" />
-                        <span>Режим модератора</span>
+                        <span>Режим администратора</span>
                     </div>
 
                     <div className="mt-2 text-xs leading-5 text-main-gray">Для просмотра всех геочатов местоположение не требуется.</div>
 
                     <div className="mt-4">
-                        <GeoChatAdminAccess adminMode={false} onChanged={async () => setAdminBypass(true)} />
+                        <GeoChatAdminAccess adminMode={false} onChanged={setAdminMode} />
                     </div>
                 </div>
             </div>
@@ -346,7 +346,7 @@ function GeoChatLocationGate() {
         )
     }
 
-    return <NearbyGeoChats accuracy={locationInfo?.accuracy ?? null} locationVersion={locationVersion} onRefreshLocation={refreshLocation} />
+    return <NearbyGeoChats accuracy={locationInfo?.accuracy ?? null} locationVersion={locationVersion} initialAdminMode={false} onAdminModeChange={setAdminMode} />
 }
 
 export default GeoChatLocationGate

@@ -1,10 +1,11 @@
 "use client"
 
 import { createComment } from "@/actions/createComment"
+import { getPostComments } from "@/actions/getPostComments"
 import type { PostCommentNode, Profile } from "@/types/social"
-import { Send } from "lucide-react"
+import { LoaderCircle, Send } from "lucide-react"
 import Image from "next/image"
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import CommentItem from "./CommentItem"
 
 type Props = {
@@ -13,25 +14,60 @@ type Props = {
     currentProfile: Profile
     onCommentCreated: () => void
     onCommentDeleted: (commentCount: number) => void
-    initialComments: PostCommentNode[]
-    likedCommentIds: string[]
 }
 
-function CommentsSection({ currentProfile, onCommentCreated, onCommentDeleted, postId, username, initialComments, likedCommentIds }: Props) {
-    const [comments, setComments] = useState<PostCommentNode[]>(initialComments)
-    const [content, setContent] = useState<string>("")
-    const [error, setError] = useState<string>("")
-    const [isPending, setIsPending] = useState<boolean>(false)
-
-    const [isExpanded, setIsExpanded] = useState<boolean>(false)
+function CommentsSection({ currentProfile, onCommentCreated, onCommentDeleted, postId, username }: Props) {
+    const [comments, setComments] = useState<PostCommentNode[]>([])
+    const [likedCommentIds, setLikedCommentIds] = useState<string[]>([])
+    const [content, setContent] = useState("")
+    const [error, setError] = useState("")
+    const [isLoading, setIsLoading] = useState(true)
+    const [isPending, setIsPending] = useState(false)
+    const [isExpanded, setIsExpanded] = useState(false)
 
     const submitLock = useRef(false)
     const textareaRef = useRef<HTMLTextAreaElement>(null)
+
     const visibleComments = isExpanded ? comments : comments.slice(-3)
     const hasMoreComments = comments.length > 3
 
+    useEffect(() => {
+        let cancelled = false
+
+        const loadComments = async () => {
+            setIsLoading(true)
+            setError("")
+
+            try {
+                const result = await getPostComments(postId)
+
+                if (cancelled) return
+
+                if (result.success === false) {
+                    setError(result.error)
+                    return
+                }
+
+                setComments(result.comments)
+                setLikedCommentIds(result.likedCommentIds)
+            } catch (error) {
+                console.error("COMMENTS LOAD ERROR:", error)
+
+                if (!cancelled) setError("Не удалось загрузить комментарии")
+            } finally {
+                if (!cancelled) setIsLoading(false)
+            }
+        }
+
+        void loadComments()
+
+        return () => {
+            cancelled = true
+        }
+    }, [postId])
+
     const handleSubmit = async () => {
-        if (submitLock.current) return
+        if (submitLock.current || isLoading) return
 
         const normalizedContent = content.trim()
 
@@ -42,7 +78,11 @@ function CommentsSection({ currentProfile, onCommentCreated, onCommentDeleted, p
         setError("")
 
         try {
-            const result = await createComment({ content: normalizedContent, postId, username })
+            const result = await createComment({
+                content: normalizedContent,
+                postId,
+                username
+            })
 
             if (result.success === false) {
                 setError(result.error)
@@ -55,7 +95,7 @@ function CommentsSection({ currentProfile, onCommentCreated, onCommentDeleted, p
                 replies: []
             }
 
-            setComments((prev) => [...prev, newComment])
+            setComments((current) => [...current, newComment])
             setContent("")
 
             if (textareaRef.current) {
@@ -80,23 +120,22 @@ function CommentsSection({ currentProfile, onCommentCreated, onCommentDeleted, p
                     <Image src={currentProfile.avatar_url ?? "/user-avatar.svg"} alt={currentProfile.display_name} fill sizes="36px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
                 </div>
 
-                <textarea ref={textareaRef} value={content} onChange={(e) => { setContent(e.target.value); setError(""); e.currentTarget.style.height = "40px"; const nextHeight = Math.min(e.currentTarget.scrollHeight, 120); e.currentTarget.style.height = `${nextHeight}px`; e.currentTarget.style.overflowY = e.currentTarget.scrollHeight > 120 ? "auto" : "hidden" }} placeholder="Комментарий..." maxLength={2000} rows={1} className="min-h-10 max-h-[120] min-w-0 flex-1 resize-none overflow-y-hidden rounded-2xl border border-gray-100 bg-[#f4f7f4] px-3.5 py-2.5 text-sm leading-5 outline-none transition-colors placeholder:text-main-gray focus:border-main-green/30 focus:bg-white" />
+                <textarea ref={textareaRef} value={content} onChange={(event) => { setContent(event.target.value); setError(""); event.currentTarget.style.height = "40px"; const nextHeight = Math.min(event.currentTarget.scrollHeight, 120); event.currentTarget.style.height = `${nextHeight}px`; event.currentTarget.style.overflowY = event.currentTarget.scrollHeight > 120 ? "auto" : "hidden" }} placeholder="Комментарий..." maxLength={2000} rows={1} className="min-h-10 max-h-[120] min-w-0 flex-1 resize-none overflow-y-hidden rounded-2xl border border-gray-100 bg-[#f4f7f4] px-3.5 py-2.5 text-sm leading-5 outline-none transition-colors placeholder:text-main-gray focus:border-main-green/30 focus:bg-white" />
 
-                <button type="button" onClick={handleSubmit} disabled={isPending || !content.trim()} className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-main-green text-white transition-colors hover:bg-hover-green disabled:pointer-events-none disabled:opacity-50">
+                <button type="button" onClick={() => void handleSubmit()} disabled={isLoading || isPending || !content.trim()} className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-main-green text-white transition-colors hover:bg-hover-green disabled:pointer-events-none disabled:opacity-50">
                     <Send className="size-4" />
                 </button>
             </div>
 
-            {error && (
-                <div className="mt-3 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">
-                    {error}
+            {error && <div className="mt-3 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{error}</div>}
+
+            {isLoading ? (
+                <div className="flex items-center justify-center gap-2 py-6 text-sm text-main-gray">
+                    <LoaderCircle className="size-4 animate-spin" />
+                    <span>Загружаем комментарии...</span>
                 </div>
-            )}
-            
-            {comments.length === 0 ? (
-                <div className="py-5 text-center text-sm text-main-gray">
-                    Комментариев пока нет
-                </div>
+            ) : comments.length === 0 ? (
+                <div className="py-5 text-center text-sm text-main-gray">Комментариев пока нет</div>
             ) : (
                 <>
                     {!isExpanded && hasMoreComments && (
@@ -107,7 +146,7 @@ function CommentsSection({ currentProfile, onCommentCreated, onCommentDeleted, p
 
                     <div className="mt-4 flex flex-col gap-4">
                         {visibleComments.map((comment) => (
-                            <CommentItem key={comment.id} comment={comment} postId={postId} username={username} currentProfile={currentProfile} initialLiked={likedCommentIds.includes(comment.id)} likedCommentIds={likedCommentIds} onCommentCreated={onCommentCreated} onCommentDeleted={onCommentDeleted} onRemove={(commentId) => setComments((prev) => prev.filter((item) => item.id !== commentId))} />
+                            <CommentItem key={comment.id} comment={comment} postId={postId} username={username} currentProfile={currentProfile} initialLiked={likedCommentIds.includes(comment.id)} likedCommentIds={likedCommentIds} onCommentCreated={onCommentCreated} onCommentDeleted={onCommentDeleted} onRemove={(commentId) => setComments((current) => current.filter((item) => item.id !== commentId))} />
                         ))}
                     </div>
 

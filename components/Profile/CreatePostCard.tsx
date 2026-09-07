@@ -3,14 +3,13 @@
 import { createPost } from "@/actions/createPost"
 import PostLocationPicker, { type SelectedPostLocation } from "@/components/Post/PostLocationPicker"
 import { removePostMedia, uploadPostMedia } from "@/lib/posts/uploadPostMedia"
-import { BarChart3, ImagePlus, MapPin, Smile, Video, X } from "lucide-react"
+import { ImagePlus, MapPin, Smile, Video, X } from "lucide-react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import type { ChangeEvent } from "react"
 import { useEffect, useRef, useState } from "react"
 
 type Props = {
-    userId: string
     username: string
     displayName: string
     avatarUrl: string | null
@@ -42,7 +41,7 @@ const EMOJIS = [
     "📍", "📸", "🎥", "🎵", "🎧", "⚽", "🏀", "🏆", "🎮", "💻"
 ]
 
-function CreatePostCard({ userId, avatarUrl, displayName, username }: Props) {
+function CreatePostCard({ avatarUrl, displayName, username }: Props) {
     const [content, setContent] = useState<string>("")
     const [selectedMedia, setSelectedMedia] = useState<SelectedMedia[]>([])
     const [selectedLocation, setSelectedLocation] = useState<SelectedPostLocation | null>(null)
@@ -205,7 +204,7 @@ function CreatePostCard({ userId, avatarUrl, displayName, username }: Props) {
         let uploadedPaths: string[] = []
 
         try {
-            const uploadedMedia = selectedMedia.length > 0 ? await uploadPostMedia(selectedMedia.map((item) => item.file), userId) : []
+            const uploadedMedia = selectedMedia.length > 0 ? await uploadPostMedia(selectedMedia.map((item) => item.file)) : []
 
             uploadedPaths = uploadedMedia.map((item) => item.path)
 

@@ -1,12 +1,19 @@
 "use server"
 
-import { getCurrentUser } from "@/lib/auth/getCurrentUser"
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 
 type Props = {
     commentId: string
     username: string
+}
+
+type RpcStatus = "ok" | "unauthorized" | "comment_not_found"
+
+type RpcRow = {
+    status: RpcStatus
+    liked: boolean | null
+    likes_count: number | null
 }
 
 type ToggleCommentLikeResult =
@@ -21,114 +28,73 @@ type ToggleCommentLikeResult =
         error: string
     }
 
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export async function toggleCommentLike({ commentId, username }: Props): Promise<ToggleCommentLikeResult> {
-    if (!commentId) {
+    if (typeof commentId !== "string" || !uuidPattern.test(commentId)) {
         return {
             success: false,
             error: "Комментарий не найден"
         }
     }
 
-    try {
-        const user = await getCurrentUser()
+    const supabase = await createClient()
 
-        if (!user) {
-            return {
-                success: false,
-                error: "Необходимо войти в аккаунт"
-            }
-        }
+    const { data, error } = await supabase.rpc("toggle_comment_like", {
+        p_comment_id: commentId
+    })
 
-        const supabase = await createClient()
-
-        const { data: comment, error: commentCheckError } = await supabase.from("post_comments").select("id").eq("id", commentId).maybeSingle()
-
-        if (commentCheckError) {
-            console.error("COMMENT CHECK ERROR:", commentCheckError)
-
-            return {
-                success: false,
-                error: "Не удалось проверить комментарий"
-            }
-        }
-
-        if (!comment) {
-            return {
-                success: false,
-                error: "Комментарий не найден"
-            }
-        }
-
-        const { data: existingLike, error: likeCheckError } = await supabase.from("comment_likes").select("comment_id").eq("comment_id", commentId).eq("user_id", user.id).maybeSingle()
-
-        if (likeCheckError) {
-            console.error("COMMENT LIKE CHECK ERROR:", likeCheckError)
-
-            return {
-                success: false,
-                error: "Не удалось проверить лайк"
-            }
-        }
-
-        let liked: boolean
-
-        if (existingLike) {
-            const { error: deleteError } = await supabase.from("comment_likes").delete().eq("comment_id", commentId).eq("user_id", user.id)
-
-            if (deleteError) {
-                console.error("COMMENT UNLIKE ERROR:", deleteError)
-
-                return {
-                    success: false,
-                    error: "Не удалось убрать лайк"
-                }
-            }
-
-            liked = false
-        } else {
-            const { error: insertError } = await supabase.from("comment_likes").insert({
-                comment_id: commentId,
-                user_id: user.id
-            })
-
-            if (insertError) {
-                console.error("COMMENT LIKE ERROR:", insertError)
-
-                return {
-                    success: false,
-                    error: "Не удалось поставить лайк"
-                }
-            }
-
-            liked = true
-        }
-
-        const { data: updatedComment, error: updatedCommentError } = await supabase.from("post_comments").select("likes_count").eq("id", commentId).maybeSingle()
-
-        if (updatedCommentError) {
-            console.error("COMMENT LIKE COUNT ERROR:", updatedCommentError)
-
-            return {
-                success: false,
-                error: "Не удалось получить количество лайков"
-            }
-        }
-
-        revalidatePath("/feed")
-        revalidatePath(`/profile/${username}`)
-
-        return {
-            success: true,
-            error: null,
-            liked,
-            likesCount: Number(updatedComment?.likes_count ?? 0)
-        }
-    } catch (error) {
-        console.error("COMMENT LIKE ERROR:", error)
+    if (error) {
+        console.error("COMMENT LIKE RPC ERROR:", error)
 
         return {
             success: false,
-            error: "Ошибка обработки лайка"
+            error: "Не удалось обработать лайк"
         }
+    }
+
+    const row = ((data ?? []) as RpcRow[])[0]
+
+    if (!row) {
+        return {
+            success: false,
+            error: "Не удалось обработать лайк"
+        }
+    }
+
+    if (row.status === "unauthorized") {
+        return {
+            success: false,
+            error: "Необходимо войти в аккаунт"
+        }
+    }
+
+    if (row.status === "comment_not_found") {
+        return {
+            success: false,
+            error: "Комментарий не найден"
+        }
+    }
+
+    if (row.liked === null || row.likes_count === null) {
+        console.error("COMMENT LIKE RPC INVALID RESPONSE:", row)
+
+        return {
+            success: false,
+            error: "Не удалось обработать лайк"
+        }
+    }
+
+    revalidatePath("/feed")
+
+    if (typeof username === "string" && username.trim()) {
+        revalidatePath(`/profile/${username.trim().toLowerCase()}`)
+    }
+
+    return {
+        success: true,
+        error: null,
+        liked: row.liked,
+        likesCount: Number(row.likes_count)
     }
 }

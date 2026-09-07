@@ -15,7 +15,7 @@ function GeoChatDeleteDialog({ target, isDeleting, onClose, onConfirm }: Props) 
     if (typeof document === "undefined" || !target) return null
 
     return createPortal(
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/35 px-4" onPointerDown={(event) => { if (event.target === event.currentTarget && !isDeleting) onClose() }}>
+        <div className="fixed inset-0 z-10000 flex items-center justify-center bg-black/35 px-4" onPointerDown={(event) => { if (event.target === event.currentTarget && !isDeleting) onClose() }}>
             <div className="w-full max-w-[360] rounded-3xl bg-white p-5 shadow-2xl">
                 <div className="flex items-start justify-between gap-4">
                     <div>

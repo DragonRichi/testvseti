@@ -1,24 +1,22 @@
+import type { Post, Profile } from "@/types/social"
 import { PenLine } from "lucide-react"
 import CreatePostCard from "./CreatePostCard"
 import PostCard from "./PostCard"
-import type { CommentsByPostId, Post, Profile } from "@/types/social"
+import ProfilePostPagination from "./ProfilePostPagination"
 
 type Props = {
     profile: Profile
     posts: Post[]
+    postsCount: number
     isOwnProfile: boolean
     likedPostIds: string[]
-    likedCommentIds: string[]
     currentProfile: Profile
-    commentsByPostId: CommentsByPostId
 }
 
-function ProfileFeed({ profile, posts, isOwnProfile, likedPostIds, currentProfile, commentsByPostId, likedCommentIds }: Props) {
+function ProfileFeed({ profile, posts, postsCount, isOwnProfile, likedPostIds, currentProfile }: Props) {
     return (
         <div className="mt-4 flex flex-col gap-4">
-            {isOwnProfile && (
-                <CreatePostCard userId={currentProfile.id} username={profile.username} displayName={profile.display_name} avatarUrl={profile.avatar_url} />
-            )}
+            {isOwnProfile && <CreatePostCard username={profile.username} displayName={profile.display_name} avatarUrl={profile.avatar_url} />}
 
             {posts.length === 0 ? (
                 <div className="flex min-h-[300] flex-col items-center justify-center rounded-2xl border border-green-100 bg-white px-6 py-10 text-center">
@@ -26,28 +24,18 @@ function ProfileFeed({ profile, posts, isOwnProfile, likedPostIds, currentProfil
                         <PenLine className="size-6 text-main-green" />
                     </div>
 
-                    <h2 className="mt-4 text-lg font-bold">
-                        Публикаций пока нет
-                    </h2>
+                    <h2 className="mt-4 text-lg font-bold">Публикаций пока нет</h2>
 
-                    <p className="mt-2 max-w-[360] text-sm leading-6 text-main-gray">
-                        {isOwnProfile ? "Создайте первую публикацию и поделитесь чем-нибудь интересным." : `${profile.display_name} пока ничего не опубликовал.`}
-                    </p>
+                    <p className="mt-2 max-w-[360] text-sm leading-6 text-main-gray">{isOwnProfile ? "Создайте первую публикацию и поделитесь чем-нибудь интересным." : `${profile.display_name} пока ничего не опубликовал.`}</p>
                 </div>
             ) : (
-                posts.map((post, index) => (
-                    <PostCard
-                        key={post.id}
-                        profile={profile}
-                        post={post}
-                        isOwnProfile={isOwnProfile}
-                        initialLiked={likedPostIds.includes(post.id)}
-                        currentProfile={currentProfile}
-                        initialComments={commentsByPostId[post.id] ?? []}
-                        likedCommentIds={likedCommentIds}
-                        eagerMedia={index === 0}
-                    />
-                ))
+                <>
+                    {posts.map((post, index) => (
+                        <PostCard key={post.id} profile={profile} post={post} isOwnProfile={isOwnProfile} initialLiked={likedPostIds.includes(post.id)} currentProfile={currentProfile} eagerMedia={index === 0} />
+                    ))}
+
+                    <ProfilePostPagination key={profile.id} profile={profile} currentProfile={currentProfile} isOwnProfile={isOwnProfile} initialPostIds={posts.map((post) => post.id)} totalPosts={postsCount} />
+                </>
             )}
         </div>
     )

@@ -2,6 +2,7 @@
 
 import { reverseGeocodePoint } from "@/actions/reverseGeocodePoint"
 import { getCurrentUser } from "@/lib/auth/getCurrentUser"
+import { normalizeOwnedPostMediaUrls } from "@/lib/posts/postMediaStorage"
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 
@@ -84,6 +85,15 @@ export async function createPost({ content, username, mediaUrls = [], taggedLoca
             }
         }
 
+        const ownedMedia = normalizeOwnedPostMediaUrls(normalizedMediaUrls, user.id)
+
+        if (!ownedMedia) {
+            return {
+                success: false,
+                error: "Некорректные фотографии публикации"
+            }
+        }
+
         const supabase = await createClient()
 
         const { data: userLocation, error: locationError } = await supabase.from("user_locations").select("location,city,region,country_code").eq("user_id", user.id).maybeSingle()
@@ -126,7 +136,7 @@ export async function createPost({ content, username, mediaUrls = [], taggedLoca
         const { data, error } = await supabase.from("posts").insert({
             user_id: user.id,
             content: normalizedContent || null,
-            media_urls: normalizedMediaUrls.length > 0 ? normalizedMediaUrls : null,
+            media_urls: ownedMedia.urls.length > 0 ? ownedMedia.urls : null,
             visibility: "all",
             city: userLocation?.city ?? null,
             region: userLocation?.region ?? null,

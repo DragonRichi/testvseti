@@ -6,7 +6,7 @@ import { useState } from "react"
 
 type Props = {
     adminMode: boolean
-    onChanged: () => Promise<void>
+    onChanged: (adminMode: boolean) => Promise<void> | void
 }
 
 function GeoChatAdminAccess({ adminMode, onChanged }: Props) {
@@ -32,7 +32,7 @@ function GeoChatAdminAccess({ adminMode, onChanged }: Props) {
             setPassword("")
             setIsOpen(false)
 
-            await onChanged()
+            await onChanged(true)
         } finally {
             setIsPending(false)
         }
@@ -44,8 +44,11 @@ function GeoChatAdminAccess({ adminMode, onChanged }: Props) {
         setIsPending(true)
 
         try {
-            await disableGeoChatAdminMode()
-            await onChanged()
+            const result = await disableGeoChatAdminMode()
+
+            if (result.success === false) return
+
+            await onChanged(false)
         } finally {
             setIsPending(false)
         }
@@ -53,7 +56,7 @@ function GeoChatAdminAccess({ adminMode, onChanged }: Props) {
 
     if (adminMode) {
         return (
-            <button type="button" onClick={() => void handleDisable()} disabled={isPending} title="Отключить просмотр всех геочатов" className="flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-green-200 bg-green-50 px-3 text-xs font-semibold text-main-green transition-colors hover:bg-green-100 disabled:cursor-wait disabled:opacity-60">
+            <button type="button" onClick={() => void handleDisable()} disabled={isPending} title="Отключить режим администратора" className="flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-green-200 bg-green-50 px-3 text-xs font-semibold text-main-green transition-colors hover:bg-green-100 disabled:cursor-wait disabled:opacity-60">
                 {isPending ? <LoaderCircle className="size-4 animate-spin" /> : <ShieldCheck className="size-4" />}
                 <span className="hidden sm:inline">Все геочаты</span>
             </button>
@@ -62,7 +65,7 @@ function GeoChatAdminAccess({ adminMode, onChanged }: Props) {
 
     return (
         <>
-            <button type="button" onClick={() => setIsOpen(true)} title="Режим модератора" aria-label="Режим модератора" className="flex size-10 cursor-pointer items-center justify-center rounded-xl border border-gray-200 bg-white text-main-gray transition-colors hover:border-green-200 hover:bg-green-50 hover:text-main-green">
+            <button type="button" onClick={() => setIsOpen(true)} title="Режим администратора" aria-label="Режим администратора" className="flex size-10 cursor-pointer items-center justify-center rounded-xl border border-gray-200 bg-white text-main-gray transition-colors hover:border-green-200 hover:bg-green-50 hover:text-main-green">
                 <Shield className="size-4" />
             </button>
 
@@ -82,9 +85,7 @@ function GeoChatAdminAccess({ adminMode, onChanged }: Props) {
 
                         <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} onKeyDown={(event) => event.key === "Enter" && void handleEnable()} autoFocus placeholder="Пароль" className="mt-5 h-11 w-full rounded-xl border border-gray-200 px-4 text-sm outline-none transition-colors focus:border-main-green" />
 
-                        {error && (
-                            <div className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-500">{error}</div>
-                        )}
+                        {error && <div className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-500">{error}</div>}
 
                         <button type="button" onClick={() => void handleEnable()} disabled={isPending || !password} className="mt-4 flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-main-green px-4 text-sm font-semibold text-white transition-colors hover:bg-hover-green disabled:cursor-not-allowed disabled:opacity-60">
                             {isPending && <LoaderCircle className="size-4 animate-spin" />}

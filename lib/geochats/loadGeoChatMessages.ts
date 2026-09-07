@@ -1,10 +1,7 @@
 import "server-only"
 
 import { supabaseAdmin } from "@/lib/supabase/admin"
-import type { createClient } from "@/lib/supabase/server"
 import type { GeoChatMessage, GeoChatSenderRole } from "@/types/geoChat"
-
-type ServerSupabaseClient = Awaited<ReturnType<typeof createClient>>
 
 type MessageRow = {
     id: string
@@ -20,6 +17,7 @@ type MessageRow = {
     reply_author_username: string | null
     reply_author_display_name: string | null
     reply_content: string | null
+    sender_role: string | null
 }
 
 function normalizeSenderRole(value: string | null): GeoChatSenderRole | null {
@@ -29,8 +27,8 @@ function normalizeSenderRole(value: string | null): GeoChatSenderRole | null {
     return null
 }
 
-export async function loadGeoChatMessages(supabase: ServerSupabaseClient, chatId: string) {
-    const { data, error } = await supabase.rpc("get_geo_chat_messages", {
+export async function loadGeoChatMessages(chatId: string) {
+    const { data, error } = await supabaseAdmin.rpc("get_geo_chat_messages", {
         p_chat_id: chatId,
         p_limit: 100
     })
@@ -41,21 +39,6 @@ export async function loadGeoChatMessages(supabase: ServerSupabaseClient, chatId
     }
 
     const rows = (data ?? []) as MessageRow[]
-
-    if (rows.length === 0) return []
-
-    const messageIds = rows.map((message) => message.id)
-
-    const { data: roleRows, error: roleError } = await supabaseAdmin
-        .from("geo_chat_messages")
-        .select("id,sender_role")
-        .in("id", messageIds)
-
-    if (roleError) {
-        console.error("GEO CHAT MESSAGE ROLES LOAD ERROR:", roleError)
-    }
-
-    const rolesById = new Map((roleRows ?? []).map((message) => [message.id, normalizeSenderRole(message.sender_role)]))
 
     const messages: GeoChatMessage[] = rows.map((message) => ({
         id: message.id,
@@ -73,7 +56,7 @@ export async function loadGeoChatMessages(supabase: ServerSupabaseClient, chatId
             authorDisplayName: message.reply_author_display_name ?? message.reply_author_username,
             content: message.reply_content
         } : null,
-        senderRole: rolesById.get(message.id) ?? null
+        senderRole: normalizeSenderRole(message.sender_role)
     }))
 
     return messages

@@ -1,9 +1,10 @@
 import GeoChatRoom from "@/components/GeoChat/GeoChatRoom"
 import SocialLayout from "@/components/Layout/SocialLayout"
 import { hasGeoChatAdminMode } from "@/lib/geochats/geoChatAdminMode"
+import { loadGeoChatMessages } from "@/lib/geochats/loadGeoChatMessages"
 import { supabaseAdmin } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
-import type { GeoChatMessage, GeoChatRoom as GeoChatRoomType, GeoChatSenderRole } from "@/types/geoChat"
+import type { GeoChatMessage, GeoChatRoom as GeoChatRoomType } from "@/types/geoChat"
 import { MapPin } from "lucide-react"
 import Link from "next/link"
 import { redirect } from "next/navigation"
@@ -22,29 +23,6 @@ type RoomRow = {
     radius_m: number
     distance_m: number | null
     created_at: string
-}
-
-type MessageRow = {
-    id: string
-    chat_id: string
-    user_id: string
-    content: string
-    created_at: string
-    updated_at: string
-    author_username: string
-    author_display_name: string | null
-    author_avatar_url: string | null
-    reply_to_id: string | null
-    reply_author_username: string | null
-    reply_author_display_name: string | null
-    reply_content: string | null
-}
-
-function normalizeSenderRole(value: string | null): GeoChatSenderRole | null {
-    if (value === "admin") return "admin"
-    if (value === "moderator") return "moderator"
-
-    return null
 }
 
 async function Page({ params }: Props) {
@@ -122,30 +100,12 @@ async function Page({ params }: Props) {
         )
     }
 
-    const { data: messagesData, error: messagesError } = await supabase.rpc("get_geo_chat_messages", {
-        p_chat_id: id,
-        p_limit: 100
-    })
+    let initialMessages: GeoChatMessage[] = []
 
-    if (messagesError) {
-        console.error("GEO CHAT MESSAGES LOAD ERROR:", messagesError)
-    }
-
-    const messageRows = (messagesData ?? []) as MessageRow[]
-    const messageIds = messageRows.map((message) => message.id)
-
-    const senderRolesById = new Map<string, GeoChatSenderRole | null>()
-
-    if (messageIds.length > 0) {
-        const { data: roleRows, error: rolesError } = await supabaseAdmin.from("geo_chat_messages").select("id,sender_role").in("id", messageIds)
-
-        if (rolesError) {
-            console.error("GEO CHAT MESSAGE ROLES LOAD ERROR:", rolesError)
-        }
-
-        for (const row of roleRows ?? []) {
-            senderRolesById.set(row.id, normalizeSenderRole(row.sender_role))
-        }
+    try {
+        initialMessages = await loadGeoChatMessages(id)
+    } catch (error) {
+        console.error("GEO CHAT INITIAL MESSAGES LOAD ERROR:", error)
     }
 
     const room: GeoChatRoomType = {
@@ -157,25 +117,6 @@ async function Page({ params }: Props) {
         distanceM: roomRow.distance_m,
         createdAt: roomRow.created_at
     }
-
-    const initialMessages: GeoChatMessage[] = messageRows.map((message) => ({
-        id: message.id,
-        chatId: message.chat_id,
-        userId: message.user_id,
-        content: message.content,
-        createdAt: message.created_at,
-        updatedAt: message.updated_at,
-        authorUsername: message.author_username,
-        authorDisplayName: message.author_display_name ?? message.author_username,
-        authorAvatarUrl: message.author_avatar_url,
-        replyTo: message.reply_to_id && message.reply_author_username && message.reply_content ? {
-            id: message.reply_to_id,
-            authorUsername: message.reply_author_username,
-            authorDisplayName: message.reply_author_display_name ?? message.reply_author_username,
-            content: message.reply_content
-        } : null,
-        senderRole: senderRolesById.get(message.id) ?? null
-    }))
 
     return (
         <SocialLayout profile={currentProfile}>

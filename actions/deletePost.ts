@@ -1,6 +1,7 @@
 "use server"
 
 import { getCurrentUser } from "@/lib/auth/getCurrentUser"
+import { getOwnedPostMediaPath } from "@/lib/posts/postMediaStorage"
 import { supabaseAdmin } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
@@ -19,19 +20,6 @@ type DeletePostResult =
         success: false
         error: string
     }
-
-function getStoragePath(url: string) {
-    const marker = "/storage/v1/object/public/post-media/"
-    const markerIndex = url.indexOf(marker)
-
-    if (markerIndex === -1) return null
-
-    const path = url.slice(markerIndex + marker.length)
-
-    if (!path) return null
-
-    return decodeURIComponent(path)
-}
 
 export async function deletePost({ postId, username }: Props): Promise<DeletePostResult> {
     if (!postId) {
@@ -78,9 +66,8 @@ export async function deletePost({ postId, username }: Props): Promise<DeletePos
             }
         }
 
-        const mediaUrls: string[] = Array.isArray(post.media_urls) ? post.media_urls : []
-
-        const mediaPaths = mediaUrls.map((url: string) => getStoragePath(url)).filter((path: string | null): path is string => path !== null)
+        const mediaUrls = Array.isArray(post.media_urls) ? post.media_urls.filter((url): url is string => typeof url === "string") : []
+        const mediaPaths = [...new Set(mediaUrls.map((url) => getOwnedPostMediaPath(url, user.id)).filter((path): path is string => path !== null))]
 
         const { error: deleteError } = await supabase.from("posts").delete().eq("id", postId).eq("user_id", user.id)
 
@@ -94,12 +81,10 @@ export async function deletePost({ postId, username }: Props): Promise<DeletePos
         }
 
         if (mediaPaths.length > 0) {
-            const { data: removedFiles, error: storageError } = await supabaseAdmin.storage.from("post-media").remove(mediaPaths)
+            const { error: storageError } = await supabaseAdmin.storage.from("post-media").remove(mediaPaths)
 
             if (storageError) {
                 console.error("POST MEDIA DELETE ERROR:", storageError)
-            } else {
-                console.log("POST MEDIA DELETE SUCCESS:", removedFiles)
             }
         }
 

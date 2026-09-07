@@ -2,6 +2,8 @@
 
 import { reverseGeocodePoint } from "@/actions/reverseGeocodePoint"
 import { getCurrentUser } from "@/lib/auth/getCurrentUser"
+import { getOwnedPostMediaPath, normalizeOwnedPostMediaUrls } from "@/lib/posts/postMediaStorage"
+import { supabaseAdmin } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 
@@ -115,9 +117,18 @@ export async function updatePost({ postId, content, username, mediaUrls = [], ta
             }
         }
 
+        const ownedMedia = normalizeOwnedPostMediaUrls(normalizedMediaUrls, user.id)
+
+        if (!ownedMedia) {
+            return {
+                success: false,
+                error: "Некорректные фотографии публикации"
+            }
+        }
+
         const supabase = await createClient()
 
-        const { data: existingPost, error: existingPostError } = await supabase.from("posts").select("id,user_id").eq("id", postId).maybeSingle()
+        const { data: existingPost, error: existingPostError } = await supabase.from("posts").select("id,user_id,media_urls").eq("id", postId).maybeSingle()
 
         if (existingPostError) {
             console.error("POST UPDATE LOAD ERROR:", existingPostError)
@@ -134,6 +145,11 @@ export async function updatePost({ postId, content, username, mediaUrls = [], ta
                 error: "Публикация не найдена"
             }
         }
+
+        const existingMediaUrls = Array.isArray(existingPost.media_urls) ? existingPost.media_urls.filter((url): url is string => typeof url === "string") : []
+        const existingMediaPaths = existingMediaUrls.map((url) => getOwnedPostMediaPath(url, user.id)).filter((path): path is string => path !== null)
+        const nextMediaPaths = new Set(ownedMedia.paths)
+        const removedMediaPaths = [...new Set(existingMediaPaths.filter((path) => !nextMediaPaths.has(path)))]
 
         let taggedCity: string | null = null
         let taggedRegion: string | null = null
@@ -170,7 +186,7 @@ export async function updatePost({ postId, content, username, mediaUrls = [], ta
             .from("posts")
             .update({
                 content: normalizedContent || null,
-                media_urls: normalizedMediaUrls.length > 0 ? normalizedMediaUrls : null,
+                media_urls: ownedMedia.urls.length > 0 ? ownedMedia.urls : null,
                 tagged_location: taggedLocationPoint,
                 tagged_location_name: taggedLocation ? normalizedLocationName : null,
                 tagged_city: taggedLocation ? taggedCity : null,
@@ -188,6 +204,14 @@ export async function updatePost({ postId, content, username, mediaUrls = [], ta
             return {
                 success: false,
                 error: "Не удалось обновить публикацию"
+            }
+        }
+
+        if (removedMediaPaths.length > 0) {
+            const { error: mediaDeleteError } = await supabaseAdmin.storage.from("post-media").remove(removedMediaPaths)
+
+            if (mediaDeleteError) {
+                console.error("POST REMOVED MEDIA DELETE ERROR:", mediaDeleteError)
             }
         }
 

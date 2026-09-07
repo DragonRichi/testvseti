@@ -2,10 +2,9 @@
 
 import { getGeoChatMessages } from "@/actions/getGeoChatMessages"
 import { createClient } from "@/lib/supabase/client"
-import type { GeoChatMessage, GeoChatSenderRole } from "@/types/geoChat"
+import type { GeoChatMessage } from "@/types/geoChat"
 import { useEffect, useRef, useState } from "react"
-import { loadRealtimeGeoChatMessage, RealtimeGeoChatMessageRow } from "./loadRealtimeGeoChatChatMessage"
-
+import { applyRealtimeGeoChatDelete, applyRealtimeGeoChatUpdate, fillGeoChatProfileCache, GeoChatProfileCache, loadRealtimeGeoChatMessage, RealtimeGeoChatMessageRow, RealtimeGeoChatUpdateRow } from "./loadRealtimeGeoChatMessage"
 
 type Options = {
     roomId: string
@@ -14,27 +13,47 @@ type Options = {
     scrollToBottom: (behavior?: ScrollBehavior) => void
 }
 
+const BACKGROUND_SYNC_AFTER_MS = 30000
+
 function useGeoChatRealtime({ roomId, initialMessages, isNearBottom, scrollToBottom }: Options) {
     const [messages, setMessages] = useState<GeoChatMessage[]>(initialMessages)
     const activeRoomIdRef = useRef(roomId)
+    const messagesRef = useRef(initialMessages)
+    const profileCacheRef = useRef<GeoChatProfileCache>(new Map())
+
+    useEffect(() => {
+        messagesRef.current = messages
+        fillGeoChatProfileCache(profileCacheRef.current, messages)
+    }, [messages])
 
     useEffect(() => {
         if (activeRoomIdRef.current === roomId) return
 
         activeRoomIdRef.current = roomId
+        messagesRef.current = initialMessages
+        profileCacheRef.current.clear()
+        fillGeoChatProfileCache(profileCacheRef.current, initialMessages)
         setMessages(initialMessages)
     }, [initialMessages, roomId])
 
     useEffect(() => {
         const supabase = createClient()
-        const mountedAt = Date.now()
 
         let channel: ReturnType<typeof supabase.channel> | null = null
         let disposed = false
         let subscribed = false
+        let hasSubscribedOnce = false
+        let connecting = false
         let reconnectTimer: number | null = null
         let reconnectAttempt = 0
         let syncInProgress = false
+        let hiddenAt: number | null = document.visibilityState === "hidden" ? Date.now() : null
+
+        const replaceMessages = (nextMessages: GeoChatMessage[]) => {
+            messagesRef.current = nextMessages
+            fillGeoChatProfileCache(profileCacheRef.current, nextMessages)
+            setMessages(nextMessages)
+        }
 
         const syncMessages = async () => {
             if (disposed || syncInProgress) return
@@ -51,7 +70,7 @@ function useGeoChatRealtime({ roomId, initialMessages, isNearBottom, scrollToBot
                     return
                 }
 
-                setMessages(result.messages)
+                replaceMessages(result.messages)
             } catch (error) {
                 console.error("GEO CHAT REALTIME SYNC ERROR:", error)
             } finally {
@@ -65,7 +84,6 @@ function useGeoChatRealtime({ roomId, initialMessages, isNearBottom, scrollToBot
             subscribed = false
 
             const delay = Math.min(1000 * 2 ** reconnectAttempt, 8000)
-
             reconnectAttempt = Math.min(reconnectAttempt + 1, 4)
 
             reconnectTimer = window.setTimeout(() => {
@@ -75,7 +93,9 @@ function useGeoChatRealtime({ roomId, initialMessages, isNearBottom, scrollToBot
         }
 
         const connect = async () => {
-            if (disposed) return
+            if (disposed || connecting) return
+
+            connecting = true
 
             try {
                 const {
@@ -93,120 +113,61 @@ function useGeoChatRealtime({ roomId, initialMessages, isNearBottom, scrollToBot
 
                 supabase.realtime.setAuth(session.access_token)
 
-                if (channel) {
-                    await supabase.removeChannel(channel)
+                const previousChannel = channel
+                channel = null
+                subscribed = false
+
+                if (previousChannel) {
+                    await supabase.removeChannel(previousChannel)
                 }
 
                 if (disposed) return
 
                 const nextChannel = supabase
                     .channel(`geo-chat:${roomId}:${Date.now()}`)
-                    .on(
-                        "postgres_changes",
-                        {
-                            event: "INSERT",
-                            schema: "public",
-                            table: "geo_chat_messages",
-                            filter: `chat_id=eq.${roomId}`
-                        },
-                        async (payload) => {
-                            const row = payload.new as RealtimeGeoChatMessageRow
-                            const shouldScroll = isNearBottom()
-                            const newMessage = await loadRealtimeGeoChatMessage(supabase, row)
+                    .on("postgres_changes", { event: "INSERT", schema: "public", table: "geo_chat_messages", filter: `chat_id=eq.${roomId}` }, async (payload) => {
+                        const row = payload.new as RealtimeGeoChatMessageRow
+                        const shouldScroll = isNearBottom()
+                        const newMessage = await loadRealtimeGeoChatMessage(supabase, row, messagesRef.current, profileCacheRef.current)
 
-                            if (!newMessage) {
-                                void syncMessages()
-                                return
-                            }
-
-                            setMessages((currentMessages) => {
-                                if (currentMessages.some((message) => message.id === newMessage.id)) return currentMessages
-
-                                return [...currentMessages, newMessage]
-                            })
-
-                            if (shouldScroll) {
-                                scrollToBottom()
-                            }
+                        if (!newMessage) {
+                            void syncMessages()
+                            return
                         }
-                    )
-                    .on(
-                        "postgres_changes",
-                        {
-                            event: "UPDATE",
-                            schema: "public",
-                            table: "geo_chat_messages",
-                            filter: `chat_id=eq.${roomId}`
-                        },
-                        (payload) => {
-                            const row = payload.new as {
-                                id: string
-                                content: string
-                                reply_to_id: string | null
-                                sender_role: GeoChatSenderRole | null
-                                updated_at: string
-                            }
 
-                            setMessages((currentMessages) =>
-                                currentMessages.map((message) => {
-                                    let nextMessage = message
+                        setMessages((currentMessages) => {
+                            if (currentMessages.some((message) => message.id === newMessage.id)) return currentMessages
 
-                                    if (message.id === row.id) {
-                                        nextMessage = {
-                                            ...nextMessage,
-                                            content: row.content,
-                                            updatedAt: row.updated_at,
-                                            replyTo: row.reply_to_id === null ? null : nextMessage.replyTo,
-                                            senderRole: row.sender_role ?? null
-                                        }
-                                    }
+                            const nextMessages = [...currentMessages, newMessage]
+                            messagesRef.current = nextMessages
+                            return nextMessages
+                        })
 
-                                    if (nextMessage.replyTo?.id === row.id) {
-                                        nextMessage = {
-                                            ...nextMessage,
-                                            replyTo: {
-                                                ...nextMessage.replyTo,
-                                                content: row.content
-                                            }
-                                        }
-                                    }
+                        if (shouldScroll) scrollToBottom()
+                    })
+                    .on("postgres_changes", { event: "UPDATE", schema: "public", table: "geo_chat_messages", filter: `chat_id=eq.${roomId}` }, (payload) => {
+                        const row = payload.new as RealtimeGeoChatUpdateRow
 
-                                    return nextMessage
-                                })
-                            )
+                        setMessages((currentMessages) => {
+                            const nextMessages = applyRealtimeGeoChatUpdate(currentMessages, row)
+                            messagesRef.current = nextMessages
+                            return nextMessages
+                        })
+                    })
+                    .on("postgres_changes", { event: "DELETE", schema: "public", table: "geo_chat_messages" }, (payload) => {
+                        const row = payload.old as { id?: string }
+
+                        if (!row.id) {
+                            void syncMessages()
+                            return
                         }
-                    )
-                    .on(
-                        "postgres_changes",
-                        {
-                            event: "DELETE",
-                            schema: "public",
-                            table: "geo_chat_messages"
-                        },
-                        (payload) => {
-                            const row = payload.old as {
-                                id?: string
-                            }
 
-                            if (!row.id) {
-                                void syncMessages()
-                                return
-                            }
-
-                            setMessages((currentMessages) =>
-                                currentMessages
-                                    .filter((message) => message.id !== row.id)
-                                    .map((message) => {
-                                        if (message.replyTo?.id !== row.id) return message
-
-                                        return {
-                                            ...message,
-                                            replyTo: null
-                                        }
-                                    })
-                            )
-                        }
-                    )
+                        setMessages((currentMessages) => {
+                            const nextMessages = applyRealtimeGeoChatDelete(currentMessages, row.id!)
+                            messagesRef.current = nextMessages
+                            return nextMessages
+                        })
+                    })
 
                 channel = nextChannel
 
@@ -218,8 +179,13 @@ function useGeoChatRealtime({ roomId, initialMessages, isNearBottom, scrollToBot
                     }
 
                     if (status === "SUBSCRIBED") {
+                        const shouldRecoverMessages = hasSubscribedOnce
+
                         subscribed = true
+                        hasSubscribedOnce = true
                         reconnectAttempt = 0
+
+                        if (shouldRecoverMessages) void syncMessages()
                         return
                     }
 
@@ -231,13 +197,33 @@ function useGeoChatRealtime({ roomId, initialMessages, isNearBottom, scrollToBot
             } catch (error) {
                 console.error("GEO CHAT REALTIME CONNECT ERROR:", error)
                 scheduleReconnect()
+            } finally {
+                connecting = false
             }
         }
 
-        const recover = () => {
-            if (disposed) return
-            if (Date.now() - mountedAt < 5000) return
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === "hidden") {
+                hiddenAt = Date.now()
+                return
+            }
 
+            const hiddenFor = hiddenAt === null ? 0 : Date.now() - hiddenAt
+            hiddenAt = null
+
+            if (!subscribed) {
+                void connect()
+                return
+            }
+
+            if (hiddenFor >= BACKGROUND_SYNC_AFTER_MS) void syncMessages()
+        }
+
+        const handleFocus = () => {
+            if (!subscribed) void connect()
+        }
+
+        const handleOnline = () => {
             if (!subscribed) {
                 void connect()
                 return
@@ -246,43 +232,30 @@ function useGeoChatRealtime({ roomId, initialMessages, isNearBottom, scrollToBot
             void syncMessages()
         }
 
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === "visible") {
-                recover()
-            }
-        }
-
         const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-            if (session?.access_token) {
-                supabase.realtime.setAuth(session.access_token)
-            }
+            if (session?.access_token) supabase.realtime.setAuth(session.access_token)
         })
 
         document.addEventListener("visibilitychange", handleVisibilityChange)
-        window.addEventListener("online", recover)
-        window.addEventListener("focus", recover)
+        window.addEventListener("online", handleOnline)
+        window.addEventListener("focus", handleFocus)
 
         void connect()
 
         return () => {
             disposed = true
 
-            if (reconnectTimer !== null) {
-                window.clearTimeout(reconnectTimer)
-            }
+            if (reconnectTimer !== null) window.clearTimeout(reconnectTimer)
 
             document.removeEventListener("visibilitychange", handleVisibilityChange)
-            window.removeEventListener("online", recover)
-            window.removeEventListener("focus", recover)
-
+            window.removeEventListener("online", handleOnline)
+            window.removeEventListener("focus", handleFocus)
             authListener.subscription.unsubscribe()
 
             const currentChannel = channel
             channel = null
 
-            if (currentChannel) {
-                void supabase.removeChannel(currentChannel)
-            }
+            if (currentChannel) void supabase.removeChannel(currentChannel)
         }
     }, [isNearBottom, roomId, scrollToBottom])
 

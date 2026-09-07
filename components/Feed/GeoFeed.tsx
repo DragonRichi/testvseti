@@ -30,14 +30,7 @@ async function GeoFeed({ currentProfile }: Props) {
 
     const hydrated = await getGeoFeedItems(posts, currentProfile.id)
 
-    return (
-        <GeoFeedList
-            currentProfile={currentProfile}
-            initialItems={hydrated.items}
-            initialLikedCommentIds={hydrated.likedCommentIds}
-            initialNextCursor={nextCursor}
-        />
-    )
+    return <GeoFeedList currentProfile={currentProfile} initialItems={hydrated.items} initialNextCursor={nextCursor} />
 }
 
 export default GeoFeed

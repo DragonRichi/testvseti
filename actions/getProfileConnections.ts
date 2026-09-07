@@ -1,20 +1,45 @@
 "use server"
 
+import { loadProfileConnections } from "@/lib/follows/loadProfileConnections"
 import { createClient } from "@/lib/supabase/server"
 import type { ProfileConnectionItem, ProfileConnectionType } from "@/types/follows"
-
 
 type Result =
     | {
         success: true
         items: ProfileConnectionItem[]
+        hasMore: boolean
+        nextOffset: number
     }
     | {
         success: false
         error: string
     }
 
-export async function getProfileConnections(profileId: string, type: ProfileConnectionType): Promise<Result> {
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+export async function getProfileConnections(profileId: string, type: ProfileConnectionType, offset = 0): Promise<Result> {
+    if (typeof profileId !== "string" || !uuidPattern.test(profileId)) {
+        return {
+            success: false,
+            error: "Профиль не найден"
+        }
+    }
+
+    if (type !== "followers" && type !== "following") {
+        return {
+            success: false,
+            error: "Некорректный тип списка"
+        }
+    }
+
+    if (!Number.isInteger(offset) || offset < 0) {
+        return {
+            success: false,
+            error: "Некорректная страница"
+        }
+    }
+
     const supabase = await createClient()
 
     const {
@@ -29,73 +54,27 @@ export async function getProfileConnections(profileId: string, type: ProfileConn
         }
     }
 
-    let query = supabase.from("follows").select("follower_id,following_id,created_at").order("created_at", { ascending: false }).limit(100)
+    try {
+        const page = await loadProfileConnections({
+            supabase,
+            viewerId: user.id,
+            profileId,
+            type,
+            offset
+        })
 
-    if (type === "followers") {
-        query = query.eq("following_id", profileId)
-    } else {
-        query = query.eq("follower_id", profileId)
-    }
-
-    const { data: connections, error: connectionsError } = await query
-
-    if (connectionsError) {
-        console.error("PROFILE CONNECTIONS LOAD ERROR:", connectionsError)
-
-        return {
-            success: false,
-            error: "Не удалось загрузить список"
-        }
-    }
-
-    const profileIds = (connections ?? []).map((connection) => type === "followers" ? connection.follower_id : connection.following_id)
-
-    if (profileIds.length === 0) {
         return {
             success: true,
-            items: []
+            items: page.items,
+            hasMore: page.hasMore,
+            nextOffset: page.nextOffset
         }
-    }
-
-    const { data: profiles, error: profilesError } = await supabase.from("profiles").select("id,username,display_name,avatar_url").in("id", profileIds)
-
-    if (profilesError) {
-        console.error("PROFILE CONNECTION PROFILES LOAD ERROR:", profilesError)
+    } catch (error) {
+        console.error("PROFILE CONNECTIONS ACTION ERROR:", error)
 
         return {
             success: false,
-            error: "Не удалось загрузить пользователей"
+            error: error instanceof Error ? error.message : "Не удалось загрузить список"
         }
-    }
-
-    const { data: myFollows, error: myFollowsError } = await supabase.from("follows").select("following_id").eq("follower_id", user.id).in("following_id", profileIds)
-
-    if (myFollowsError) {
-        console.error("PROFILE CONNECTION FOLLOW STATE LOAD ERROR:", myFollowsError)
-    }
-
-    const profilesById = new Map((profiles ?? []).map((profile) => [profile.id, profile]))
-    const myFollowingIds = new Set((myFollows ?? []).map((follow) => follow.following_id))
-
-    const items: ProfileConnectionItem[] = []
-
-    for (const profileId of profileIds) {
-        const profile = profilesById.get(profileId)
-
-        if (!profile) continue
-
-        items.push({
-            id: profile.id,
-            username: profile.username,
-            displayName: profile.display_name ?? profile.username,
-            avatarUrl: profile.avatar_url,
-            isFollowing: myFollowingIds.has(profile.id),
-            isCurrentUser: profile.id === user.id
-        })
-    }
-
-    return {
-        success: true,
-        items
     }
 }

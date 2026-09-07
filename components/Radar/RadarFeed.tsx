@@ -47,13 +47,8 @@ async function RadarFeed({ radarId, currentProfile }: Props) {
                 {radarHeader}
 
                 <div className="flex min-h-[300] flex-col items-center justify-center rounded-2xl border border-green-100 bg-white px-5 text-center">
-                    <div className="text-base font-semibold text-gray-900">
-                        Пока нет публикаций
-                    </div>
-
-                    <div className="mt-1 text-sm text-main-gray">
-                        В радаре «{radar.name}» пока нечего показывать
-                    </div>
+                    <div className="text-base font-semibold text-gray-900">Пока нет публикаций</div>
+                    <div className="mt-1 text-sm text-main-gray">В радаре «{radar.name}» пока нечего показывать</div>
                 </div>
             </div>
         )
@@ -65,7 +60,8 @@ async function RadarFeed({ radarId, currentProfile }: Props) {
         <div>
             {radarHeader}
 
-            <RadarFeedList key={`${radar.id}:${posts.map((post) => post.id).join(",")}`} radarId={radar.id} currentProfile={currentProfile} initialItems={hydrated.items} initialLikedCommentIds={hydrated.likedCommentIds} initialNextCursor={nextCursor} canPaginate />        </div>
+            <RadarFeedList key={`${radar.id}:${posts.map((post) => post.id).join(",")}`} radarId={radar.id} currentProfile={currentProfile} initialItems={hydrated.items} initialNextCursor={nextCursor} canPaginate />
+        </div>
     )
 }
 

@@ -6,7 +6,7 @@ import type { ProfileConnectionItem, ProfileConnectionType } from "@/types/follo
 import { LoaderCircle, X } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 type Props = {
     profileId: string
@@ -14,19 +14,27 @@ type Props = {
     followingCount: number
 }
 
+function appendUniqueItems(current: ProfileConnectionItem[], next: ProfileConnectionItem[]) {
+    const existingIds = new Set(current.map((item) => item.id))
+
+    return [...current, ...next.filter((item) => !existingIds.has(item.id))]
+}
+
 function ProfileConnectionsStats({ profileId, subscriberCount, followingCount }: Props) {
     const [openType, setOpenType] = useState<ProfileConnectionType | null>(null)
     const [items, setItems] = useState<ProfileConnectionItem[]>([])
-    const [isLoading, setIsLoading] = useState<boolean>(false)
-    const [error, setError] = useState<string>("")
+    const [nextOffset, setNextOffset] = useState(0)
+    const [hasMore, setHasMore] = useState(false)
+    const [isLoading, setIsLoading] = useState(false)
+    const [isLoadingMore, setIsLoadingMore] = useState(false)
+    const [error, setError] = useState("")
+    const loadLockRef = useRef(false)
 
     useEffect(() => {
         if (!openType) return
 
         const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === "Escape") {
-                setOpenType(null)
-            }
+            if (event.key === "Escape") setOpenType(null)
         }
 
         const previousOverflow = document.body.style.overflow
@@ -41,13 +49,18 @@ function ProfileConnectionsStats({ profileId, subscriberCount, followingCount }:
     }, [openType])
 
     const handleOpen = async (type: ProfileConnectionType) => {
+        if (loadLockRef.current) return
+
         setOpenType(type)
         setItems([])
+        setNextOffset(0)
+        setHasMore(false)
         setError("")
         setIsLoading(true)
+        loadLockRef.current = true
 
         try {
-            const result = await getProfileConnections(profileId, type)
+            const result = await getProfileConnections(profileId, type, 0)
 
             if (result.success === false) {
                 setError(result.error)
@@ -55,22 +68,52 @@ function ProfileConnectionsStats({ profileId, subscriberCount, followingCount }:
             }
 
             setItems(result.items)
+            setHasMore(result.hasMore)
+            setNextOffset(result.nextOffset)
         } catch (error) {
             console.error("PROFILE CONNECTIONS ERROR:", error)
             setError("Не удалось загрузить список")
         } finally {
+            loadLockRef.current = false
             setIsLoading(false)
+        }
+    }
+
+    const handleLoadMore = async () => {
+        if (!openType || loadLockRef.current || !hasMore) return
+
+        loadLockRef.current = true
+        setIsLoadingMore(true)
+        setError("")
+
+        try {
+            const result = await getProfileConnections(profileId, openType, nextOffset)
+
+            if (result.success === false) {
+                setError(result.error)
+                return
+            }
+
+            setItems((current) => appendUniqueItems(current, result.items))
+            setHasMore(result.hasMore)
+            setNextOffset(result.nextOffset)
+        } catch (error) {
+            console.error("PROFILE CONNECTIONS LOAD MORE ERROR:", error)
+            setError("Не удалось загрузить список")
+        } finally {
+            loadLockRef.current = false
+            setIsLoadingMore(false)
         }
     }
 
     return (
         <>
-            <button type="button" onClick={() => handleOpen("followers")} className="cursor-pointer border-b border-gray-100 px-2 py-4 text-center transition-colors hover:bg-green-50 sm:border-b-0 sm:border-r">
+            <button type="button" onClick={() => void handleOpen("followers")} className="cursor-pointer border-b border-gray-100 px-2 py-4 text-center transition-colors hover:bg-green-50 sm:border-b-0 sm:border-r">
                 <div className="text-lg font-bold">{subscriberCount}</div>
                 <div className="mt-1 text-xs text-main-gray">подписчиков</div>
             </button>
 
-            <button type="button" onClick={() => handleOpen("following")} className="cursor-pointer border-r border-gray-100 px-2 py-4 text-center transition-colors hover:bg-green-50">
+            <button type="button" onClick={() => void handleOpen("following")} className="cursor-pointer border-r border-gray-100 px-2 py-4 text-center transition-colors hover:bg-green-50">
                 <div className="text-lg font-bold">{followingCount}</div>
                 <div className="mt-1 text-xs text-main-gray">подписок</div>
             </button>
@@ -99,19 +142,9 @@ function ProfileConnectionsStats({ profileId, subscriberCount, followingCount }:
                                 </div>
                             )}
 
-                            {!isLoading && error && (
-                                <div className="flex min-h-[260] items-center justify-center px-5 text-center text-sm text-red-500">
-                                    {error}
-                                </div>
-                            )}
+                            {!isLoading && !error && items.length === 0 && <div className="flex min-h-[260] items-center justify-center px-5 text-center text-sm text-main-gray">{openType === "followers" ? "Подписчиков пока нет" : "Подписок пока нет"}</div>}
 
-                            {!isLoading && !error && items.length === 0 && (
-                                <div className="flex min-h-[260] items-center justify-center px-5 text-center text-sm text-main-gray">
-                                    {openType === "followers" ? "Подписчиков пока нет" : "Подписок пока нет"}
-                                </div>
-                            )}
-
-                            {!isLoading && !error && items.length > 0 && (
+                            {!isLoading && items.length > 0 && (
                                 <div className="divide-y divide-gray-100">
                                     {items.map((item) => (
                                         <div key={item.id} className="flex items-center gap-3 px-5 py-3">
@@ -126,15 +159,20 @@ function ProfileConnectionsStats({ profileId, subscriberCount, followingCount }:
                                                 </div>
                                             </Link>
 
-                                            {item.isCurrentUser ? (
-                                                <div className="shrink-0 rounded-xl bg-gray-50 px-3 py-2 text-xs font-medium text-main-gray">
-                                                    Это вы
-                                                </div>
-                                            ) : (
-                                                <FollowButton profileId={item.id} username={item.username} initialFollowing={item.isFollowing} variant="compact" />
-                                            )}
+                                            {item.isCurrentUser ? <div className="shrink-0 rounded-xl bg-gray-50 px-3 py-2 text-xs font-medium text-main-gray">Это вы</div> : <FollowButton profileId={item.id} username={item.username} initialFollowing={item.isFollowing} variant="compact" />}
                                         </div>
                                     ))}
+                                </div>
+                            )}
+
+                            {!isLoading && error && <div className="border-t border-gray-100 px-5 py-3 text-center text-sm text-red-500">{error}</div>}
+
+                            {!isLoading && hasMore && (
+                                <div className="border-t border-gray-100 p-4">
+                                    <button type="button" onClick={() => void handleLoadMore()} disabled={isLoadingMore} className="flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-green-100 text-sm font-medium text-main-green transition-colors hover:bg-green-50 disabled:cursor-wait disabled:opacity-60">
+                                        {isLoadingMore && <LoaderCircle className="size-4 animate-spin" />}
+                                        <span>{isLoadingMore ? "Загружаем..." : "Показать ещё"}</span>
+                                    </button>
                                 </div>
                             )}
                         </div>

@@ -3,6 +3,13 @@
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 
+type RpcStatus = "ok" | "unauthorized" | "profile_not_found" | "self_follow" | "invalid_action"
+
+type RpcRow = {
+    status: RpcStatus
+    is_following: boolean | null
+}
+
 type Result =
     | {
         success: true
@@ -13,83 +20,88 @@ type Result =
         error: string
     }
 
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const usernamePattern = /^[a-z0-9_]{3,20}$/
+
+function getRpcError(status: RpcStatus) {
+    if (status === "unauthorized") return "Необходимо войти в аккаунт"
+    if (status === "profile_not_found") return "Профиль не найден"
+    if (status === "self_follow") return "Нельзя подписаться на самого себя"
+    if (status === "invalid_action") return "Некорректное действие"
+
+    return "Не удалось изменить подписку"
+}
+
 export async function toggleFollowProfile(profileId: string, username: string, shouldFollow: boolean): Promise<Result> {
-    const supabase = await createClient()
-
-    const {
-        data: { user },
-        error: userError
-    } = await supabase.auth.getUser()
-
-    if (userError || !user) {
-        return {
-            success: false,
-            error: "Необходимо войти в аккаунт"
-        }
-    }
-
-    if (user.id === profileId) {
-        return {
-            success: false,
-            error: "Нельзя подписаться на самого себя"
-        }
-    }
-
-    const { data: profile, error: profileError } = await supabase.from("profiles").select("id").eq("id", profileId).maybeSingle()
-
-    if (profileError) {
-        console.error("FOLLOW PROFILE LOAD ERROR:", profileError)
-
-        return {
-            success: false,
-            error: "Не удалось проверить профиль"
-        }
-    }
-
-    if (!profile) {
+    if (typeof profileId !== "string" || !uuidPattern.test(profileId)) {
         return {
             success: false,
             error: "Профиль не найден"
         }
     }
 
-    if (shouldFollow) {
-        const { error } = await supabase.from("follows").upsert(
-            {
-                follower_id: user.id,
-                following_id: profileId
-            },
-            {
-                onConflict: "follower_id,following_id",
-                ignoreDuplicates: true
-            }
-        )
+    const normalizedUsername = typeof username === "string" ? username.trim().replace(/^@+/, "").toLowerCase() : ""
 
-        if (error) {
-            console.error("FOLLOW PROFILE ERROR:", error)
-
-            return {
-                success: false,
-                error: "Не удалось подписаться"
-            }
-        }
-    } else {
-        const { error } = await supabase.from("follows").delete().eq("follower_id", user.id).eq("following_id", profileId)
-
-        if (error) {
-            console.error("UNFOLLOW PROFILE ERROR:", error)
-
-            return {
-                success: false,
-                error: "Не удалось отписаться"
-            }
+    if (!usernamePattern.test(normalizedUsername)) {
+        return {
+            success: false,
+            error: "Профиль не найден"
         }
     }
 
-    revalidatePath(`/profile/${username}`)
+    if (typeof shouldFollow !== "boolean") {
+        return {
+            success: false,
+            error: "Некорректное действие"
+        }
+    }
+
+    const supabase = await createClient()
+
+    const { data, error } = await supabase.rpc("set_profile_follow", {
+        p_profile_id: profileId,
+        p_should_follow: shouldFollow
+    })
+
+    if (error) {
+        console.error("FOLLOW PROFILE RPC ERROR:", error)
+
+        return {
+            success: false,
+            error: "Не удалось изменить подписку"
+        }
+    }
+
+    const row = ((data ?? []) as RpcRow[])[0]
+
+    if (!row) {
+        return {
+            success: false,
+            error: "Не удалось изменить подписку"
+        }
+    }
+
+    if (row.status !== "ok") {
+        return {
+            success: false,
+            error: getRpcError(row.status)
+        }
+    }
+
+    if (row.is_following === null) {
+        console.error("FOLLOW PROFILE RPC INVALID RESPONSE:", row)
+
+        return {
+            success: false,
+            error: "Не удалось изменить подписку"
+        }
+    }
+
+    revalidatePath(`/profile/${normalizedUsername}`)
+    revalidatePath("/contacts")
 
     return {
         success: true,
-        isFollowing: shouldFollow
+        isFollowing: row.is_following
     }
 }

@@ -40,7 +40,7 @@ async function Page({ searchParams }: Props) {
             <div className="flex flex-col gap-4">
                 <RadarSelector radars={radars} activeRadarId={activeRadarId} />
 
-                <CreatePostCard userId={profile.id} username={profile.username} displayName={profile.display_name} avatarUrl={profile.avatar_url} />
+                <CreatePostCard username={profile.username} displayName={profile.display_name} avatarUrl={profile.avatar_url} />
 
                 {activeRadarId ? (
                     <RadarFeed radarId={activeRadarId} currentProfile={profile} />

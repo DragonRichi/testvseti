@@ -9,8 +9,15 @@ type SortMode = "latest" | "popular" | "discussed"
 type Props = {
     radarId: string
     name: string
-    sortMode: SortMode
+    sortMode: string
     profileIds: string[]
+}
+
+type RpcStatus = "ok" | "unauthorized" | "invalid_name" | "name_too_long" | "invalid_sort" | "empty_sources" | "profile_not_found" | "radar_not_found" | "invalid_type"
+
+type RpcRow = {
+    status: RpcStatus
+    radar_id: string | null
 }
 
 type Result =
@@ -23,9 +30,32 @@ type Result =
         error: string
     }
 
+const allowedSortModes: SortMode[] = ["latest", "popular", "discussed"]
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+function getRpcError(status: RpcStatus) {
+    if (status === "unauthorized") return "Необходимо войти в аккаунт"
+    if (status === "invalid_name") return "Введите название радара"
+    if (status === "name_too_long") return "Название радара слишком длинное"
+    if (status === "invalid_sort") return "Некорректная сортировка"
+    if (status === "empty_sources") return "Выберите хотя бы один аккаунт"
+    if (status === "profile_not_found") return "Один или несколько аккаунтов не найдены"
+    if (status === "radar_not_found") return "Радар не найден"
+    if (status === "invalid_type") return "Можно редактировать только радар публикаций"
+
+    return "Не удалось обновить радар"
+}
+
 export async function updatePublicationsRadar({ radarId, name, sortMode, profileIds }: Props): Promise<Result> {
-    const normalizedName = name.trim()
-    const normalizedProfileIds = [...new Set(profileIds.filter(Boolean))]
+    const normalizedName = typeof name === "string" ? name.trim() : ""
+    const normalizedProfileIds = Array.isArray(profileIds) ? [...new Set(profileIds.filter((profileId): profileId is string => typeof profileId === "string").map((profileId) => profileId.trim()).filter(Boolean))] : []
+
+    if (typeof radarId !== "string" || !uuidPattern.test(radarId)) {
+        return {
+            success: false,
+            error: "Радар не найден"
+        }
+    }
 
     if (!normalizedName) {
         return {
@@ -41,10 +71,24 @@ export async function updatePublicationsRadar({ radarId, name, sortMode, profile
         }
     }
 
+    if (typeof sortMode !== "string" || !allowedSortModes.includes(sortMode as SortMode)) {
+        return {
+            success: false,
+            error: "Некорректная сортировка"
+        }
+    }
+
     if (normalizedProfileIds.length === 0) {
         return {
             success: false,
             error: "Выберите хотя бы один аккаунт"
+        }
+    }
+
+    if (normalizedProfileIds.some((profileId) => !uuidPattern.test(profileId))) {
+        return {
+            success: false,
+            error: "Некорректный аккаунт в списке"
         }
     }
 
@@ -59,56 +103,15 @@ export async function updatePublicationsRadar({ radarId, name, sortMode, profile
 
     const supabase = await createClient()
 
-    const { data: radar, error: radarError } = await supabase.from("radars").select("id,type,user_id").eq("id", radarId).eq("user_id", user.id).maybeSingle()
+    const { data, error } = await supabase.rpc("update_publications_radar", {
+        p_radar_id: radarId,
+        p_name: normalizedName,
+        p_sort_mode: sortMode,
+        p_profile_ids: normalizedProfileIds
+    })
 
-    if (radarError) {
-        console.error("RADAR EDIT LOAD ERROR:", radarError)
-
-        return {
-            success: false,
-            error: "Не удалось загрузить радар"
-        }
-    }
-
-    if (!radar) {
-        return {
-            success: false,
-            error: "Радар не найден"
-        }
-    }
-
-    if (radar.type !== "publications") {
-        return {
-            success: false,
-            error: "Можно редактировать только радар публикаций"
-        }
-    }
-
-    const { data: profiles, error: profilesError } = await supabase.from("profiles").select("id").in("id", normalizedProfileIds)
-
-    if (profilesError) {
-        console.error("RADAR EDIT PROFILES ERROR:", profilesError)
-
-        return {
-            success: false,
-            error: "Не удалось проверить выбранные аккаунты"
-        }
-    }
-
-    if ((profiles ?? []).length !== normalizedProfileIds.length) {
-        return {
-            success: false,
-            error: "Один или несколько аккаунтов не найдены"
-        }
-    }
-
-    const { error: updateError } = await supabase.from("radars").update({
-        name: normalizedName,
-        sort_mode: sortMode
-    }).eq("id", radar.id).eq("user_id", user.id)
-
-    if (updateError) {
-        console.error("RADAR UPDATE ERROR:", updateError)
+    if (error) {
+        console.error("PUBLICATIONS RADAR UPDATE RPC ERROR:", error)
 
         return {
             success: false,
@@ -116,36 +119,33 @@ export async function updatePublicationsRadar({ radarId, name, sortMode, profile
         }
     }
 
-    const { error: deleteSourcesError } = await supabase.from("radar_sources").delete().eq("radar_id", radar.id).eq("source_type", "user")
+    const row = ((data ?? []) as RpcRow[])[0]
 
-    if (deleteSourcesError) {
-        console.error("RADAR SOURCES DELETE ERROR:", deleteSourcesError)
-
+    if (!row) {
         return {
             success: false,
-            error: "Не удалось обновить аккаунты радара"
+            error: "Не удалось обновить радар"
         }
     }
 
-    const sources = normalizedProfileIds.map((profileId) => ({
-        radar_id: radar.id,
-        source_type: "user",
-        source_id: profileId
-    }))
+    if (row.status !== "ok") {
+        return {
+            success: false,
+            error: getRpcError(row.status)
+        }
+    }
 
-    const { error: sourcesError } = await supabase.from("radar_sources").insert(sources)
-
-    if (sourcesError) {
-        console.error("RADAR SOURCES UPDATE ERROR:", sourcesError)
+    if (!row.radar_id) {
+        console.error("PUBLICATIONS RADAR UPDATE RPC INVALID RESPONSE:", row)
 
         return {
             success: false,
-            error: "Не удалось сохранить аккаунты радара"
+            error: "Не удалось обновить радар"
         }
     }
 
     revalidatePath("/feed")
-    revalidatePath(`/radars/${radar.id}/edit`)
+    revalidatePath(`/radars/${row.radar_id}/edit`)
 
     return {
         success: true,

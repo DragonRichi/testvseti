@@ -10,7 +10,8 @@ import { useCallback, useEffect, useState } from "react"
 type Props = {
     accuracy: number | null
     locationVersion: number
-    onRefreshLocation: () => void
+    initialAdminMode: boolean
+    onAdminModeChange: (adminMode: boolean) => void
 }
 
 function formatDistance(distanceM: number | null, isApproximate: boolean) {
@@ -29,9 +30,9 @@ function formatRadius(radiusM: number) {
     return `${Math.round(radiusM / 1000)} км`
 }
 
-function NearbyGeoChats({ accuracy, locationVersion }: Props) {
+function NearbyGeoChats({ accuracy, locationVersion, initialAdminMode, onAdminModeChange }: Props) {
     const [chats, setChats] = useState<NearbyGeoChat[]>([])
-    const [adminMode, setAdminMode] = useState(false)
+    const [adminMode, setAdminMode] = useState(initialAdminMode)
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState("")
 
@@ -51,13 +52,23 @@ function NearbyGeoChats({ accuracy, locationVersion }: Props) {
 
             setChats(result.chats)
             setAdminMode(result.adminMode)
+            onAdminModeChange(result.adminMode)
         } catch (error) {
             console.error("GEO CHATS LOAD ERROR:", error)
             setError("Не удалось загрузить геочаты")
         } finally {
             setIsLoading(false)
         }
-    }, [])
+    }, [onAdminModeChange])
+
+    const handleAdminModeChanged = useCallback(async (nextAdminMode: boolean) => {
+        setAdminMode(nextAdminMode)
+        onAdminModeChange(nextAdminMode)
+
+        if (nextAdminMode) {
+            await loadChats()
+        }
+    }, [loadChats, onAdminModeChange])
 
     useEffect(() => {
         void loadChats()
@@ -79,7 +90,7 @@ function NearbyGeoChats({ accuracy, locationVersion }: Props) {
                     </div>
 
                     <div className="flex shrink-0 items-center gap-2">
-                        <GeoChatAdminAccess adminMode={adminMode} onChanged={loadChats} />
+                        <GeoChatAdminAccess adminMode={adminMode} onChanged={handleAdminModeChanged} />
 
                         <Link href="/geochats/new" className="flex h-10 items-center justify-center gap-2 rounded-xl bg-main-green px-4 text-sm font-medium text-white transition-colors hover:bg-hover-green">
                             <Plus className="size-4" />
@@ -145,16 +156,10 @@ function NearbyGeoChats({ accuracy, locationVersion }: Props) {
                                                 <span>{formatDistance(chat.distanceM, isApproximate)}</span>
                                             </div>
 
-                                            {adminMode && (
-                                                <span className={`rounded-full px-2 py-0.5 text-[10] font-semibold ${isInRange ? "bg-green-50 text-main-green" : "bg-gray-100 text-main-gray"}`}>
-                                                    {isInRange ? "В зоне" : "Вне зоны"}
-                                                </span>
-                                            )}
+                                            {adminMode && <span className={`rounded-full px-2 py-0.5 text-[10] font-semibold ${isInRange ? "bg-green-50 text-main-green" : "bg-gray-100 text-main-gray"}`}>{isInRange ? "В зоне" : "Вне зоны"}</span>}
                                         </div>
 
-                                        {chat.description && (
-                                            <p className="mt-1 line-clamp-2 text-sm leading-6 text-main-gray">{chat.description}</p>
-                                        )}
+                                        {chat.description && <p className="mt-1 line-clamp-2 text-sm leading-6 text-main-gray">{chat.description}</p>}
 
                                         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-main-gray">
                                             <span>Радиус {formatRadius(chat.radiusM)}</span>

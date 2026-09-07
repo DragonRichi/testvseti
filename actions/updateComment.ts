@@ -1,5 +1,5 @@
 "use server"
-import { getCurrentUser } from "@/lib/auth/getCurrentUser"
+
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 
@@ -7,6 +7,15 @@ type Props = {
     commentId: string
     content: string
     username: string
+}
+
+type RpcStatus = "ok" | "unauthorized" | "empty" | "too_long" | "comment_not_found" | "not_owner"
+
+type RpcRow = {
+    status: RpcStatus
+    id: string | null
+    content: string | null
+    updated_at: string | null
 }
 
 type UpdateCommentResult =
@@ -24,10 +33,23 @@ type UpdateCommentResult =
         error: string
     }
 
-export async function updateComment({ commentId, content, username }: Props): Promise<UpdateCommentResult> {
-    const normalizedContent = content.trim()
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-    if (!commentId) {
+function getRpcError(status: RpcStatus) {
+    if (status === "unauthorized") return "Необходимо войти в аккаунт"
+    if (status === "empty") return "Введите комментарий"
+    if (status === "too_long") return "Комментарий не должен превышать 2000 символов"
+    if (status === "comment_not_found") return "Комментарий не найден"
+    if (status === "not_owner") return "Можно изменять только свои комментарии"
+
+    return "Не удалось изменить комментарий"
+}
+
+export async function updateComment({ commentId, content, username }: Props): Promise<UpdateCommentResult> {
+    const normalizedContent = typeof content === "string" ? content.trim() : ""
+    const normalizedUsername = typeof username === "string" ? username.trim().replace(/^@+/, "").toLowerCase() : ""
+
+    if (typeof commentId !== "string" || !uuidPattern.test(commentId)) {
         return {
             success: false,
             error: "Комментарий не найден"
@@ -48,54 +70,60 @@ export async function updateComment({ commentId, content, username }: Props): Pr
         }
     }
 
-    try {
-        const user = await getCurrentUser()
+    const supabase = await createClient()
 
-        if (!user) {
-            return {
-                success: false,
-                error: "Необходимо войти в аккаунт"
-            }
-        }
+    const { data, error } = await supabase.rpc("update_post_comment", {
+        p_comment_id: commentId,
+        p_content: normalizedContent
+    })
 
-        const supabase = await createClient()
-        const updatedAt = new Date().toISOString()
-
-        const { data, error } = await supabase.from("post_comments").update({
-            content: normalizedContent,
-            updated_at: updatedAt
-        }).eq("id", commentId).eq("user_id", user.id).select("id,content,updated_at").maybeSingle()
-
-        if (error) {
-            console.error("COMMENT UPDATE ERROR:", error)
-
-            return {
-                success: false,
-                error: "Не удалось изменить комментарий"
-            }
-        }
-
-        if (!data) {
-            return {
-                success: false,
-                error: "Комментарий не найден или у вас нет прав на его редактирование"
-            }
-        }
-
-        revalidatePath("/feed")
-        revalidatePath(`/profile/${username}`)
-
-        return {
-            success: true,
-            error: null,
-            comment: data
-        }
-    } catch (error) {
-        console.error("COMMENT UPDATE ERROR:", error)
+    if (error) {
+        console.error("COMMENT UPDATE RPC ERROR:", error)
 
         return {
             success: false,
-            error: "Ошибка редактирования комментария"
+            error: "Не удалось изменить комментарий"
+        }
+    }
+
+    const row = ((data ?? []) as RpcRow[])[0]
+
+    if (!row) {
+        return {
+            success: false,
+            error: "Не удалось изменить комментарий"
+        }
+    }
+
+    if (row.status !== "ok") {
+        return {
+            success: false,
+            error: getRpcError(row.status)
+        }
+    }
+
+    if (!row.id || row.content === null || !row.updated_at) {
+        console.error("COMMENT UPDATE RPC INVALID RESPONSE:", row)
+
+        return {
+            success: false,
+            error: "Не удалось изменить комментарий"
+        }
+    }
+
+    revalidatePath("/feed")
+
+    if (normalizedUsername) {
+        revalidatePath(`/profile/${normalizedUsername}`)
+    }
+
+    return {
+        success: true,
+        error: null,
+        comment: {
+            id: row.id,
+            content: row.content,
+            updated_at: row.updated_at
         }
     }
 }

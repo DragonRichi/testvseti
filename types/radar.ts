@@ -1,4 +1,4 @@
-import type { Post, PostCommentNode, Profile } from "@/types/social"
+import type { Post, Profile } from "@/types/social"
 
 export type Radar = {
     id: string
@@ -18,5 +18,4 @@ export type RadarFeedItem = {
     post: Post
     author: Profile
     initialLiked: boolean
-    initialComments: PostCommentNode[]
 }
