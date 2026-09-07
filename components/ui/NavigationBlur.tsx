@@ -1,5 +1,6 @@
 "use client"
 
+import { LoaderCircle } from "lucide-react"
 import { usePathname, useSearchParams } from "next/navigation"
 import { useEffect, useState } from "react"
 
@@ -63,7 +64,11 @@ function NavigationBlur() {
 
     if (!isNavigating) return null
 
-    return <div className="fixed inset-0 z-99999 cursor-wait bg-black/5 backdrop-blur-[3px]" />
+    return (
+        <div className="fixed inset-0 z-99999 flex cursor-wait items-center justify-center bg-black/5 backdrop-blur-[3px]">
+            <LoaderCircle className="size-9 animate-spin text-main-green drop-shadow-sm" />
+        </div>
+    )
 }
 
 export default NavigationBlur
