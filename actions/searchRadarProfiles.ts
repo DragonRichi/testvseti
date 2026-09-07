@@ -1,6 +1,5 @@
 "use server"
 
-import { getCurrentUser } from "@/lib/auth/getCurrentUser"
 import { createClient } from "@/lib/supabase/server"
 
 export type RadarProfileOption = {
@@ -11,35 +10,39 @@ export type RadarProfileOption = {
 }
 
 export async function searchRadarProfiles(query: string): Promise<RadarProfileOption[]> {
-    const normalizedQuery = query.trim().replace(/^@/, "")
+    const supabase = await createClient()
+
+    const {
+        data: { user },
+        error: userError
+    } = await supabase.auth.getUser()
+
+    if (userError || !user) return []
+
+    const normalizedQuery = query.trim()
 
     if (normalizedQuery.length < 2) return []
 
-    const user = await getCurrentUser()
-
-    if (!user) return []
-
-    const supabase = await createClient()
-
-    const [usernameResult, displayNameResult] = await Promise.all([
-        supabase.from("profiles").select("id,username,display_name,avatar_url").ilike("username", `%${normalizedQuery}%`).limit(10),
-        supabase.from("profiles").select("id,username,display_name,avatar_url").ilike("display_name", `%${normalizedQuery}%`).limit(10)
+    const [{ data: usernameProfiles, error: usernameError }, { data: displayNameProfiles, error: displayNameError }] = await Promise.all([
+        supabase.from("profiles").select("id,username,display_name,avatar_url").ilike("username", `%${normalizedQuery}%`).limit(20),
+        supabase.from("profiles").select("id,username,display_name,avatar_url").ilike("display_name", `%${normalizedQuery}%`).limit(20)
     ])
 
-    if (usernameResult.error) {
-        console.error("RADAR USERNAME SEARCH ERROR:", usernameResult.error)
+    if (usernameError || displayNameError) {
+        console.error("RADAR PROFILE SEARCH ERROR:", usernameError ?? displayNameError)
+        return []
     }
 
-    if (displayNameResult.error) {
-        console.error("RADAR DISPLAY NAME SEARCH ERROR:", displayNameResult.error)
-    }
-
-    const profiles = [...(usernameResult.data ?? []), ...(displayNameResult.data ?? [])]
     const uniqueProfiles = new Map<string, RadarProfileOption>()
 
-    for (const profile of profiles) {
-        uniqueProfiles.set(profile.id, profile)
+    for (const profile of [...(usernameProfiles ?? []), ...(displayNameProfiles ?? [])]) {
+        uniqueProfiles.set(profile.id, {
+            id: profile.id,
+            username: profile.username,
+            display_name: profile.display_name ?? profile.username,
+            avatar_url: profile.avatar_url
+        })
     }
 
-    return Array.from(uniqueProfiles.values()).slice(0, 10)
+    return Array.from(uniqueProfiles.values()).slice(0, 20)
 }

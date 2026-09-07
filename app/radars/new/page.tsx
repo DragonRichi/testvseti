@@ -8,7 +8,9 @@ import { redirect } from "next/navigation"
 async function Page() {
     const supabase = await createClient()
 
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+        data: { user }
+    } = await supabase.auth.getUser()
 
     if (!user) redirect("/")
 
@@ -26,7 +28,7 @@ async function Page() {
             <div className="flex flex-col gap-4">
                 <RadarTypeSwitch active="publications" />
 
-                <CreatePublicationsRadar suggestedProfiles={suggestedProfiles} />
+                <CreatePublicationsRadar currentUserId={profile.id} suggestedProfiles={suggestedProfiles} />
             </div>
         </SocialLayout>
     )

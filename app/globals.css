@@ -81,3 +81,7 @@ body {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+html {
+  scrollbar-gutter: stable;
+}

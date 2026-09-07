@@ -5,6 +5,8 @@ export type GeoChatPoint = {
 
 export type GeoChatRadius = 3000 | 6000 | 9000 | 12000
 
+export type GeoChatSenderRole = "admin" | "moderator"
+
 export type NearbyGeoChat = {
     id: string
     creatorId: string
@@ -46,4 +48,5 @@ export type GeoChatMessage = {
     authorDisplayName: string
     authorAvatarUrl: string | null
     replyTo: GeoChatMessageReply | null
+    senderRole?: GeoChatSenderRole | null
 }

@@ -1,28 +1,49 @@
 import "server-only"
 
-import { createClient } from "@/lib/supabase/server"
 import type { RadarProfileOption } from "@/actions/searchRadarProfiles"
+import { createClient } from "@/lib/supabase/server"
 
 export async function getSuggestedRadarProfiles(userId: string): Promise<RadarProfileOption[]> {
     const supabase = await createClient()
 
-    const { data: connections, error: connectionsError } = await supabase.from("connections").select("user_id,connection_id").or(`user_id.eq.${userId},connection_id.eq.${userId}`)
+    const { data: follows, error: followsError } = await supabase
+        .from("follows")
+        .select("following_id,created_at")
+        .eq("follower_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(50)
 
-    if (connectionsError) {
-        console.error("RADAR CONTACTS LOAD ERROR:", connectionsError)
+    if (followsError) {
+        console.error("RADAR FOLLOWING LOAD ERROR:", followsError)
         return []
     }
 
-    const profileIds = Array.from(new Set((connections ?? []).map((connection) => connection.user_id === userId ? connection.connection_id : connection.user_id).filter((id) => id !== userId)))
+    const profileIds = (follows ?? []).map((follow) => follow.following_id)
 
     if (profileIds.length === 0) return []
 
-    const { data: profiles, error: profilesError } = await supabase.from("profiles").select("id,username,display_name,avatar_url").in("id", profileIds).limit(20)
+    const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id,username,display_name,avatar_url")
+        .in("id", profileIds)
 
     if (profilesError) {
         console.error("RADAR SUGGESTED PROFILES ERROR:", profilesError)
         return []
     }
 
-    return profiles ?? []
+    const profilesById = new Map((profiles ?? []).map((profile) => [profile.id, profile]))
+
+    return profileIds.flatMap((profileId) => {
+        const profile = profilesById.get(profileId)
+
+        if (!profile) return []
+
+        return [{
+            id: profile.id,
+            username: profile.username,
+            display_name: profile.display_name ?? profile.username,
+            avatar_url: profile.avatar_url
+        }]
+    })
 }
