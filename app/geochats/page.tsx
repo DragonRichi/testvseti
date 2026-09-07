@@ -21,12 +21,6 @@ async function Page() {
         redirect("/")
     }
 
-    const { data: testAccess, error: testAccessError } = await supabase.rpc("has_geo_chat_test_access")
-
-    if (testAccessError) {
-        console.error("GEO CHAT TEST ACCESS LOAD ERROR:", testAccessError)
-    }
-
     return (
         <SocialLayout profile={currentProfile}>
             <div className="mb-4 flex items-center gap-3 px-1">
@@ -40,7 +34,7 @@ async function Page() {
                 </div>
             </div>
 
-            <GeoChatLocationGate initialTestAccess={Boolean(testAccess)} />
+            <GeoChatLocationGate />
         </SocialLayout>
     )
 }
