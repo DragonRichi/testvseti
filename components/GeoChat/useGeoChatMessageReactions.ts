@@ -18,6 +18,10 @@ type InsertReactionPayload = {
     new: ReactionRealtimeRow
 }
 
+type UpdateReactionPayload = {
+    new: ReactionRealtimeRow
+}
+
 type DeleteReactionPayload = {
     old: ReactionRealtimeRow
 }
@@ -173,6 +177,24 @@ function useGeoChatMessageReactions(
                         table: "geo_chat_message_reactions"
                     },
                     (payload: InsertReactionPayload) => {
+                        const messageId =
+                            payload.new.message_id
+
+                        if (messageId) {
+                            scheduleMessageReload(
+                                messageId
+                            )
+                        }
+                    }
+                )
+                .on(
+                    "postgres_changes",
+                    {
+                        event: "UPDATE",
+                        schema: "public",
+                        table: "geo_chat_message_reactions"
+                    },
+                    (payload: UpdateReactionPayload) => {
                         const messageId =
                             payload.new.message_id
 
