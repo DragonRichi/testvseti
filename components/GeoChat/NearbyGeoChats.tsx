@@ -5,7 +5,7 @@ import GeoChatAdminAccess from "@/components/GeoChat/GeoChatAdminAccess"
 import type { NearbyGeoChat } from "@/types/geoChat"
 import { MapPin, MessageCircle, Plus, RefreshCw } from "lucide-react"
 import Link from "next/link"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 type Props = {
     accuracy: number | null
@@ -34,30 +34,53 @@ function NearbyGeoChats({ accuracy, locationVersion, initialAdminMode, onAdminMo
     const [chats, setChats] = useState<NearbyGeoChat[]>([])
     const [adminMode, setAdminMode] = useState(initialAdminMode)
     const [isLoading, setIsLoading] = useState(true)
+    const [isRefreshing, setIsRefreshing] = useState(false)
     const [error, setError] = useState("")
+
+    const requestIdRef = useRef(0)
+    const hasLoadedRef = useRef(false)
 
     const isApproximate = accuracy !== null && accuracy > 1000
 
-    const loadChats = useCallback(async () => {
-        setIsLoading(true)
-        setError("")
+    const loadChats = useCallback(async (background = false) => {
+        const requestId = ++requestIdRef.current
+        const silentRefresh = background && hasLoadedRef.current
+
+        if (silentRefresh) {
+            setIsRefreshing(true)
+        } else {
+            setIsLoading(true)
+            setError("")
+        }
 
         try {
             const result = await getNearbyGeoChats()
 
+            if (requestId !== requestIdRef.current) return
+
             if (result.success === false) {
-                setError(result.error)
+                if (!silentRefresh) setError(result.error)
                 return
             }
 
             setChats(result.chats)
             setAdminMode(result.adminMode)
             onAdminModeChange(result.adminMode)
-        } catch (error) {
-            console.error("GEO CHATS LOAD ERROR:", error)
-            setError("Не удалось загрузить геочаты")
+            hasLoadedRef.current = true
+            setError("")
+        } catch (loadError) {
+            if (requestId !== requestIdRef.current) return
+
+            console.error("GEO CHATS LOAD ERROR:", loadError)
+
+            if (!silentRefresh) {
+                setError("Не удалось загрузить геочаты")
+            }
         } finally {
-            setIsLoading(false)
+            if (requestId === requestIdRef.current) {
+                setIsLoading(false)
+                setIsRefreshing(false)
+            }
         }
     }, [onAdminModeChange])
 
@@ -66,12 +89,12 @@ function NearbyGeoChats({ accuracy, locationVersion, initialAdminMode, onAdminMo
         onAdminModeChange(nextAdminMode)
 
         if (nextAdminMode) {
-            await loadChats()
+            await loadChats(false)
         }
     }, [loadChats, onAdminModeChange])
 
     useEffect(() => {
-        void loadChats()
+        void loadChats(hasLoadedRef.current)
     }, [loadChats, locationVersion])
 
     return (
@@ -79,7 +102,11 @@ function NearbyGeoChats({ accuracy, locationVersion, initialAdminMode, onAdminMo
             <div className="rounded-2xl border border-green-100 bg-white p-5 sm:p-6">
                 <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
-                        <h2 className="text-lg font-bold text-gray-900">{adminMode ? "Все геочаты" : "Геочаты рядом"}</h2>
+                        <div className="flex items-center gap-2">
+                            <h2 className="text-lg font-bold text-gray-900">{adminMode ? "Все геочаты" : "Геочаты рядом"}</h2>
+                            {isRefreshing && <RefreshCw className="size-3.5 animate-spin text-main-green" />}
+                        </div>
+
                         <div className="mt-1 text-sm text-main-gray">{adminMode ? "Режим просмотра всех созданных геочатов" : "Доступны в вашем текущем местоположении"}</div>
 
                         {accuracy !== null && (
@@ -114,7 +141,7 @@ function NearbyGeoChats({ accuracy, locationVersion, initialAdminMode, onAdminMo
                     <div className="text-center">
                         <div className="text-sm text-red-600">{error}</div>
 
-                        <button type="button" onClick={() => void loadChats()} className="mt-4 flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-green-200 px-4 text-sm font-medium text-main-green transition-colors hover:bg-green-50">
+                        <button type="button" onClick={() => void loadChats(false)} className="mt-4 flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-green-200 px-4 text-sm font-medium text-main-green transition-colors hover:bg-green-50">
                             <RefreshCw className="size-4" />
                             <span>Повторить</span>
                         </button>

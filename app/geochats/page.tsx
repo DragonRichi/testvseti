@@ -1,4 +1,4 @@
-import GeoChatLocationGate from "@/components/Geo/GeoChatLocationGate"
+import GeoChatLocationGate from "@/components/GeoChat/GeoChatLocationGate"
 import SocialLayout from "@/components/Layout/SocialLayout"
 import { hasGeoChatAdminMode } from "@/lib/geochats/geoChatAdminMode"
 import { createClient } from "@/lib/supabase/server"
