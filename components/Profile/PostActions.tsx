@@ -9,13 +9,19 @@ type Props = {
     postId: string
     username: string
     onEdit: () => void
+    onDeleted: (postId: string) => void
 }
 
-function PostActions({ postId, username, onEdit }: Props) {
-    const [isOpen, setIsOpen] = useState<boolean>(false)
-    const [isConfirmOpen, setIsConfirmOpen] = useState<boolean>(false)
-    const [isPending, setIsPending] = useState<boolean>(false)
-    const [error, setError] = useState<string>("")
+function PostActions({
+    postId,
+    username,
+    onEdit,
+    onDeleted
+}: Props) {
+    const [isOpen, setIsOpen] = useState(false)
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false)
+    const [isPending, setIsPending] = useState(false)
+    const [error, setError] = useState("")
 
     const deleteLock = useRef(false)
     const router = useRouter()
@@ -54,19 +60,34 @@ function PostActions({ postId, username, onEdit }: Props) {
         setError("")
 
         try {
-            const result = await deletePost({ postId, username })
+            const result = await deletePost({
+                postId,
+                username
+            })
 
-            if (!result.success) {
-                setError(result.error || "Не удалось удалить публикацию")
+            if (result.success === false) {
+                setError(
+                    result.error ||
+                    "Не удалось удалить публикацию"
+                )
                 return
             }
 
             setIsConfirmOpen(false)
             setIsOpen(false)
+
+            onDeleted(postId)
+
             router.refresh()
         } catch (error) {
-            console.error("POST DELETE ERROR:", error)
-            setError("Не удалось удалить публикацию")
+            console.error(
+                "POST DELETE ERROR:",
+                error
+            )
+
+            setError(
+                "Не удалось удалить публикацию"
+            )
         } finally {
             deleteLock.current = false
             setIsPending(false)
@@ -95,7 +116,15 @@ function PostActions({ postId, username, onEdit }: Props) {
                                 Редактировать
                             </button>
 
-                            <button type="button" onClick={() => { setIsOpen(false); setIsConfirmOpen(true) }} className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-red-600 transition-colors hover:bg-red-50">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsOpen(false)
+                                    setError("")
+                                    setIsConfirmOpen(true)
+                                }}
+                                className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-red-600 transition-colors hover:bg-red-50"
+                            >
                                 <Trash2 className="size-4" />
                                 Удалить публикацию
                             </button>
@@ -107,7 +136,15 @@ function PostActions({ postId, username, onEdit }: Props) {
             {isConfirmOpen && (
                 <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/25 px-4 backdrop-blur-[2px]">
                     <div className="relative w-full max-w-[420] rounded-2xl bg-white p-5 shadow-2xl">
-                        <button type="button" onClick={() => setIsConfirmOpen(false)} className="absolute right-4 top-4 flex size-9 cursor-pointer items-center justify-center rounded-xl text-main-gray transition-colors hover:bg-gray-100 hover:text-black">
+                        <button
+                            type="button"
+                            disabled={isPending}
+                            onClick={() => {
+                                setIsConfirmOpen(false)
+                                setError("")
+                            }}
+                            className="absolute right-4 top-4 flex size-9 cursor-pointer items-center justify-center rounded-xl text-main-gray transition-colors hover:bg-gray-100 hover:text-black disabled:pointer-events-none disabled:opacity-50"
+                        >
                             <X className="size-5" />
                         </button>
 
@@ -126,11 +163,19 @@ function PostActions({ postId, username, onEdit }: Props) {
                         )}
 
                         <div className="mt-5 flex justify-end gap-2">
-                            <button type="button" disabled={isPending} onClick={() => setIsConfirmOpen(false)} className="h-10 cursor-pointer rounded-xl border border-gray-200 px-4 text-sm font-medium transition-colors hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-50">
+                            <button
+                                type="button"
+                                disabled={isPending}
+                                onClick={() => {
+                                    setIsConfirmOpen(false)
+                                    setError("")
+                                }}
+                                className="h-10 cursor-pointer rounded-xl border border-gray-200 px-4 text-sm font-medium transition-colors hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-50"
+                            >
                                 Отмена
                             </button>
 
-                            <button type="button" disabled={isPending} onClick={handleDelete} className="h-10 cursor-pointer rounded-xl bg-red-500 px-4 text-sm font-medium text-white transition-colors hover:bg-red-600 disabled:pointer-events-none disabled:opacity-50">
+                            <button type="button" disabled={isPending} onClick={() => void handleDelete()} className="h-10 cursor-pointer rounded-xl bg-red-500 px-4 text-sm font-medium text-white transition-colors hover:bg-red-600 disabled:pointer-events-none disabled:opacity-50">
                                 {isPending ? "Удаляем..." : "Удалить"}
                             </button>
                         </div>

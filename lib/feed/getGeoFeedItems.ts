@@ -6,22 +6,39 @@ import type { Post, Profile } from "@/types/social"
 
 type Result = {
     items: GeoFeedItem[]
+    likedCommentIds: string[]
 }
 
 export async function getGeoFeedItems(posts: Post[], currentUserId: string): Promise<Result> {
     if (posts.length === 0) {
         return {
-            items: []
+            items: [],
+            likedCommentIds: []
         }
     }
 
     const supabase = await createClient()
-    const postIds = posts.map((post) => post.id)
-    const userIds = [...new Set(posts.map((post) => post.user_id))]
 
-    const [{ data: profiles, error: profilesError }, { data: postLikes, error: postLikesError }] = await Promise.all([
-        supabase.from("profiles").select("id,username,display_name,avatar_url").in("id", userIds),
-        supabase.from("post_likes").select("post_id").eq("user_id", currentUserId).in("post_id", postIds)
+    const postIds = posts.map((post) => post.id)
+
+    const authorIds = Array.from(
+        new Set(posts.map((post) => post.user_id))
+    )
+
+    const [
+        { data: profiles, error: profilesError },
+        { data: postLikes, error: postLikesError }
+    ] = await Promise.all([
+        supabase
+            .from("profiles")
+            .select("id,username,display_name,avatar_url")
+            .in("id", authorIds),
+
+        supabase
+            .from("post_likes")
+            .select("post_id")
+            .eq("user_id", currentUserId)
+            .in("post_id", postIds)
     ])
 
     if (profilesError) {
@@ -38,7 +55,10 @@ export async function getGeoFeedItems(posts: Post[], currentUserId: string): Pro
         profilesById.set(profile.id, profile)
     }
 
-    const likedPostIds = new Set((postLikes ?? []).map((like) => like.post_id))
+    const likedPostIds = new Set(
+        (postLikes ?? []).map((like) => like.post_id)
+    )
+
     const items: GeoFeedItem[] = []
 
     for (const post of posts) {
@@ -54,6 +74,7 @@ export async function getGeoFeedItems(posts: Post[], currentUserId: string): Pro
     }
 
     return {
-        items
+        items,
+        likedCommentIds: []
     }
 }

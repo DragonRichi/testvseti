@@ -18,6 +18,7 @@ type Props = {
     initialLiked: boolean
     currentProfile: Profile
     eagerMedia: boolean
+    onDeleted?: (postId: string) => void
 }
 
 const POST_DATE_FORMATTER = new Intl.DateTimeFormat("ru-RU", {
@@ -31,8 +32,17 @@ const REGION_NAMES = new Intl.DisplayNames(["ru"], {
     type: "region"
 })
 
-function PostCard({ profile, post, isOwnProfile, initialLiked, currentProfile, eagerMedia }: Props) {
+function PostCard({
+    profile,
+    post,
+    isOwnProfile,
+    initialLiked,
+    currentProfile,
+    eagerMedia,
+    onDeleted
+}: Props) {
     const [displayPost, setDisplayPost] = useState(post)
+    const [isDeleted, setIsDeleted] = useState(false)
     const [isEditing, setIsEditing] = useState(false)
     const [isLiked, setIsLiked] = useState(initialLiked)
     const [likeCount, setLikeCount] = useState(post.like_count ?? 0)
@@ -52,7 +62,13 @@ function PostCard({ profile, post, isOwnProfile, initialLiked, currentProfile, e
         const nextLiked = !previousLiked
 
         setIsLiked(nextLiked)
-        setLikeCount(Math.max(0, previousLikeCount + (nextLiked ? 1 : -1)))
+        setLikeCount(
+            Math.max(
+                0,
+                previousLikeCount +
+                (nextLiked ? 1 : -1)
+            )
+        )
 
         try {
             const result = await togglePostLike({
@@ -69,7 +85,11 @@ function PostCard({ profile, post, isOwnProfile, initialLiked, currentProfile, e
             setIsLiked(result.liked)
             setLikeCount(result.likeCount)
         } catch (error) {
-            console.error("POST LIKE ERROR:", error)
+            console.error(
+                "POST LIKE ERROR:",
+                error
+            )
+
             setIsLiked(previousLiked)
             setLikeCount(previousLikeCount)
         } finally {
@@ -81,14 +101,42 @@ function PostCard({ profile, post, isOwnProfile, initialLiked, currentProfile, e
         setIsCommentsOpen((current) => {
             const next = !current
 
-            if (next) setHasOpenedComments(true)
+            if (next) {
+                setHasOpenedComments(true)
+            }
 
             return next
         })
     }
 
-    const hasTaggedLocation = Boolean(displayPost.tagged_location_name) && typeof displayPost.tagged_lat === "number" && typeof displayPost.tagged_lon === "number"
-    const locationDetails = [displayPost.tagged_city, displayPost.tagged_country_code ? REGION_NAMES.of(displayPost.tagged_country_code) : null].filter(Boolean).join(", ")
+    const handleDeleted = (
+        postId: string
+    ) => {
+        setIsDeleted(true)
+        onDeleted?.(postId)
+    }
+
+    const hasTaggedLocation =
+        Boolean(
+            displayPost.tagged_location_name
+        ) &&
+        typeof displayPost.tagged_lat === "number" &&
+        typeof displayPost.tagged_lon === "number"
+
+    const locationDetails = [
+        displayPost.tagged_city,
+        displayPost.tagged_country_code
+            ? REGION_NAMES.of(
+                displayPost.tagged_country_code
+            )
+            : null
+    ]
+        .filter(Boolean)
+        .join(", ")
+
+    if (isDeleted) {
+        return null
+    }
 
     return (
         <article className="rounded-2xl border border-green-100 bg-white p-4">
@@ -100,35 +148,88 @@ function PostCard({ profile, post, isOwnProfile, initialLiked, currentProfile, e
                 <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-3">
                         <div>
-                            <Link href={`/profile/${profile.username}`} className="font-bold">{profile.display_name}</Link>
+                            <Link href={`/profile/${profile.username}`} className="font-bold">
+                                {profile.display_name}
+                            </Link>
 
                             <div className="mt-0.5 text-xs text-main-gray">
                                 @{profile.username}
-                                {displayPost.created_at && <> · {POST_DATE_FORMATTER.format(new Date(displayPost.created_at))}</>}
+
+                                {displayPost.created_at && (
+                                    <>
+                                        {" "}·{" "}
+                                        {POST_DATE_FORMATTER.format(
+                                            new Date(
+                                                displayPost.created_at
+                                            )
+                                        )}
+                                    </>
+                                )}
                             </div>
                         </div>
 
-                        {isOwnProfile && !isEditing && <PostActions postId={displayPost.id} username={profile.username} onEdit={() => setIsEditing(true)} />}
+                        {isOwnProfile && !isEditing && (
+                            <PostActions
+                                postId={displayPost.id}
+                                username={profile.username}
+                                onEdit={() => setIsEditing(true)}
+                                onDeleted={handleDeleted}
+                            />
+                        )}
                     </div>
 
                     {isEditing ? (
-                        <PostEditForm post={displayPost} username={profile.username} onCancel={() => setIsEditing(false)} onSaved={(updatedPost) => { setDisplayPost(updatedPost); setLikeCount(updatedPost.like_count ?? likeCount); setCommentCount(updatedPost.comment_count ?? commentCount); setIsEditing(false) }} />
+                        <PostEditForm
+                            post={displayPost}
+                            username={profile.username}
+                            onCancel={() => setIsEditing(false)}
+                            onSaved={(updatedPost) => {
+                                setDisplayPost(updatedPost)
+                                setLikeCount(
+                                    updatedPost.like_count ??
+                                    likeCount
+                                )
+                                setCommentCount(
+                                    updatedPost.comment_count ??
+                                    commentCount
+                                )
+                                setIsEditing(false)
+                            }}
+                        />
                     ) : (
                         <>
                             {hasTaggedLocation && (
                                 <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
                                     <div className="flex min-w-0 items-center gap-1.5 text-main-green">
                                         <MapPin className="size-4 shrink-0" />
-                                        <span className="truncate font-medium">{displayPost.tagged_location_name}</span>
+
+                                        <span className="truncate font-medium">
+                                            {displayPost.tagged_location_name}
+                                        </span>
                                     </div>
 
-                                    {locationDetails && <span className="text-xs text-gray-400">{locationDetails}</span>}
+                                    {locationDetails && (
+                                        <span className="text-xs text-gray-400">
+                                            {locationDetails}
+                                        </span>
+                                    )}
                                 </div>
                             )}
 
-                            {displayPost.content && <p className={`${hasTaggedLocation ? "mt-2" : "mt-3"} whitespace-pre-wrap wrap-break-word text-sm leading-6 text-gray-800`}>{displayPost.content}</p>}
+                            {displayPost.content && (
+                                <p className={`${hasTaggedLocation ? "mt-2" : "mt-3"} whitespace-pre-wrap wrap-break-word text-sm leading-6 text-gray-800`}>
+                                    {displayPost.content}
+                                </p>
+                            )}
 
-                            {(displayPost.media_urls?.length ?? 0) > 0 && <PostMediaGrid mediaUrls={displayPost.media_urls ?? []} eager={eagerMedia} />}
+                            {(displayPost.media_urls?.length ?? 0) > 0 && (
+                                <PostMediaGrid
+                                    mediaUrls={
+                                        displayPost.media_urls ?? []
+                                    }
+                                    eager={eagerMedia}
+                                />
+                            )}
                         </>
                     )}
                 </div>
@@ -149,13 +250,31 @@ function PostCard({ profile, post, isOwnProfile, initialLiked, currentProfile, e
 
                         <button type="button" className="flex cursor-pointer items-center gap-1.5 text-sm transition-colors hover:text-main-green">
                             <Share2 className="size-5" />
-                            <span>{displayPost.share_count ?? 0}</span>
+                            <span>
+                                {displayPost.share_count ?? 0}
+                            </span>
                         </button>
                     </div>
 
                     {hasOpenedComments && (
                         <div className={isCommentsOpen ? "block" : "hidden"}>
-                            <CommentsSection postId={displayPost.id} username={profile.username} currentProfile={currentProfile} onCommentCreated={() => setCommentCount((current) => current + 1)} onCommentDeleted={setCommentCount} />
+                            <CommentsSection
+                                postId={displayPost.id}
+                                username={profile.username}
+                                currentProfile={currentProfile}
+                                onCommentCreated={() =>
+                                    setCommentCount(
+                                        (prev) =>
+                                            prev + 1
+                                    )
+                                }
+                                onCommentDeleted={(newCount) =>
+                                    setCommentCount(
+                                        newCount
+                                    )
+                                }
+                                enabled={isCommentsOpen}
+                            />
                         </div>
                     )}
                 </>

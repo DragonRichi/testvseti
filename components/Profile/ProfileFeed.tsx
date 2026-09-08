@@ -1,3 +1,4 @@
+import type { ProfilePostsCursor } from "@/actions/loadMoreProfilePosts"
 import type { Post, Profile } from "@/types/social"
 import { PenLine } from "lucide-react"
 import CreatePostCard from "./CreatePostCard"
@@ -13,10 +14,35 @@ type Props = {
     currentProfile: Profile
 }
 
-function ProfileFeed({ profile, posts, postsCount, isOwnProfile, likedPostIds, currentProfile }: Props) {
+function ProfileFeed({
+    profile,
+    posts,
+    postsCount,
+    isOwnProfile,
+    likedPostIds,
+    currentProfile
+}: Props) {
+    const lastPost = posts.at(-1)
+
+    const initialCursor: ProfilePostsCursor | null =
+        lastPost &&
+        posts.length < postsCount &&
+        typeof lastPost.created_at === "string"
+            ? {
+                createdAt: lastPost.created_at,
+                id: lastPost.id
+            }
+            : null
+
     return (
         <div className="mt-4 flex flex-col gap-4">
-            {isOwnProfile && <CreatePostCard username={profile.username} displayName={profile.display_name} avatarUrl={profile.avatar_url} />}
+            {isOwnProfile && (
+                <CreatePostCard
+                    username={profile.username}
+                    displayName={profile.display_name}
+                    avatarUrl={profile.avatar_url}
+                />
+            )}
 
             {posts.length === 0 ? (
                 <div className="flex min-h-[300] flex-col items-center justify-center rounded-2xl border border-green-100 bg-white px-6 py-10 text-center">
@@ -24,17 +50,38 @@ function ProfileFeed({ profile, posts, postsCount, isOwnProfile, likedPostIds, c
                         <PenLine className="size-6 text-main-green" />
                     </div>
 
-                    <h2 className="mt-4 text-lg font-bold">Публикаций пока нет</h2>
+                    <h2 className="mt-4 text-lg font-bold">
+                        Публикаций пока нет
+                    </h2>
 
-                    <p className="mt-2 max-w-[360] text-sm leading-6 text-main-gray">{isOwnProfile ? "Создайте первую публикацию и поделитесь чем-нибудь интересным." : `${profile.display_name} пока ничего не опубликовал.`}</p>
+                    <p className="mt-2 max-w-[360] text-sm leading-6 text-main-gray">
+                        {isOwnProfile
+                            ? "Создайте первую публикацию и поделитесь чем-нибудь интересным."
+                            : `${profile.display_name} пока ничего не опубликовал.`}
+                    </p>
                 </div>
             ) : (
                 <>
                     {posts.map((post, index) => (
-                        <PostCard key={post.id} profile={profile} post={post} isOwnProfile={isOwnProfile} initialLiked={likedPostIds.includes(post.id)} currentProfile={currentProfile} eagerMedia={index === 0} />
+                        <PostCard
+                            key={post.id}
+                            profile={profile}
+                            post={post}
+                            isOwnProfile={isOwnProfile}
+                            initialLiked={likedPostIds.includes(post.id)}
+                            currentProfile={currentProfile}
+                            eagerMedia={index === 0}
+                        />
                     ))}
 
-                    <ProfilePostPagination key={profile.id} profile={profile} currentProfile={currentProfile} isOwnProfile={isOwnProfile} initialPostIds={posts.map((post) => post.id)} totalPosts={postsCount} />
+                    <ProfilePostPagination
+                        key={profile.id}
+                        profile={profile}
+                        currentProfile={currentProfile}
+                        isOwnProfile={isOwnProfile}
+                        initialPostIds={posts.map((post) => post.id)}
+                        initialCursor={initialCursor}
+                    />
                 </>
             )}
         </div>

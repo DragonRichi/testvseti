@@ -26,19 +26,21 @@ type Result =
 
 type Props = {
     postId: string
+    parentCommentId: string
     cursor?: CommentCursor | null
 }
 
-const COMMENTS_PAGE_SIZE = 20
+const REPLIES_PAGE_SIZE = 20
 
-export async function getPostComments({
+export async function getCommentReplies({
     postId,
+    parentCommentId,
     cursor = null
 }: Props): Promise<Result> {
-    if (!postId) {
+    if (!postId || !parentCommentId) {
         return {
             success: false,
-            error: "Публикация не найдена",
+            error: "Комментарий не найден",
             comments: [],
             nextCursor: null,
             remainingCount: 0
@@ -55,7 +57,7 @@ export async function getPostComments({
     ) {
         return {
             success: false,
-            error: "Некорректный курсор комментариев",
+            error: "Некорректный курсор ответов",
             comments: [],
             nextCursor: null,
             remainingCount: 0
@@ -83,7 +85,7 @@ export async function getPostComments({
                 count: "exact"
             })
             .eq("post_id", postId)
-            .is("parent_id", null)
+            .eq("parent_id", parentCommentId)
 
         if (cursor) {
             query = query.or(
@@ -98,42 +100,42 @@ export async function getPostComments({
         } = await query
             .order("created_at", { ascending: true })
             .order("id", { ascending: true })
-            .limit(COMMENTS_PAGE_SIZE)
+            .limit(REPLIES_PAGE_SIZE)
 
         if (error) {
-            console.error("POST COMMENTS LOAD ERROR:", error)
+            console.error("COMMENT REPLIES LOAD ERROR:", error)
 
             return {
                 success: false,
-                error: "Не удалось загрузить комментарии",
+                error: "Не удалось загрузить ответы",
                 comments: [],
                 nextCursor: null,
                 remainingCount: 0
             }
         }
 
-        const rawComments = (data ?? []) as RawPostComment[]
+        const rawReplies = (data ?? []) as RawPostComment[]
 
         const comments = await loadPagedCommentItems(
             supabase,
             user.id,
-            rawComments
+            rawReplies
         )
 
-        const matchedCount = count ?? rawComments.length
+        const matchedCount = count ?? rawReplies.length
 
         const remainingCount = Math.max(
             0,
-            matchedCount - rawComments.length
+            matchedCount - rawReplies.length
         )
 
-        const lastComment = rawComments.at(-1)
+        const lastReply = rawReplies.at(-1)
 
         const nextCursor: CommentCursor | null =
-            remainingCount > 0 && lastComment
+            remainingCount > 0 && lastReply
                 ? {
-                    createdAt: lastComment.created_at,
-                    id: lastComment.id
+                    createdAt: lastReply.created_at,
+                    id: lastReply.id
                 }
                 : null
 
@@ -144,13 +146,13 @@ export async function getPostComments({
             remainingCount
         }
     } catch (error) {
-        console.error("POST COMMENTS LOAD ERROR:", error)
+        console.error("COMMENT REPLIES LOAD ERROR:", error)
 
         return {
             success: false,
             error: error instanceof Error
                 ? error.message
-                : "Ошибка загрузки комментариев",
+                : "Ошибка загрузки ответов",
             comments: [],
             nextCursor: null,
             remainingCount: 0
