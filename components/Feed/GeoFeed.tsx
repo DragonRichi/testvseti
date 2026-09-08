@@ -7,10 +7,15 @@ type Props = {
     currentProfile: Profile
 }
 
-async function GeoFeed({ currentProfile }: Props) {
-    const result = await getGeoFeed()
+async function GeoFeed({
+    currentProfile
+}: Props) {
+    const result =
+        await getGeoFeed()
 
-    if (result.success === false) {
+    if (
+        result.success === false
+    ) {
         return (
             <div className="rounded-2xl border border-red-100 bg-white p-5 text-sm text-red-500">
                 {result.error}
@@ -18,7 +23,10 @@ async function GeoFeed({ currentProfile }: Props) {
         )
     }
 
-    const { posts, nextCursor } = result
+    const {
+        posts,
+        nextCursor
+    } = result
 
     if (posts.length === 0) {
         return (
@@ -28,9 +36,35 @@ async function GeoFeed({ currentProfile }: Props) {
         )
     }
 
-    const hydrated = await getGeoFeedItems(posts, currentProfile.id)
+    const hydrated =
+        await getGeoFeedItems(
+            posts,
+            currentProfile.id
+        )
 
-    return <GeoFeedList currentProfile={currentProfile} initialItems={hydrated.items} initialNextCursor={nextCursor} />
+    if (
+        hydrated.success === false
+    ) {
+        return (
+            <div className="rounded-2xl border border-red-100 bg-white p-5 text-sm text-red-500">
+                {hydrated.error}
+            </div>
+        )
+    }
+
+    return (
+        <GeoFeedList
+            currentProfile={
+                currentProfile
+            }
+            initialItems={
+                hydrated.items
+            }
+            initialNextCursor={
+                nextCursor
+            }
+        />
+    )
 }
 
 export default GeoFeed

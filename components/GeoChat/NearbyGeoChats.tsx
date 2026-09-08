@@ -87,10 +87,7 @@ function NearbyGeoChats({ accuracy, locationVersion, initialAdminMode, onAdminMo
     const handleAdminModeChanged = useCallback(async (nextAdminMode: boolean) => {
         setAdminMode(nextAdminMode)
         onAdminModeChange(nextAdminMode)
-
-        if (nextAdminMode) {
-            await loadChats(false)
-        }
+        await loadChats(false)
     }, [loadChats, onAdminModeChange])
 
     useEffect(() => {

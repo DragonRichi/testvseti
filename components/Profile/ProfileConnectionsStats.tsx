@@ -2,7 +2,7 @@
 
 import { getProfileConnections } from "@/actions/getProfileConnections"
 import FollowButton from "@/components/Profile/FollowButton"
-import type { ProfileConnectionItem, ProfileConnectionType } from "@/types/follows"
+import type { ProfileConnectionCursor, ProfileConnectionItem, ProfileConnectionType } from "@/types/follows"
 import { LoaderCircle, X } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
@@ -23,8 +23,7 @@ function appendUniqueItems(current: ProfileConnectionItem[], next: ProfileConnec
 function ProfileConnectionsStats({ profileId, subscriberCount, followingCount }: Props) {
     const [openType, setOpenType] = useState<ProfileConnectionType | null>(null)
     const [items, setItems] = useState<ProfileConnectionItem[]>([])
-    const [nextOffset, setNextOffset] = useState(0)
-    const [hasMore, setHasMore] = useState(false)
+    const [nextCursor, setNextCursor] = useState<ProfileConnectionCursor | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const [isLoadingMore, setIsLoadingMore] = useState(false)
     const [error, setError] = useState("")
@@ -53,14 +52,13 @@ function ProfileConnectionsStats({ profileId, subscriberCount, followingCount }:
 
         setOpenType(type)
         setItems([])
-        setNextOffset(0)
-        setHasMore(false)
+        setNextCursor(null)
         setError("")
         setIsLoading(true)
         loadLockRef.current = true
 
         try {
-            const result = await getProfileConnections(profileId, type, 0)
+            const result = await getProfileConnections(profileId, type, null)
 
             if (result.success === false) {
                 setError(result.error)
@@ -68,8 +66,7 @@ function ProfileConnectionsStats({ profileId, subscriberCount, followingCount }:
             }
 
             setItems(result.items)
-            setHasMore(result.hasMore)
-            setNextOffset(result.nextOffset)
+            setNextCursor(result.nextCursor)
         } catch (error) {
             console.error("PROFILE CONNECTIONS ERROR:", error)
             setError("Не удалось загрузить список")
@@ -80,14 +77,14 @@ function ProfileConnectionsStats({ profileId, subscriberCount, followingCount }:
     }
 
     const handleLoadMore = async () => {
-        if (!openType || loadLockRef.current || !hasMore) return
+        if (!openType || loadLockRef.current || !nextCursor) return
 
         loadLockRef.current = true
         setIsLoadingMore(true)
         setError("")
 
         try {
-            const result = await getProfileConnections(profileId, openType, nextOffset)
+            const result = await getProfileConnections(profileId, openType, nextCursor)
 
             if (result.success === false) {
                 setError(result.error)
@@ -95,8 +92,7 @@ function ProfileConnectionsStats({ profileId, subscriberCount, followingCount }:
             }
 
             setItems((current) => appendUniqueItems(current, result.items))
-            setHasMore(result.hasMore)
-            setNextOffset(result.nextOffset)
+            setNextCursor(result.nextCursor)
         } catch (error) {
             console.error("PROFILE CONNECTIONS LOAD MORE ERROR:", error)
             setError("Не удалось загрузить список")
@@ -105,6 +101,8 @@ function ProfileConnectionsStats({ profileId, subscriberCount, followingCount }:
             setIsLoadingMore(false)
         }
     }
+
+    const hasMore = nextCursor !== null
 
     return (
         <>

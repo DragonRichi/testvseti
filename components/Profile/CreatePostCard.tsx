@@ -1,13 +1,13 @@
 "use client"
 
 import { createPost } from "@/actions/createPost"
-import PostLocationPicker, { type SelectedPostLocation } from "@/components/Post/PostLocationPicker"
+import type { SelectedPostLocation } from "@/components/Post/PostLocationPicker"
 import { removePostMedia, uploadPostMedia } from "@/lib/posts/uploadPostMedia"
-import { ImagePlus, MapPin, Smile, Video, X } from "lucide-react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import type { ChangeEvent } from "react"
 import { useEffect, useRef, useState } from "react"
+import CreatePostExtras from "./CreatePostExtras"
 
 type Props = {
     username: string
@@ -19,7 +19,6 @@ type SelectedMedia = {
     file: File
     previewUrl: string
 }
-
 const MAX_MEDIA_COUNT = 10
 const MAX_FILE_SIZE = 10 * 1024 * 1024
 
@@ -224,8 +223,6 @@ function CreatePostCard({ avatarUrl, displayName, username }: Props) {
                 return
             }
 
-            console.log("POST CREATE SUCCESS:", result.post)
-
             setContent("")
             clearSelectedMedia()
             setSelectedLocation(null)
@@ -272,82 +269,21 @@ function CreatePostCard({ avatarUrl, displayName, username }: Props) {
                 </div>
             </div>
 
-            {isExpanded && selectedMedia.length > 0 && (
-                <div className="mt-4">
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                        {selectedMedia.map((item, index) => (
-                            <div key={item.previewUrl} className="group relative aspect-square overflow-hidden rounded-xl bg-[#f4f7f4]">
-                                <Image src={item.previewUrl} alt={`Фото ${index + 1}`} fill sizes="(max-width: 640px) 50vw, 33vw" unoptimized className="object-cover" />
-
-                                <button type="button" onClick={() => handleRemoveMedia(index)} disabled={isPending} className="absolute right-2 top-2 flex size-8 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80 disabled:pointer-events-none disabled:opacity-50">
-                                    <X className="size-4" />
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-
-                    <div className="mt-2 text-right text-xs text-main-gray">
-                        {selectedMedia.length}/{MAX_MEDIA_COUNT} фото
-                    </div>
-                </div>
-            )}
-
-            {isExpanded && selectedLocation && (
-                <div className="mt-3 flex items-center gap-2 rounded-xl bg-green-50 px-3 py-2">
-                    <MapPin className="size-4 shrink-0 text-main-green" />
-
-                    <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-medium text-gray-700">{selectedLocation.name}</div>
-                    </div>
-
-                    <button type="button" onClick={() => setSelectedLocation(null)} disabled={isPending} aria-label="Убрать место" title="Убрать место" className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-main-gray transition-colors hover:bg-white hover:text-red-500 disabled:pointer-events-none disabled:opacity-50">
-                        <X className="size-4" />
-                    </button>
-                </div>
-            )}
-
-            {isExpanded && error && (
-                <div className="mt-3 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">
-                    {error}
-                </div>
-            )}
-
             {isExpanded && (
-                <div className="mt-4 grid grid-cols-5 gap-1 border-t border-gray-100 pt-3">
-                    <button type="button" onClick={handlePhotoClick} disabled={isPending || selectedMedia.length >= MAX_MEDIA_COUNT} className={`flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl py-2.5 transition-colors disabled:pointer-events-none disabled:opacity-50 sm:flex-row sm:gap-2 ${selectedMedia.length > 0 ? "bg-green-50 text-main-green" : "text-main-gray hover:bg-green-50 hover:text-main-green"}`}>
-                        <ImagePlus className="size-5" />
-                        <span className="text-xs sm:text-sm">Фото</span>
-                    </button>
-
-                    {/* <button type="button" disabled={isPending} className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl py-2.5 text-main-gray transition-colors hover:bg-green-50 hover:text-main-green disabled:pointer-events-none disabled:opacity-50 sm:flex-row sm:gap-2">
-                        <Video className="size-5" />
-                        <span className="text-xs sm:text-sm">Видео</span>
-                    </button>
-
-                    <button type="button" disabled={isPending} className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl py-2.5 text-main-gray transition-colors hover:bg-green-50 hover:text-main-green disabled:pointer-events-none disabled:opacity-50 sm:flex-row sm:gap-2">
-                        <BarChart3 className="size-5" />
-                        <span className="text-xs sm:text-sm">Опрос</span>
-                    </button> */}
-
-                    <button type="button" onClick={() => setIsEmojiOpen((prev) => !prev)} disabled={isPending} className={`flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl py-2.5 transition-colors disabled:pointer-events-none disabled:opacity-50 sm:flex-row sm:gap-2 ${isEmojiOpen ? "bg-green-50 text-main-green" : "text-main-gray hover:bg-green-50 hover:text-main-green"}`}>
-                        <Smile className="size-5" />
-                        <span className="text-xs sm:text-sm">Эмодзи</span>
-                    </button>
-
-                    <PostLocationPicker value={selectedLocation} onChange={handleLocationChange} variant="toolbar" disabled={isPending} />
-                </div>
-            )}
-
-            {isExpanded && isEmojiOpen && (
-                <div className="mt-2 rounded-2xl border border-green-100 bg-white p-3 shadow-sm">
-                    <div className="grid grid-cols-8 gap-1 sm:grid-cols-10">
-                        {EMOJIS.map((emoji, index) => (
-                            <button key={`${emoji}-${index}`} type="button" onClick={() => handleEmojiSelect(emoji)} disabled={isPending} className="flex aspect-square cursor-pointer items-center justify-center rounded-lg text-xl transition-colors hover:bg-green-50 disabled:pointer-events-none disabled:opacity-50">
-                                {emoji}
-                            </button>
-                        ))}
-                    </div>
-                </div>
+                <CreatePostExtras
+                    media={selectedMedia}
+                    location={selectedLocation}
+                    isPending={isPending}
+                    isEmojiOpen={isEmojiOpen}
+                    maxMediaCount={MAX_MEDIA_COUNT}
+                    emojis={EMOJIS}
+                    onRemoveMedia={handleRemoveMedia}
+                    onRemoveLocation={() => setSelectedLocation(null)}
+                    onPhotoClick={handlePhotoClick}
+                    onToggleEmoji={() => setIsEmojiOpen((prev) => !prev)}
+                    onEmojiSelect={handleEmojiSelect}
+                    onLocationChange={handleLocationChange}
+                />
             )}
 
             {isExpanded && (

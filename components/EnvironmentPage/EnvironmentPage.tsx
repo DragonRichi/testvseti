@@ -2,7 +2,7 @@
 
 import { getProfileConnections } from "@/actions/getProfileConnections"
 import FollowButton from "@/components/Profile/FollowButton"
-import type { ProfileConnectionItem, ProfileConnectionType } from "@/types/follows"
+import type { ProfileConnectionCursor, ProfileConnectionItem, ProfileConnectionType } from "@/types/follows"
 import { LoaderCircle, UsersRound } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
@@ -14,10 +14,8 @@ type Props = {
     initialFollowing: ProfileConnectionItem[]
     followerCount: number
     followingCount: number
-    initialFollowersHasMore: boolean
-    initialFollowingHasMore: boolean
-    initialFollowersOffset: number
-    initialFollowingOffset: number
+    initialFollowersCursor: ProfileConnectionCursor | null
+    initialFollowingCursor: ProfileConnectionCursor | null
 }
 
 function appendUniqueItems(current: ProfileConnectionItem[], next: ProfileConnectionItem[]) {
@@ -26,21 +24,19 @@ function appendUniqueItems(current: ProfileConnectionItem[], next: ProfileConnec
     return [...current, ...next.filter((item) => !existingIds.has(item.id))]
 }
 
-function EnvironmentPage({ profileId, initialFollowers, initialFollowing, followerCount, followingCount, initialFollowersHasMore, initialFollowingHasMore, initialFollowersOffset, initialFollowingOffset }: Props) {
+function EnvironmentPage({ profileId, initialFollowers, initialFollowing, followerCount, followingCount, initialFollowersCursor, initialFollowingCursor }: Props) {
     const [activeTab, setActiveTab] = useState<ProfileConnectionType>("followers")
     const [followers, setFollowers] = useState(initialFollowers)
     const [following, setFollowing] = useState(initialFollowing)
-    const [followersHasMore, setFollowersHasMore] = useState(initialFollowersHasMore)
-    const [followingHasMore, setFollowingHasMore] = useState(initialFollowingHasMore)
-    const [followersOffset, setFollowersOffset] = useState(initialFollowersOffset)
-    const [followingOffset, setFollowingOffset] = useState(initialFollowingOffset)
+    const [followersCursor, setFollowersCursor] = useState<ProfileConnectionCursor | null>(initialFollowersCursor)
+    const [followingCursor, setFollowingCursor] = useState<ProfileConnectionCursor | null>(initialFollowingCursor)
     const [isLoadingMore, setIsLoadingMore] = useState(false)
     const [error, setError] = useState("")
     const loadLockRef = useRef(false)
 
     const items = activeTab === "followers" ? followers : following
-    const hasMore = activeTab === "followers" ? followersHasMore : followingHasMore
-    const offset = activeTab === "followers" ? followersOffset : followingOffset
+    const cursor = activeTab === "followers" ? followersCursor : followingCursor
+    const hasMore = cursor !== null
 
     const handleTabChange = (type: ProfileConnectionType) => {
         setActiveTab(type)
@@ -48,14 +44,14 @@ function EnvironmentPage({ profileId, initialFollowers, initialFollowing, follow
     }
 
     const handleLoadMore = async () => {
-        if (loadLockRef.current || !hasMore) return
+        if (loadLockRef.current || !cursor) return
 
         loadLockRef.current = true
         setIsLoadingMore(true)
         setError("")
 
         try {
-            const result = await getProfileConnections(profileId, activeTab, offset)
+            const result = await getProfileConnections(profileId, activeTab, cursor)
 
             if (result.success === false) {
                 setError(result.error)
@@ -64,12 +60,10 @@ function EnvironmentPage({ profileId, initialFollowers, initialFollowing, follow
 
             if (activeTab === "followers") {
                 setFollowers((current) => appendUniqueItems(current, result.items))
-                setFollowersHasMore(result.hasMore)
-                setFollowersOffset(result.nextOffset)
+                setFollowersCursor(result.nextCursor)
             } else {
                 setFollowing((current) => appendUniqueItems(current, result.items))
-                setFollowingHasMore(result.hasMore)
-                setFollowingOffset(result.nextOffset)
+                setFollowingCursor(result.nextCursor)
             }
         } catch (error) {
             console.error("ENVIRONMENT LOAD MORE ERROR:", error)

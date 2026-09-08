@@ -2,7 +2,18 @@ import EnvironmentPage from "@/components/EnvironmentPage/EnvironmentPage"
 import SocialLayout from "@/components/Layout/SocialLayout"
 import { loadProfileConnections } from "@/lib/follows/loadProfileConnections"
 import { createClient } from "@/lib/supabase/server"
+import type { ProfileConnectionCursor, ProfileConnectionItem } from "@/types/follows"
 import { redirect } from "next/navigation"
+
+type ConnectionsPage = {
+    items: ProfileConnectionItem[]
+    nextCursor: ProfileConnectionCursor | null
+}
+
+const emptyConnectionsPage: ConnectionsPage = {
+    items: [],
+    nextCursor: null
+}
 
 async function Page() {
     const supabase = await createClient()
@@ -44,24 +55,15 @@ async function Page() {
         console.error("ENVIRONMENT FOLLOWING LOAD ERROR:", followingResult.reason)
     }
 
-    const followersPage = followersResult.status === "fulfilled" ? followersResult.value : {
-        items: [],
-        hasMore: false,
-        nextOffset: 0
-    }
-
-    const followingPage = followingResult.status === "fulfilled" ? followingResult.value : {
-        items: [],
-        hasMore: false,
-        nextOffset: 0
-    }
+    const followersPage: ConnectionsPage = followersResult.status === "fulfilled" ? followersResult.value : emptyConnectionsPage
+    const followingPage: ConnectionsPage = followingResult.status === "fulfilled" ? followingResult.value : emptyConnectionsPage
 
     const followerCount = Math.max(0, currentProfile.subscriber_count ?? followersPage.items.length)
     const followingCount = Math.max(0, currentProfile.following_count ?? followingPage.items.length)
 
     return (
         <SocialLayout profile={currentProfile}>
-            <EnvironmentPage key={`${followerCount}:${followingCount}`} profileId={user.id} initialFollowers={followersPage.items} initialFollowing={followingPage.items} followerCount={followerCount} followingCount={followingCount} initialFollowersHasMore={followersPage.hasMore} initialFollowingHasMore={followingPage.hasMore} initialFollowersOffset={followersPage.nextOffset} initialFollowingOffset={followingPage.nextOffset} />
+            <EnvironmentPage key={`${followerCount}:${followingCount}`} profileId={user.id} initialFollowers={followersPage.items} initialFollowing={followingPage.items} followerCount={followerCount} followingCount={followingCount} initialFollowersCursor={followersPage.nextCursor} initialFollowingCursor={followingPage.nextCursor} />
         </SocialLayout>
     )
 }

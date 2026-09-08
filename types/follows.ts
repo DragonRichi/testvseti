@@ -1,5 +1,10 @@
 export type ProfileConnectionType = "followers" | "following"
 
+export type ProfileConnectionCursor = {
+    createdAt: string
+    id: string
+}
+
 export type ProfileConnectionItem = {
     id: string
     username: string

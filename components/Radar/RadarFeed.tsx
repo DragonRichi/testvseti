@@ -54,23 +54,25 @@ async function RadarFeed({ radarId, currentProfile }: Props) {
         )
     }
 
-    const hydrated = await getRadarFeedItems(
-        posts,
-        currentProfile.id
-    )
+    const hydrated = await getRadarFeedItems(posts, currentProfile.id)
+
+    if (hydrated.success === false) {
+        return (
+            <div>
+                {radarHeader}
+
+                <div className="rounded-2xl border border-red-100 bg-white p-5 text-sm text-red-500">
+                    {hydrated.error}
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div>
             {radarHeader}
 
-            <RadarFeedList
-                key={`${radar.id}:${posts.map((post) => post.id).join(",")}`}
-                radarId={radar.id}
-                currentProfile={currentProfile}
-                initialItems={hydrated.items}
-                initialNextCursor={nextCursor}
-                canPaginate
-            />
+            <RadarFeedList key={`${radar.id}:${posts.map((post) => post.id).join(",")}`} radarId={radar.id} currentProfile={currentProfile} initialItems={hydrated.items} initialNextCursor={nextCursor} canPaginate />
         </div>
     )
 }

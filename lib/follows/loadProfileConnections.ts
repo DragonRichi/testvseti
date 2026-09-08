@@ -1,7 +1,7 @@
 import "server-only"
 
 import type { SupabaseClient } from "@supabase/supabase-js"
-import type { ProfileConnectionItem, ProfileConnectionType } from "@/types/follows"
+import type { ProfileConnectionCursor, ProfileConnectionItem, ProfileConnectionType } from "@/types/follows"
 
 export const PROFILE_CONNECTIONS_PAGE_SIZE = 20
 
@@ -10,7 +10,7 @@ type Props = {
     viewerId: string
     profileId: string
     type: ProfileConnectionType
-    offset?: number
+    cursor?: ProfileConnectionCursor | null
     limit?: number
 }
 
@@ -22,59 +22,55 @@ type ConnectionRow = {
 
 type Result = {
     items: ProfileConnectionItem[]
-    hasMore: boolean
-    nextOffset: number
+    nextCursor: ProfileConnectionCursor | null
 }
 
-export async function loadProfileConnections({ supabase, viewerId, profileId, type, offset = 0, limit = PROFILE_CONNECTIONS_PAGE_SIZE }: Props): Promise<Result> {
-    const safeOffset = Math.max(0, Math.floor(offset))
+export async function loadProfileConnections({ supabase, viewerId, profileId, type, cursor = null, limit = PROFILE_CONNECTIONS_PAGE_SIZE }: Props): Promise<Result> {
     const safeLimit = Math.max(1, Math.min(Math.floor(limit), 50))
+    const peerColumn = type === "followers" ? "follower_id" : "following_id"
 
-    let query = supabase.from("follows").select("follower_id,following_id,created_at").order("created_at", { ascending: false })
+    let query = supabase
+        .from("follows")
+        .select("follower_id,following_id,created_at")
+        .order("created_at", { ascending: false })
+        .order(peerColumn, { ascending: false })
+        .limit(safeLimit + 1)
 
-    if (type === "followers") {
-        query = query.eq("following_id", profileId).order("follower_id", { ascending: false })
-    } else {
-        query = query.eq("follower_id", profileId).order("following_id", { ascending: false })
+    query = type === "followers" ? query.eq("following_id", profileId) : query.eq("follower_id", profileId)
+
+    if (cursor) {
+        query = query.or(`created_at.lt.${cursor.createdAt},and(created_at.eq.${cursor.createdAt},${peerColumn}.lt.${cursor.id})`)
     }
 
-    const { data: connectionData, error: connectionsError } = await query.range(safeOffset, safeOffset + safeLimit)
+    const { data: connectionData, error: connectionsError } = await query
 
     if (connectionsError) {
         console.error("PROFILE CONNECTIONS LOAD ERROR:", connectionsError)
         throw new Error("Не удалось загрузить список")
     }
 
-    const connectionRows = (connectionData ?? []) as ConnectionRow[]
-    const hasMore = connectionRows.length > safeLimit
-    const pageRows = connectionRows.slice(0, safeLimit)
-    const nextOffset = safeOffset + pageRows.length
+    const loadedRows = (connectionData ?? []) as ConnectionRow[]
+    const hasMore = loadedRows.length > safeLimit
+    const pageRows = loadedRows.slice(0, safeLimit)
     const profileIds = pageRows.map((connection) => type === "followers" ? connection.follower_id : connection.following_id)
+    const lastRow = pageRows.at(-1)
 
-    if (profileIds.length === 0) {
-        return {
-            items: [],
-            hasMore: false,
-            nextOffset
-        }
-    }
+    const nextCursor: ProfileConnectionCursor | null = hasMore && lastRow
+        ? { createdAt: lastRow.created_at, id: type === "followers" ? lastRow.follower_id : lastRow.following_id }
+        : null
+
+    if (profileIds.length === 0) return { items: [], nextCursor: null }
 
     const skipFollowStateQuery = type === "following" && viewerId === profileId
-
-    const [{ data: profiles, error: profilesError }, myFollowsResult] = await Promise.all([
+    const [profilesResult, myFollowsResult] = await Promise.all([
         supabase.from("profiles").select("id,username,display_name,avatar_url").in("id", profileIds),
         skipFollowStateQuery
-            ? Promise.resolve({
-                data: profileIds.map((followingId) => ({
-                    following_id: followingId
-                })),
-                error: null
-            })
+            ? Promise.resolve({ data: profileIds.map((followingId) => ({ following_id: followingId })), error: null })
             : supabase.from("follows").select("following_id").eq("follower_id", viewerId).in("following_id", profileIds)
     ])
 
-    if (profilesError) {
-        console.error("PROFILE CONNECTION PROFILES LOAD ERROR:", profilesError)
+    if (profilesResult.error) {
+        console.error("PROFILE CONNECTION PROFILES LOAD ERROR:", profilesResult.error)
         throw new Error("Не удалось загрузить пользователей")
     }
 
@@ -82,13 +78,12 @@ export async function loadProfileConnections({ supabase, viewerId, profileId, ty
         console.error("PROFILE CONNECTION FOLLOW STATE LOAD ERROR:", myFollowsResult.error)
     }
 
-    const profilesById = new Map((profiles ?? []).map((profile) => [profile.id, profile]))
+    const profilesById = new Map((profilesResult.data ?? []).map((profile) => [profile.id, profile]))
     const myFollowingIds = new Set((myFollowsResult.data ?? []).map((follow) => follow.following_id))
     const items: ProfileConnectionItem[] = []
 
-    for (const profileId of profileIds) {
-        const profile = profilesById.get(profileId)
-
+    for (const targetProfileId of profileIds) {
+        const profile = profilesById.get(targetProfileId)
         if (!profile) continue
 
         items.push({
@@ -101,9 +96,5 @@ export async function loadProfileConnections({ supabase, viewerId, profileId, ty
         })
     }
 
-    return {
-        items,
-        hasMore,
-        nextOffset
-    }
+    return { items, nextCursor }
 }

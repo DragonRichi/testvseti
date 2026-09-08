@@ -16,21 +16,24 @@ type Props = {
 
 async function Page({ searchParams }: Props) {
     const supabase = await createClient()
-
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) redirect("/")
 
-    const { data: profile, error } = await supabase.from("profiles").select("id,username,display_name,avatar_url").eq("id", user.id).single()
+    const [profileResult, radars, resolvedSearchParams] = await Promise.all([
+        supabase.from("profiles").select("id,username,display_name,avatar_url").eq("id", user.id).single(),
+        getUserRadars(user.id),
+        searchParams
+    ])
+
+    const { data: profile, error } = profileResult
 
     if (error || !profile) {
         console.error("PROFILE LOAD ERROR:", error)
         redirect("/")
     }
 
-    const { radar: radarId } = await searchParams
-    const radars = await getUserRadars()
-
+    const radarId = resolvedSearchParams.radar
     const activeRadarId = radarId && radars.some((radar) => radar.id === radarId) ? radarId : null
 
     return (
@@ -39,14 +42,8 @@ async function Page({ searchParams }: Props) {
 
             <div className="flex flex-col gap-4">
                 <RadarSelector radars={radars} activeRadarId={activeRadarId} />
-
                 <CreatePostCard username={profile.username} displayName={profile.display_name} avatarUrl={profile.avatar_url} />
-
-                {activeRadarId ? (
-                    <RadarFeed radarId={activeRadarId} currentProfile={profile} />
-                ) : (
-                    <GeoFeed currentProfile={profile} />
-                )}
+                {activeRadarId ? <RadarFeed radarId={activeRadarId} currentProfile={profile} /> : <GeoFeed currentProfile={profile} />}
             </div>
         </SocialLayout>
     )

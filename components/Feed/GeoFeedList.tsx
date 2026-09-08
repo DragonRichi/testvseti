@@ -1,11 +1,12 @@
 "use client"
 
 import { loadMoreGeoFeed } from "@/actions/loadMoreGeoFeed"
+import { useInfinitePostFeed } from "@/components/Feed/useInfinitePostFeed"
 import PostCard from "@/components/Profile/PostCard"
 import type { GeoFeedCursor, GeoFeedItem } from "@/types/geoFeed"
 import type { Profile } from "@/types/social"
 import { LoaderCircle } from "lucide-react"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useMemo } from "react"
 
 type Props = {
     currentProfile: Profile
@@ -14,115 +15,32 @@ type Props = {
 }
 
 function GeoFeedList({ currentProfile, initialItems, initialNextCursor }: Props) {
-    const [items, setItems] = useState<GeoFeedItem[]>(initialItems)
-    const [nextCursor, setNextCursor] = useState<GeoFeedCursor | null>(initialNextCursor)
-    const [isLoading, setIsLoading] = useState(false)
-    const [loadError, setLoadError] = useState("")
+    const serializeCursor = useCallback((cursor: GeoFeedCursor | null) => JSON.stringify(cursor), [])
+    const stateVersion = useMemo(
+        () => `${initialItems.map((item) => item.post.id).join("|")}::${serializeCursor(initialNextCursor)}`,
+        [initialItems, initialNextCursor, serializeCursor]
+    )
 
-    const loadMoreRef = useRef<HTMLDivElement>(null)
-    const loadingLock = useRef(false)
-    const observerArmedRef = useRef(true)
-
-    const initialItemsVersion = useMemo(() => initialItems.map((item) => item.post.id).join("|"), [initialItems])
-    const appliedInitialVersionRef = useRef(initialItemsVersion)
-
-    useEffect(() => {
-        if (appliedInitialVersionRef.current === initialItemsVersion) return
-
-        appliedInitialVersionRef.current = initialItemsVersion
-        setItems(initialItems)
-        setNextCursor(initialNextCursor)
-        setLoadError("")
-        setIsLoading(false)
-        loadingLock.current = false
-        observerArmedRef.current = true
-    }, [initialItems, initialItemsVersion, initialNextCursor])
-
-    const loadMore = useCallback(async () => {
-        if (!nextCursor || loadingLock.current) return
-
-        loadingLock.current = true
-        observerArmedRef.current = false
-        setIsLoading(true)
-        setLoadError("")
-
-        try {
-            const result = await loadMoreGeoFeed(nextCursor)
-
-            if (result.success === false) {
-                setLoadError(result.error)
-                return
-            }
-
-            setItems((currentItems) => {
-                const existingIds = new Set(currentItems.map((item) => item.post.id))
-                const newItems = result.items.filter((item) => !existingIds.has(item.post.id))
-
-                return [...currentItems, ...newItems]
-            })
-
-            setNextCursor(result.nextCursor)
-        } catch (error) {
-            console.error("GEO FEED LOAD MORE ERROR:", error)
-            setLoadError("Не удалось загрузить следующие публикации")
-        } finally {
-            loadingLock.current = false
-            setIsLoading(false)
-        }
-    }, [nextCursor])
-
-    useEffect(() => {
-        if (!nextCursor || loadError) return
-
-        const target = loadMoreRef.current
-
-        if (!target) return
-
-        const observer = new IntersectionObserver(
-            (entries) => {
-                const entry = entries[0]
-
-                if (!entry) return
-
-                if (!entry.isIntersecting) {
-                    observerArmedRef.current = true
-                    return
-                }
-
-                if (!observerArmedRef.current || loadingLock.current) return
-
-                observerArmedRef.current = false
-                void loadMore()
-            },
-            {
-                rootMargin: "250px 0px",
-                threshold: 0
-            }
-        )
-
-        observer.observe(target)
-
-        return () => {
-            observer.disconnect()
-        }
-    }, [nextCursor, loadError, loadMore])
-
-    const handleRetry = () => {
-        setLoadError("")
-        observerArmedRef.current = true
-        void loadMore()
-    }
+    const { items, nextCursor, isLoading, loadError, sentinelRef, retry, removeItem } = useInfinitePostFeed({
+        initialItems,
+        initialNextCursor,
+        stateVersion,
+        loadPage: loadMoreGeoFeed,
+        serializeCursor,
+        rootMargin: "250px 0px",
+        stalledError: "Не удалось продолжить загрузку GEO-ленты"
+    })
 
     return (
         <>
             <div className="flex flex-col gap-4">
                 {items.map((item, index) => (
-                    <PostCard key={item.post.id} post={item.post} profile={item.author} currentProfile={currentProfile} isOwnProfile={item.post.user_id === currentProfile.id} initialLiked={item.initialLiked} eagerMedia={index === 0} />
+                    <PostCard key={item.post.id} post={item.post} profile={item.author} currentProfile={currentProfile} isOwnProfile={item.post.user_id === currentProfile.id} initialLiked={item.initialLiked} eagerMedia={index === 0} onDeleted={removeItem} />
                 ))}
             </div>
 
             {nextCursor && (
-                <div ref={loadMoreRef} className="flex min-h-20 items-center justify-center">
+                <div ref={sentinelRef} className="flex min-h-20 items-center justify-center">
                     {isLoading && (
                         <div className="flex items-center gap-2 text-sm text-main-gray">
                             <LoaderCircle className="size-4 animate-spin" />
@@ -135,10 +53,7 @@ function GeoFeedList({ currentProfile, initialItems, initialNextCursor }: Props)
             {loadError && (
                 <div className="mt-4 flex flex-col items-center gap-2 rounded-2xl border border-red-100 bg-white p-4 text-center">
                     <div className="text-sm text-red-500">{loadError}</div>
-
-                    <button type="button" onClick={handleRetry} className="cursor-pointer rounded-xl bg-green-50 px-4 py-2 text-sm font-medium text-main-green transition-colors hover:bg-green-100">
-                        Повторить
-                    </button>
+                    <button type="button" onClick={retry} className="cursor-pointer rounded-xl bg-green-50 px-4 py-2 text-sm font-medium text-main-green transition-colors hover:bg-green-100">Повторить</button>
                 </div>
             )}
 
