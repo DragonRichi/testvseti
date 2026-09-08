@@ -3,6 +3,7 @@
 import { reverseGeocodePoint } from "@/actions/reverseGeocodePoint"
 import { getCurrentUser } from "@/lib/auth/getCurrentUser"
 import { normalizeOwnedPostMediaUrls } from "@/lib/posts/postMediaStorage"
+import { supabaseAdmin } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 
@@ -133,7 +134,7 @@ export async function createPost({ content, username, mediaUrls = [], taggedLoca
 
         const taggedLocationPoint = taggedLocation ? `POINT(${taggedLocation.longitude} ${taggedLocation.latitude})` : null
 
-        const { data, error } = await supabase.from("posts").insert({
+        const { data, error } = await supabaseAdmin.from("posts").insert({
             user_id: user.id,
             content: normalizedContent || null,
             media_urls: ownedMedia.urls.length > 0 ? ownedMedia.urls : null,

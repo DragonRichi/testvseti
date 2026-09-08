@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser"
 import { getOwnedPostMediaPath, normalizeOwnedPostMediaUrls } from "@/lib/posts/postMediaStorage"
 import { supabaseAdmin } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
+import { isUuid } from "@/lib/validation/uuid"
 import { revalidatePath } from "next/cache"
 
 type TaggedLocation = {
@@ -52,6 +53,10 @@ type Result =
     }
 
 export async function updatePost({ postId, content, username, mediaUrls = [], taggedLocation = null }: Props): Promise<Result> {
+    if (!isUuid(postId)) {
+        return { success: false, error: "Публикация не найдена" }
+    }
+
     const normalizedContent = content.trim()
     const normalizedMediaUrls = mediaUrls.filter((url) => url.trim().length > 0)
     const normalizedLocationName = taggedLocation?.name.trim() ?? ""
@@ -182,7 +187,7 @@ export async function updatePost({ postId, content, username, mediaUrls = [], ta
 
         const taggedLocationPoint = taggedLocation ? `POINT(${taggedLocation.longitude} ${taggedLocation.latitude})` : null
 
-        const { data, error } = await supabase
+        const { data, error } = await supabaseAdmin
             .from("posts")
             .update({
                 content: normalizedContent || null,

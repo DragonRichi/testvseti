@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser"
 import { getOwnedPostMediaPath } from "@/lib/posts/postMediaStorage"
 import { supabaseAdmin } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
+import { isUuid } from "@/lib/validation/uuid"
 import { revalidatePath } from "next/cache"
 
 type Props = {
@@ -22,7 +23,7 @@ type DeletePostResult =
     }
 
 export async function deletePost({ postId, username }: Props): Promise<DeletePostResult> {
-    if (!postId) {
+    if (!isUuid(postId)) {
         return {
             success: false,
             error: "Публикация не найдена"
@@ -69,7 +70,7 @@ export async function deletePost({ postId, username }: Props): Promise<DeletePos
         const mediaUrls = Array.isArray(post.media_urls) ? post.media_urls.filter((url): url is string => typeof url === "string") : []
         const mediaPaths = [...new Set(mediaUrls.map((url) => getOwnedPostMediaPath(url, user.id)).filter((path): path is string => path !== null))]
 
-        const { error: deleteError } = await supabase.from("posts").delete().eq("id", postId).eq("user_id", user.id)
+        const { error: deleteError } = await supabaseAdmin.from("posts").delete().eq("id", postId).eq("user_id", user.id)
 
         if (deleteError) {
             console.error("POST DELETE ERROR:", deleteError)
