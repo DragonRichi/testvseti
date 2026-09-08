@@ -1,6 +1,7 @@
 "use server"
 
-import { createClient } from "@/lib/supabase/server"
+import { getCurrentUser } from "@/lib/auth/getCurrentUser"
+import { supabaseAdmin } from "@/lib/supabase/admin"
 
 type Props = {
     latitude: number
@@ -39,21 +40,16 @@ export async function syncPreciseLocation({ latitude, longitude, accuracy }: Pro
         }
     }
 
-    const supabase = await createClient()
+    const user = await getCurrentUser()
 
-    const {
-        data: { user },
-        error: userError
-    } = await supabase.auth.getUser()
-
-    if (userError || !user) {
+    if (!user) {
         return {
             success: false,
             error: "Необходимо войти в аккаунт"
         }
     }
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
         .from("user_precise_locations")
         .upsert(
             {

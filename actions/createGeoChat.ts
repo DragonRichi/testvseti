@@ -1,5 +1,6 @@
 "use server"
 
+import { supabaseAdmin } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 
@@ -68,14 +69,16 @@ export async function createGeoChat(name: string, description: string, latitude:
         }
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
         .from("geo_chats")
         .insert({
             creator_id: user.id,
             name: normalizedName,
             description: normalizedDescription || null,
             location: `POINT(${longitude} ${latitude})`,
-            radius_m: radiusM
+            radius_m: radiusM,
+            latitude,
+            longitude
         })
         .select("id")
         .single()

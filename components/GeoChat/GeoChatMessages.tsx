@@ -6,6 +6,7 @@ import type { RefObject, TouchEvent } from "react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import GeoChatMessageItem from "./GeoChatMessageItem"
 import GeoChatMessageMenu, { type GeoChatMessageMenuPosition } from "./GeoChatMessageMenu"
+import useGeoChatMessageReactions from "./useGeoChatMessageReactions"
 
 type Props = {
     messages: GeoChatMessage[]
@@ -26,11 +27,28 @@ type Props = {
     onError: (message: string) => void
 }
 
-const MESSAGE_MENU_WIDTH = 170
+const MESSAGE_MENU_WIDTH = 220
 const MESSAGE_MENU_GAP = 6
 const VIEWPORT_MARGIN = 8
 
-function GeoChatMessages({ messages, currentProfileId, canSend, isRefreshing, pullDistance, refreshReady, isPulling, messagesContainerRef, messagesEndRef, onTouchStart, onTouchMove, onTouchEnd, onReply, onEdit, onDelete, onError }: Props) {
+function GeoChatMessages({
+    messages,
+    currentProfileId,
+    canSend,
+    isRefreshing,
+    pullDistance,
+    refreshReady,
+    isPulling,
+    messagesContainerRef,
+    messagesEndRef,
+    onTouchStart,
+    onTouchMove,
+    onTouchEnd,
+    onReply,
+    onEdit,
+    onDelete,
+    onError
+}: Props) {
     const [openMenuId, setOpenMenuId] = useState<string | null>(null)
     const [menuPosition, setMenuPosition] = useState<GeoChatMessageMenuPosition | null>(null)
     const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
@@ -39,6 +57,12 @@ function GeoChatMessages({ messages, currentProfileId, canSend, isRefreshing, pu
     const messageMenuRef = useRef<HTMLDivElement>(null)
     const longPressTimerRef = useRef<number | null>(null)
     const highlightTimerRef = useRef<number | null>(null)
+
+    const {
+        reactionsByMessage,
+        pendingKeys: pendingReactionKeys,
+        toggleReaction
+    } = useGeoChatMessageReactions(messages, onError)
 
     const closeMessageMenu = useCallback(() => {
         setOpenMenuId(null)
@@ -69,9 +93,7 @@ function GeoChatMessages({ messages, currentProfileId, canSend, isRefreshing, pu
         }
 
         const handleKeyDown = (event: globalThis.KeyboardEvent) => {
-            if (event.key === "Escape") {
-                closeMessageMenu()
-            }
+            if (event.key === "Escape") closeMessageMenu()
         }
 
         const handleViewportChange = () => {
@@ -94,9 +116,7 @@ function GeoChatMessages({ messages, currentProfileId, canSend, isRefreshing, pu
     useEffect(() => {
         if (!openMenuId) return
 
-        const exists = messages.some((message) => message.id === openMenuId)
-
-        if (!exists) {
+        if (!messages.some((message) => message.id === openMenuId)) {
             closeMessageMenu()
         }
     }, [closeMessageMenu, messages, openMenuId])
@@ -105,7 +125,7 @@ function GeoChatMessages({ messages, currentProfileId, canSend, isRefreshing, pu
         const rect = element.getBoundingClientRect()
         const viewportWidth = window.innerWidth
         const viewportHeight = window.innerHeight
-        const menuHeight = isOwnMessage ? 168 : 88
+        const menuHeight = isOwnMessage ? 220 : 138
         const spaceBelow = viewportHeight - rect.bottom
         const spaceAbove = rect.top
 
@@ -121,10 +141,7 @@ function GeoChatMessages({ messages, currentProfileId, canSend, isRefreshing, pu
 
         const left = Math.max(VIEWPORT_MARGIN, Math.min(rect.right - MESSAGE_MENU_WIDTH, viewportWidth - MESSAGE_MENU_WIDTH - VIEWPORT_MARGIN))
 
-        return {
-            top,
-            left
-        }
+        return { top, left }
     }
 
     const openMessageMenu = (messageId: string, anchor?: HTMLElement) => {
@@ -143,10 +160,10 @@ function GeoChatMessages({ messages, currentProfileId, canSend, isRefreshing, pu
     }
 
     const clearLongPress = () => {
-        if (longPressTimerRef.current !== null) {
-            window.clearTimeout(longPressTimerRef.current)
-            longPressTimerRef.current = null
-        }
+        if (longPressTimerRef.current === null) return
+
+        window.clearTimeout(longPressTimerRef.current)
+        longPressTimerRef.current = null
     }
 
     const startLongPress = (messageId: string) => {
@@ -168,10 +185,9 @@ function GeoChatMessages({ messages, currentProfileId, canSend, isRefreshing, pu
     const setMessageRef = (messageId: string, element: HTMLDivElement | null) => {
         if (element) {
             messageRefs.current.set(messageId, element)
-            return
+        } else {
+            messageRefs.current.delete(messageId)
         }
-
-        messageRefs.current.delete(messageId)
     }
 
     const scrollToMessage = (messageId: string) => {
@@ -212,7 +228,13 @@ function GeoChatMessages({ messages, currentProfileId, canSend, isRefreshing, pu
         }
     }
 
-    const openMenuMessage = openMenuId ? messages.find((message) => message.id === openMenuId) ?? null : null
+    const openMenuMessage = openMenuId
+        ? messages.find((message) => message.id === openMenuId) ?? null
+        : null
+
+    const openMenuReactions = openMenuMessage
+        ? reactionsByMessage[openMenuMessage.id] ?? []
+        : []
 
     return (
         <>
@@ -238,7 +260,28 @@ function GeoChatMessages({ messages, currentProfileId, canSend, isRefreshing, pu
                     </div>
                 </div>
 
-                <div ref={messagesContainerRef} onScroll={closeMessageMenu} onTouchStart={(event) => { closeMessageMenu(); onTouchStart(event) }} onTouchMove={(event) => { clearLongPress(); onTouchMove(event) }} onTouchEnd={() => { clearLongPress(); onTouchEnd() }} onTouchCancel={() => { clearLongPress(); onTouchEnd() }} className="h-full overflow-y-auto overscroll-contain px-3 py-4 sm:px-5 sm:py-5" style={{ transform: `translateY(${isRefreshing ? 54 : pullDistance}px)`, transition: isPulling ? "none" : "transform 180ms ease-out" }}>
+                <div
+                    ref={messagesContainerRef}
+                    onScroll={closeMessageMenu}
+                    onTouchStart={(event) => {
+                        closeMessageMenu()
+                        onTouchStart(event)
+                    }}
+                    onTouchMove={(event) => {
+                        clearLongPress()
+                        onTouchMove(event)
+                    }}
+                    onTouchEnd={() => {
+                        clearLongPress()
+                        onTouchEnd()
+                    }}
+                    onTouchCancel={() => {
+                        clearLongPress()
+                        onTouchEnd()
+                    }}
+                    className="h-full overflow-x-hidden overflow-y-auto overscroll-contain px-3 py-4 sm:px-5 sm:py-5"
+                    style={{ transform: `translateY(${isRefreshing ? 54 : pullDistance}px)`, transition: isPulling ? "none" : "transform 180ms ease-out" }}
+                >
                     {messages.length === 0 ? (
                         <div className="flex h-full min-h-[220] items-center justify-center text-center">
                             <div className="max-w-[360]">
@@ -249,7 +292,21 @@ function GeoChatMessages({ messages, currentProfileId, canSend, isRefreshing, pu
                     ) : (
                         <div className="flex flex-col gap-3.5 sm:gap-4">
                             {messages.map((message) => (
-                                <GeoChatMessageItem key={message.id} message={message} highlighted={highlightedMessageId === message.id} onSetRef={setMessageRef} onOpenMenu={openMessageMenu} onStartLongPress={startLongPress} onClearLongPress={clearLongPress} onScrollToReply={scrollToMessage} />
+                                <GeoChatMessageItem
+                                    key={message.id}
+                                    message={message}
+                                    currentProfileId={currentProfileId}
+                                    highlighted={highlightedMessageId === message.id}
+                                    reactions={reactionsByMessage[message.id] ?? []}
+                                    pendingReactionKeys={pendingReactionKeys}
+                                    canReact={canSend}
+                                    onToggleReaction={(messageId, emoji) => void toggleReaction(messageId, emoji)}
+                                    onSetRef={setMessageRef}
+                                    onOpenMenu={openMessageMenu}
+                                    onStartLongPress={startLongPress}
+                                    onClearLongPress={clearLongPress}
+                                    onScrollToReply={scrollToMessage}
+                                />
                             ))}
 
                             <div ref={messagesEndRef} />
@@ -258,7 +315,34 @@ function GeoChatMessages({ messages, currentProfileId, canSend, isRefreshing, pu
                 </div>
             </div>
 
-            <GeoChatMessageMenu message={openMenuMessage} position={menuPosition} menuRef={messageMenuRef} currentProfileId={currentProfileId} canSend={canSend} onReply={(message) => { closeMessageMenu(); onReply(message) }} onCopy={(message) => { void handleCopy(message) }} onEdit={(message) => { closeMessageMenu(); onEdit(message) }} onDelete={(message) => { closeMessageMenu(); onDelete(message) }} />
+            <GeoChatMessageMenu
+                message={openMenuMessage}
+                position={menuPosition}
+                menuRef={messageMenuRef}
+                currentProfileId={currentProfileId}
+                canSend={canSend}
+                reactions={openMenuReactions}
+                pendingReactionKeys={pendingReactionKeys}
+                onToggleReaction={(messageId, emoji) => {
+                    closeMessageMenu()
+                    void toggleReaction(messageId, emoji)
+                }}
+                onReply={(message) => {
+                    closeMessageMenu()
+                    onReply(message)
+                }}
+                onCopy={(message) => {
+                    void handleCopy(message)
+                }}
+                onEdit={(message) => {
+                    closeMessageMenu()
+                    onEdit(message)
+                }}
+                onDelete={(message) => {
+                    closeMessageMenu()
+                    onDelete(message)
+                }}
+            />
         </>
     )
 }

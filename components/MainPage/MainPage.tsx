@@ -50,7 +50,10 @@ function MainPage({ isAuthenticated }: Props) {
                     </Link>
                 </header>
 
-                <button onClick={handleEnterNetwork} disabled={isEntering} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full bg-main-green px-6 py-3 font-medium text-white transition-all hover:bg-hover-green active:scale-[0.98] disabled:cursor-wait">
+                <button
+                    onClick={handleEnterNetwork}
+                    disabled={isEntering}
+                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 cursor-pointer whitespace-nowrap rounded-full bg-main-green px-6 py-3 font-medium text-white transition-all hover:bg-hover-green active:scale-[0.98] disabled:cursor-wait">
                     {isAuthenticated ? "Перейти в ленту" : "Войти в сеть"}
                 </button>
 

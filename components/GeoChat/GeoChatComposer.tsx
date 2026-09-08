@@ -2,7 +2,7 @@
 
 import type { GeoChatMessage } from "@/types/geoChat"
 import { CornerUpLeft, Paperclip, Pencil, Send, Smile, X } from "lucide-react"
-import type { KeyboardEvent, RefObject } from "react"
+import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from "react"
 import type { GeoChatAccessStatus } from "./GeoChatAccessWarning"
 
 type Props = {
@@ -21,12 +21,62 @@ type Props = {
     onFocus: () => void
 }
 
-function GeoChatComposer({ content, error, isPending, canSend, accessStatus, editingMessage, replyingTo, textareaRef, onContentChange, onSubmit, onCancelEdit, onCancelReply, onFocus }: Props) {
+const EMOJIS = [
+    "😀", "😃", "😄", "😁", "😂", "😊",
+    "😍", "🥰", "😘", "😎", "🤔", "😅",
+    "😭", "😡", "👍", "👎", "❤️", "🔥",
+    "🎉", "👏", "🙏", "💪", "🤝", "💚"
+]
+
+function GeoChatComposer({
+    content,
+    error,
+    isPending,
+    canSend,
+    accessStatus,
+    editingMessage,
+    replyingTo,
+    textareaRef,
+    onContentChange,
+    onSubmit,
+    onCancelEdit,
+    onCancelReply,
+    onFocus
+}: Props) {
+    const [emojiOpen, setEmojiOpen] = useState(false)
+    const emojiRef = useRef<HTMLDivElement>(null)
+
+    useEffect(() => {
+        if (!emojiOpen) return
+
+        const handlePointerDown = (event: PointerEvent) => {
+            const target = event.target as Node
+
+            if (emojiRef.current?.contains(target)) return
+
+            setEmojiOpen(false)
+        }
+
+        document.addEventListener("pointerdown", handlePointerDown)
+
+        return () => {
+            document.removeEventListener("pointerdown", handlePointerDown)
+        }
+    }, [emojiOpen])
+
     const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-        if (event.key === "Escape" && editingMessage) {
-            event.preventDefault()
-            onCancelEdit()
-            return
+        if (event.key === "Escape") {
+            if (emojiOpen) {
+                event.preventDefault()
+                setEmojiOpen(false)
+                return
+            }
+
+            if (editingMessage) {
+                event.preventDefault()
+                onCancelEdit()
+                return
+            }
         }
 
         if (event.key !== "Enter") return
@@ -34,6 +84,43 @@ function GeoChatComposer({ content, error, isPending, canSend, accessStatus, edi
 
         event.preventDefault()
         onSubmit()
+    }
+
+    const insertEmoji = (emoji: string) => {
+        const textarea = textareaRef.current
+
+        const start = textarea?.selectionStart ?? content.length
+        const end = textarea?.selectionEnd ?? start
+
+        const nextContent = `${content.slice(0, start)}${emoji}${content.slice(end)}`.slice(0, 4000)
+
+        onContentChange(nextContent)
+        setEmojiOpen(false)
+
+        requestAnimationFrame(() => {
+            if (!textarea) return
+
+            const nextCursor = Math.min(
+                start + emoji.length,
+                nextContent.length
+            )
+
+            textarea.focus()
+            textarea.setSelectionRange(nextCursor, nextCursor)
+
+            textarea.style.height = "38px"
+
+            const nextHeight = Math.min(
+                textarea.scrollHeight,
+                100
+            )
+
+            textarea.style.height = `${nextHeight}px`
+            textarea.style.overflowY =
+                textarea.scrollHeight > 100
+                    ? "auto"
+                    : "hidden"
+        })
     }
 
     return (
@@ -58,7 +145,12 @@ function GeoChatComposer({ content, error, isPending, canSend, accessStatus, edi
                         </div>
                     </div>
 
-                    <button type="button" onClick={onCancelEdit} aria-label="Отменить редактирование" className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-main-gray transition-colors hover:bg-white hover:text-gray-900">
+                    <button
+                        type="button"
+                        onClick={onCancelEdit}
+                        aria-label="Отменить редактирование"
+                        className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-main-gray transition-colors hover:bg-white hover:text-gray-900"
+                    >
                         <X className="size-4" />
                     </button>
                 </div>
@@ -78,25 +170,104 @@ function GeoChatComposer({ content, error, isPending, canSend, accessStatus, edi
                         </div>
                     </div>
 
-                    <button type="button" onClick={onCancelReply} aria-label="Отменить ответ" className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-main-gray transition-colors hover:bg-white hover:text-gray-900">
+                    <button
+                        type="button"
+                        onClick={onCancelReply}
+                        aria-label="Отменить ответ"
+                        className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-main-gray transition-colors hover:bg-white hover:text-gray-900"
+                    >
                         <X className="size-4" />
                     </button>
                 </div>
             )}
 
-            <div className="flex items-end gap-1 rounded-2xl border border-gray-200 bg-white p-1.5 sm:gap-2 sm:p-2">
-                <button type="button" disabled={!canSend || Boolean(editingMessage)} aria-label="Прикрепить файл" className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-main-green transition-colors hover:bg-green-50 disabled:pointer-events-none disabled:opacity-40 sm:size-9">
+            <div className="relative flex items-end gap-1 rounded-2xl border border-gray-200 bg-white p-1.5 sm:gap-2 sm:p-2">
+                <button
+                    type="button"
+                    disabled={!canSend || Boolean(editingMessage)}
+                    aria-label="Прикрепить файл"
+                    className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-main-green transition-colors hover:bg-green-50 disabled:pointer-events-none disabled:opacity-40 sm:size-9"
+                >
                     <Paperclip className="size-4 sm:size-5" />
                 </button>
 
-                <button type="button" disabled={!canSend || Boolean(editingMessage)} aria-label="Эмодзи" className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-main-green transition-colors hover:bg-green-50 disabled:pointer-events-none disabled:opacity-40 sm:size-9">
-                    <Smile className="size-4 sm:size-5" />
-                </button>
+                <div ref={emojiRef} className="relative shrink-0">
+                    <button
+                        type="button"
+                        onClick={() => setEmojiOpen((current) => !current)}
+                        disabled={!canSend || Boolean(editingMessage)}
+                        aria-label="Эмодзи"
+                        className="flex size-8 cursor-pointer items-center justify-center rounded-full text-main-green transition-colors hover:bg-green-50 disabled:pointer-events-none disabled:opacity-40 sm:size-9"
+                    >
+                        <Smile className="size-4 sm:size-5" />
+                    </button>
 
-                <textarea ref={textareaRef} value={content} disabled={!canSend} onKeyDown={handleKeyDown} onFocus={onFocus} onChange={(event) => { onContentChange(event.target.value); event.currentTarget.style.height = "38px"; const nextHeight = Math.min(event.currentTarget.scrollHeight, 100); event.currentTarget.style.height = `${nextHeight}px`; event.currentTarget.style.overflowY = event.currentTarget.scrollHeight > 100 ? "auto" : "hidden" }} placeholder={canSend ? editingMessage ? "Изменить сообщение..." : replyingTo ? `Ответ ${replyingTo.authorDisplayName}...` : "Написать сообщение..." : accessStatus === "checking" ? "Проверяем местоположение..." : "Вы вне зоны геочата"} maxLength={4000} rows={1} className="min-h-[38] max-h-[100] min-w-0 flex-1 resize-none overflow-y-hidden border-0 bg-transparent px-1 py-2 text-sm leading-5.5 text-gray-900 outline-none placeholder:text-main-gray disabled:cursor-not-allowed disabled:opacity-50" />
+                    {emojiOpen && (
+                        <div className="absolute bottom-[calc(100%+10px)] left-0 z-100 w-58 rounded-2xl border border-gray-100 bg-white p-2 shadow-xl">
+                            <div className="grid grid-cols-6 gap-1">
+                                {EMOJIS.map((emoji) => (
+                                    <button
+                                        key={emoji}
+                                        type="button"
+                                        onClick={() => insertEmoji(emoji)}
+                                        className="flex size-8 cursor-pointer items-center justify-center rounded-lg text-xl transition-colors hover:bg-green-50"
+                                    >
+                                        {emoji}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
 
-                <button type="button" onClick={onSubmit} disabled={!canSend || isPending || !content.trim()} aria-label={editingMessage ? "Сохранить" : "Отправить"} className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-main-green text-white transition-colors hover:bg-hover-green disabled:pointer-events-none disabled:opacity-40 sm:size-10">
-                    {editingMessage ? <Pencil className="size-4" /> : <Send className="size-4" />}
+                <textarea
+                    ref={textareaRef}
+                    value={content}
+                    disabled={!canSend}
+                    onKeyDown={handleKeyDown}
+                    onFocus={onFocus}
+                    onChange={(event) => {
+                        onContentChange(event.target.value)
+
+                        event.currentTarget.style.height = "38px"
+
+                        const nextHeight = Math.min(
+                            event.currentTarget.scrollHeight,
+                            100
+                        )
+
+                        event.currentTarget.style.height = `${nextHeight}px`
+                        event.currentTarget.style.overflowY =
+                            event.currentTarget.scrollHeight > 100
+                                ? "auto"
+                                : "hidden"
+                    }}
+                    placeholder={
+                        canSend
+                            ? editingMessage
+                                ? "Изменить сообщение..."
+                                : replyingTo
+                                    ? `Ответ ${replyingTo.authorDisplayName}...`
+                                    : "Написать сообщение..."
+                            : accessStatus === "checking"
+                                ? "Проверяем местоположение..."
+                                : "Вы вне зоны геочата"
+                    }
+                    maxLength={4000}
+                    rows={1}
+                    className="min-h-[38] max-h-[100] min-w-0 flex-1 resize-none overflow-y-hidden border-0 bg-transparent px-1 py-2 text-sm leading-5.5 text-gray-900 outline-none placeholder:text-main-gray disabled:cursor-not-allowed disabled:opacity-50"
+                />
+
+                <button
+                    type="button"
+                    onClick={onSubmit}
+                    disabled={!canSend || isPending || !content.trim()}
+                    aria-label={editingMessage ? "Сохранить" : "Отправить"}
+                    className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-main-green text-white transition-colors hover:bg-hover-green disabled:pointer-events-none disabled:opacity-40 sm:size-10"
+                >
+                    {editingMessage
+                        ? <Pencil className="size-4" />
+                        : <Send className="size-4" />}
                 </button>
             </div>
         </div>

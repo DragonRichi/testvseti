@@ -3,7 +3,8 @@
 import { getCachedIpLocation } from "@/lib/geo/getCachedIpLocation"
 import { getIpLocation } from "@/lib/geo/getIpLocation"
 import { getRequestIp } from "@/lib/geo/getRequestIp"
-import { createClient } from "@/lib/supabase/server"
+import { getCurrentUser } from "@/lib/auth/getCurrentUser"
+import { supabaseAdmin } from "@/lib/supabase/admin"
 
 const MIN_SYNC_INTERVAL_MS = 4 * 60 * 60 * 1000
 
@@ -30,21 +31,16 @@ type ExistingLocation = {
 }
 
 export async function syncUserLocation(): Promise<Result> {
-    const supabase = await createClient()
+    const user = await getCurrentUser()
 
-    const {
-        data: { user },
-        error: userError
-    } = await supabase.auth.getUser()
-
-    if (userError || !user) {
+    if (!user) {
         return {
             success: false,
             error: "Пользователь не авторизован"
         }
     }
 
-    const { data, error: existingLocationError } = await supabase
+    const { data, error: existingLocationError } = await supabaseAdmin
         .from("user_locations")
         .select("user_id,city,region,country_code,updated_at")
         .eq("user_id", user.id)
@@ -100,7 +96,7 @@ export async function syncUserLocation(): Promise<Result> {
     const updatedAt = new Date().toISOString()
 
     if (existingLocation) {
-        const { error } = await supabase
+        const { error } = await supabaseAdmin
             .from("user_locations")
             .update({
                 location,
@@ -121,7 +117,7 @@ export async function syncUserLocation(): Promise<Result> {
             }
         }
     } else {
-        const { error } = await supabase
+        const { error } = await supabaseAdmin
             .from("user_locations")
             .insert({
                 user_id: user.id,

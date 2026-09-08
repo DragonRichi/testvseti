@@ -4,7 +4,6 @@ import { reverseGeocodePoint } from "@/actions/reverseGeocodePoint"
 import { getCurrentUser } from "@/lib/auth/getCurrentUser"
 import { normalizeOwnedPostMediaUrls } from "@/lib/posts/postMediaStorage"
 import { supabaseAdmin } from "@/lib/supabase/admin"
-import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 
 type TaggedLocation = {
@@ -95,9 +94,7 @@ export async function createPost({ content, username, mediaUrls = [], taggedLoca
             }
         }
 
-        const supabase = await createClient()
-
-        const { data: userLocation, error: locationError } = await supabase.from("user_locations").select("location,city,region,country_code").eq("user_id", user.id).maybeSingle()
+        const { data: userLocation, error: locationError } = await supabaseAdmin.from("user_locations").select("location,city,region,country_code").eq("user_id", user.id).maybeSingle()
 
         if (locationError) {
             console.error("POST LOCATION LOAD ERROR:", locationError)

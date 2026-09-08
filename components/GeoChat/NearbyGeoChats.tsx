@@ -39,6 +39,7 @@ function NearbyGeoChats({ accuracy, locationVersion, initialAdminMode, onAdminMo
 
     const requestIdRef = useRef(0)
     const hasLoadedRef = useRef(false)
+    const lastLoadedLocationVersionRef = useRef<number | null>(null)
 
     const isApproximate = accuracy !== null && accuracy > 1000
 
@@ -87,10 +88,19 @@ function NearbyGeoChats({ accuracy, locationVersion, initialAdminMode, onAdminMo
     const handleAdminModeChanged = useCallback(async (nextAdminMode: boolean) => {
         setAdminMode(nextAdminMode)
         onAdminModeChange(nextAdminMode)
+
+        lastLoadedLocationVersionRef.current = null
+
         await loadChats(false)
     }, [loadChats, onAdminModeChange])
 
     useEffect(() => {
+        if (lastLoadedLocationVersionRef.current === locationVersion) {
+            return
+        }
+
+        lastLoadedLocationVersionRef.current = locationVersion
+
         void loadChats(hasLoadedRef.current)
     }, [loadChats, locationVersion])
 
@@ -104,11 +114,15 @@ function NearbyGeoChats({ accuracy, locationVersion, initialAdminMode, onAdminMo
                             {isRefreshing && <RefreshCw className="size-3.5 animate-spin text-main-green" />}
                         </div>
 
-                        <div className="mt-1 text-sm text-main-gray">{adminMode ? "Режим просмотра всех созданных геочатов" : "Доступны в вашем текущем местоположении"}</div>
+                        <div className="mt-1 text-sm text-main-gray">
+                            {adminMode ? "Режим просмотра всех созданных геочатов" : "Доступны в вашем текущем местоположении"}
+                        </div>
 
                         {accuracy !== null && (
                             <div className="mt-2 text-xs text-main-gray">
-                                {isApproximate ? `Примерное местоположение · ±${Math.max(1, Math.round(accuracy / 1000))} км` : `Точность местоположения ±${Math.round(accuracy)} м`}
+                                {isApproximate
+                                    ? `Примерное местоположение · ±${Math.max(1, Math.round(accuracy / 1000))} км`
+                                    : `Точность местоположения ±${Math.round(accuracy)} м`}
                             </div>
                         )}
                     </div>
@@ -153,8 +167,15 @@ function NearbyGeoChats({ accuracy, locationVersion, initialAdminMode, onAdminMo
                             <MapPin className="size-6" />
                         </div>
 
-                        <div className="mt-4 text-base font-semibold text-gray-900">{adminMode ? "Геочатов пока нет" : "Поблизости пока нет геочатов"}</div>
-                        <div className="mt-2 text-sm leading-6 text-main-gray">{adminMode ? "В сети пока не создано ни одного геочата." : "Создайте первый геочат для людей, которые находятся рядом с вами."}</div>
+                        <div className="mt-4 text-base font-semibold text-gray-900">
+                            {adminMode ? "Геочатов пока нет" : "Поблизости пока нет геочатов"}
+                        </div>
+
+                        <div className="mt-2 text-sm leading-6 text-main-gray">
+                            {adminMode
+                                ? "В сети пока не создано ни одного геочата."
+                                : "Создайте первый геочат для людей, которые находятся рядом с вами."}
+                        </div>
                     </div>
                 </div>
             )}
@@ -180,10 +201,16 @@ function NearbyGeoChats({ accuracy, locationVersion, initialAdminMode, onAdminMo
                                                 <span>{formatDistance(chat.distanceM, isApproximate)}</span>
                                             </div>
 
-                                            {adminMode && <span className={`rounded-full px-2 py-0.5 text-[10] font-semibold ${isInRange ? "bg-green-50 text-main-green" : "bg-gray-100 text-main-gray"}`}>{isInRange ? "В зоне" : "Вне зоны"}</span>}
+                                            {adminMode && (
+                                                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${isInRange ? "bg-green-50 text-main-green" : "bg-gray-100 text-main-gray"}`}>
+                                                    {isInRange ? "В зоне" : "Вне зоны"}
+                                                </span>
+                                            )}
                                         </div>
 
-                                        {chat.description && <p className="mt-1 line-clamp-2 text-sm leading-6 text-main-gray">{chat.description}</p>}
+                                        {chat.description && (
+                                            <p className="mt-1 line-clamp-2 text-sm leading-6 text-main-gray">{chat.description}</p>
+                                        )}
 
                                         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-main-gray">
                                             <span>Радиус {formatRadius(chat.radiusM)}</span>

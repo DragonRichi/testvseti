@@ -1,6 +1,8 @@
 "use server"
 
+import { supabaseAdmin } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
+import { isUuid } from "@/lib/validation/uuid"
 
 type Props = {
     chatId: string
@@ -20,7 +22,7 @@ type Result =
     }
 
 export async function syncGeoChatLocationAndAccess({ chatId, latitude, longitude, accuracy }: Props): Promise<Result> {
-    if (!chatId) {
+    if (!isUuid(chatId)) {
         return {
             success: false,
             error: "Геочат не найден"
@@ -62,7 +64,7 @@ export async function syncGeoChatLocationAndAccess({ chatId, latitude, longitude
         }
     }
 
-    const { error: locationError } = await supabase
+    const { error: locationError } = await supabaseAdmin
         .from("user_precise_locations")
         .upsert(
             {

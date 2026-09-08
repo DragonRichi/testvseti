@@ -1,5 +1,6 @@
 import CreateGeoChatForm from "@/components/GeoChat/CreateGeoChatForm"
 import SocialLayout from "@/components/Layout/SocialLayout"
+import { supabaseAdmin } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import type { GeoChatPoint } from "@/types/geoChat"
 import { MapPinned } from "lucide-react"
@@ -17,7 +18,7 @@ async function Page() {
 
     const [{ data: currentProfile, error: profileError }, { data: preciseLocation, error: locationError }] = await Promise.all([
         supabase.from("profiles").select("id,username,display_name,avatar_url").eq("id", user.id).single(),
-        supabase.from("user_precise_locations").select("latitude,longitude").eq("user_id", user.id).maybeSingle()
+        supabaseAdmin.from("user_precise_locations").select("latitude,longitude").eq("user_id", user.id).maybeSingle()
     ])
 
     if (profileError || !currentProfile) {
