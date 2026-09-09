@@ -14,13 +14,27 @@ type Result =
         error: string
     }
 
-const allowedRadii = new Set([3000, 6000, 9000, 12000])
+const allowedRadii = new Set([
+    3000,
+    6000,
+    9000,
+    12000
+])
 
-export async function createGeoChat(name: string, description: string, latitude: number, longitude: number, radiusM: number): Promise<Result> {
+export async function createGeoChat(
+    name: string,
+    description: string,
+    latitude: number,
+    longitude: number,
+    radiusM: number
+): Promise<Result> {
     const normalizedName = name.trim()
     const normalizedDescription = description.trim()
 
-    if (normalizedName.length < 1 || normalizedName.length > 80) {
+    if (
+        normalizedName.length < 1 ||
+        normalizedName.length > 80
+    ) {
         return {
             success: false,
             error: "Название должно содержать от 1 до 80 символов"
@@ -34,14 +48,22 @@ export async function createGeoChat(name: string, description: string, latitude:
         }
     }
 
-    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+    if (
+        !Number.isFinite(latitude) ||
+        latitude < -90 ||
+        latitude > 90
+    ) {
         return {
             success: false,
             error: "Некорректная широта"
         }
     }
 
-    if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+    if (
+        !Number.isFinite(longitude) ||
+        longitude < -180 ||
+        longitude > 180
+    ) {
         return {
             success: false,
             error: "Некорректная долгота"
@@ -76,15 +98,16 @@ export async function createGeoChat(name: string, description: string, latitude:
             name: normalizedName,
             description: normalizedDescription || null,
             location: `POINT(${longitude} ${latitude})`,
-            radius_m: radiusM,
-            latitude,
-            longitude
+            radius_m: radiusM
         })
         .select("id")
         .single()
 
     if (error || !data) {
-        console.error("CREATE GEO CHAT ERROR:", error)
+        console.error(
+            "CREATE GEO CHAT ERROR:",
+            error
+        )
 
         return {
             success: false,

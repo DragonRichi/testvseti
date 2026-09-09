@@ -1,11 +1,21 @@
 "use server"
 
 import { getCurrentUser } from "@/lib/auth/getCurrentUser"
-import { createClient } from "@/lib/supabase/server"
+import { supabaseAdmin } from "@/lib/supabase/admin"
+import { isUuid } from "@/lib/validation/uuid"
 import { revalidatePath } from "next/cache"
 
-type SortMode = "nearest" | "latest" | "popular" | "discussed"
-type RadiusM = 3000 | 6000 | 9000 | 12000
+type SortMode =
+    | "nearest"
+    | "latest"
+    | "popular"
+    | "discussed"
+
+type RadiusM =
+    | 3000
+    | 6000
+    | 9000
+    | 12000
 
 type Props = {
     radarId: string
@@ -26,11 +36,39 @@ type Result =
         error: string
     }
 
-const allowedRadii: RadiusM[] = [3000, 6000, 9000, 12000]
-const allowedSortModes: SortMode[] = ["nearest", "latest", "popular", "discussed"]
+const allowedRadii: RadiusM[] = [
+    3000,
+    6000,
+    9000,
+    12000
+]
 
-export async function updateTrackingRadar({ radarId, name, sortMode, latitude, longitude, radiusM }: Props): Promise<Result> {
-    const normalizedName = name.trim()
+const allowedSortModes: SortMode[] = [
+    "nearest",
+    "latest",
+    "popular",
+    "discussed"
+]
+
+export async function updateTrackingRadar({
+    radarId,
+    name,
+    sortMode,
+    latitude,
+    longitude,
+    radiusM
+}: Props): Promise<Result> {
+    if (!isUuid(radarId)) {
+        return {
+            success: false,
+            error: "Радар не найден"
+        }
+    }
+
+    const normalizedName =
+        typeof name === "string"
+            ? name.trim()
+            : ""
 
     if (!normalizedName) {
         return {
@@ -46,14 +84,22 @@ export async function updateTrackingRadar({ radarId, name, sortMode, latitude, l
         }
     }
 
-    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+    if (
+        !Number.isFinite(latitude) ||
+        latitude < -90 ||
+        latitude > 90
+    ) {
         return {
             success: false,
             error: "Некорректная широта"
         }
     }
 
-    if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+    if (
+        !Number.isFinite(longitude) ||
+        longitude < -180 ||
+        longitude > 180
+    ) {
         return {
             success: false,
             error: "Некорректная долгота"
@@ -83,12 +129,21 @@ export async function updateTrackingRadar({ radarId, name, sortMode, latitude, l
         }
     }
 
-    const supabase = await createClient()
-
-    const { data: radar, error: radarError } = await supabase.from("radars").select("id,user_id,type").eq("id", radarId).eq("user_id", user.id).maybeSingle()
+    const {
+        data: radar,
+        error: radarError
+    } = await supabaseAdmin
+        .from("radars")
+        .select("id,user_id,type")
+        .eq("id", radarId)
+        .eq("user_id", user.id)
+        .maybeSingle()
 
     if (radarError) {
-        console.error("TRACKING RADAR EDIT LOAD ERROR:", radarError)
+        console.error(
+            "TRACKING RADAR EDIT LOAD ERROR:",
+            radarError
+        )
 
         return {
             success: false,
@@ -110,17 +165,26 @@ export async function updateTrackingRadar({ radarId, name, sortMode, latitude, l
         }
     }
 
-    const location = `POINT(${longitude} ${latitude})`
+    const location =
+        `POINT(${longitude} ${latitude})`
 
-    const { error: updateError } = await supabase.from("radars").update({
-        name: normalizedName,
-        sort_mode: sortMode,
-        location,
-        radius_m: radiusM
-    }).eq("id", radar.id).eq("user_id", user.id)
+    const { error: updateError } =
+        await supabaseAdmin
+            .from("radars")
+            .update({
+                name: normalizedName,
+                sort_mode: sortMode,
+                location,
+                radius_m: radiusM
+            })
+            .eq("id", radar.id)
+            .eq("user_id", user.id)
 
     if (updateError) {
-        console.error("TRACKING RADAR UPDATE ERROR:", updateError)
+        console.error(
+            "TRACKING RADAR UPDATE ERROR:",
+            updateError
+        )
 
         return {
             success: false,
@@ -129,7 +193,9 @@ export async function updateTrackingRadar({ radarId, name, sortMode, latitude, l
     }
 
     revalidatePath("/feed")
-    revalidatePath(`/radars/${radar.id}/edit/tracking`)
+    revalidatePath(
+        `/radars/${radar.id}/edit/tracking`
+    )
 
     return {
         success: true,

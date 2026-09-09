@@ -1,11 +1,20 @@
 "use server"
 
 import { getCurrentUser } from "@/lib/auth/getCurrentUser"
-import { createClient } from "@/lib/supabase/server"
+import { supabaseAdmin } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
 
-type SortMode = "nearest" | "latest" | "popular" | "discussed"
-type RadiusM = 3000 | 6000 | 9000 | 12000
+type SortMode =
+    | "nearest"
+    | "latest"
+    | "popular"
+    | "discussed"
+
+type RadiusM =
+    | 3000
+    | 6000
+    | 9000
+    | 12000
 
 type Props = {
     name: string
@@ -38,11 +47,31 @@ type Result =
         radar?: never
     }
 
-const allowedRadii: RadiusM[] = [3000, 6000, 9000, 12000]
-const allowedSortModes: SortMode[] = ["nearest", "latest", "popular", "discussed"]
+const allowedRadii: RadiusM[] = [
+    3000,
+    6000,
+    9000,
+    12000
+]
 
-export async function createTrackingRadar({ name, sortMode, latitude, longitude, radiusM }: Props): Promise<Result> {
-    const normalizedName = typeof name === "string" ? name.trim() : ""
+const allowedSortModes: SortMode[] = [
+    "nearest",
+    "latest",
+    "popular",
+    "discussed"
+]
+
+export async function createTrackingRadar({
+    name,
+    sortMode,
+    latitude,
+    longitude,
+    radiusM
+}: Props): Promise<Result> {
+    const normalizedName =
+        typeof name === "string"
+            ? name.trim()
+            : ""
 
     if (!normalizedName) {
         return {
@@ -58,28 +87,46 @@ export async function createTrackingRadar({ name, sortMode, latitude, longitude,
         }
     }
 
-    if (typeof sortMode !== "string" || !allowedSortModes.includes(sortMode as SortMode)) {
+    if (
+        typeof sortMode !== "string" ||
+        !allowedSortModes.includes(
+            sortMode as SortMode
+        )
+    ) {
         return {
             success: false,
             error: "Некорректная сортировка"
         }
     }
 
-    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+    if (
+        !Number.isFinite(latitude) ||
+        latitude < -90 ||
+        latitude > 90
+    ) {
         return {
             success: false,
             error: "Некорректная широта"
         }
     }
 
-    if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+    if (
+        !Number.isFinite(longitude) ||
+        longitude < -180 ||
+        longitude > 180
+    ) {
         return {
             success: false,
             error: "Некорректная долгота"
         }
     }
 
-    if (!Number.isFinite(radiusM) || !allowedRadii.includes(radiusM as RadiusM)) {
+    if (
+        !Number.isFinite(radiusM) ||
+        !allowedRadii.includes(
+            radiusM as RadiusM
+        )
+    ) {
         return {
             success: false,
             error: "Некорректный радиус"
@@ -96,20 +143,30 @@ export async function createTrackingRadar({ name, sortMode, latitude, longitude,
             }
         }
 
-        const supabase = await createClient()
-        const location = `POINT(${longitude} ${latitude})`
+        const location =
+            `POINT(${longitude} ${latitude})`
 
-        const { data: radar, error } = await supabase.from("radars").insert({
-            user_id: user.id,
-            type: "tracking",
-            name: normalizedName,
-            sort_mode: sortMode,
-            location,
-            radius_m: radiusM
-        }).select("id,user_id,type,name,sort_mode,radius_m,radar_lat,radar_lon").single()
+        const { data: radar, error } =
+            await supabaseAdmin
+                .from("radars")
+                .insert({
+                    user_id: user.id,
+                    type: "tracking",
+                    name: normalizedName,
+                    sort_mode: sortMode,
+                    location,
+                    radius_m: radiusM
+                })
+                .select(
+                    "id,user_id,type,name,sort_mode,radius_m,radar_lat,radar_lon"
+                )
+                .single()
 
         if (error || !radar) {
-            console.error("TRACKING RADAR CREATE ERROR:", error)
+            console.error(
+                "TRACKING RADAR CREATE ERROR:",
+                error
+            )
 
             return {
                 success: false,
@@ -126,7 +183,10 @@ export async function createTrackingRadar({ name, sortMode, latitude, longitude,
             radar
         }
     } catch (error) {
-        console.error("TRACKING RADAR CREATE ERROR:", error)
+        console.error(
+            "TRACKING RADAR CREATE ERROR:",
+            error
+        )
 
         return {
             success: false,
