@@ -32,10 +32,28 @@ type AccessProps = {
 function GeoChatRoomWithLiveAccess(props: Props) {
     const access = useGeoChatLiveAccess(props.room.id)
 
-    return <GeoChatRoomContent {...props} accessStatus={access.status} accessError={access.error} accuracy={access.accuracy} canSend={access.canSend} isAdminMode={false} />
+    return (
+        <GeoChatRoomContent
+            {...props}
+            accessStatus={access.status}
+            accessError={access.error}
+            accuracy={access.accuracy}
+            canSend={access.canSend}
+            isAdminMode={false}
+        />
+    )
 }
 
-function GeoChatRoomContent({ room, initialMessages, currentProfile, accessStatus, accessError, accuracy, canSend, isAdminMode }: Props & AccessProps) {
+function GeoChatRoomContent({
+    room,
+    initialMessages,
+    currentProfile,
+    accessStatus,
+    accessError,
+    accuracy,
+    canSend,
+    isAdminMode
+}: Props & AccessProps) {
     const messagesContainerRef = useRef<HTMLDivElement>(null)
     const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -92,7 +110,15 @@ function GeoChatRoomContent({ room, initialMessages, currentProfile, accessStatu
         scrollToBottom
     })
 
-    const { isRefreshing, pullDistance, refreshReady, isPulling, handleTouchStart, handleTouchMove, handleTouchEnd } = useGeoChatPullRefresh({
+    const {
+        isRefreshing,
+        pullDistance,
+        refreshReady,
+        isPulling,
+        handleTouchStart,
+        handleTouchMove,
+        handleTouchEnd
+    } = useGeoChatPullRefresh({
         roomId: room.id,
         messagesContainerRef,
         setMessages,
@@ -106,23 +132,89 @@ function GeoChatRoomContent({ room, initialMessages, currentProfile, accessStatu
     return (
         <>
             <div className="fixed inset-x-0 bottom-0 top-[64] z-40 flex flex-col overflow-hidden bg-white lg:static lg:z-auto lg:h-[calc(100dvh-32px)] lg:min-h-[520] lg:rounded-3xl lg:border lg:border-green-100">
-                <GeoChatHeader room={room} accuracy={accuracy} isAdminMode={isAdminMode} />
+                <GeoChatHeader
+                    room={room}
+                    accuracy={accuracy}
+                    isAdminMode={isAdminMode}
+                />
 
-                <GeoChatMessages messages={messages} currentProfileId={currentProfile.id} canSend={canSend} isRefreshing={isRefreshing} pullDistance={pullDistance} refreshReady={refreshReady} isPulling={isPulling} messagesContainerRef={messagesContainerRef} messagesEndRef={messagesEndRef} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onReply={actions.handleReplyToMessage} onEdit={actions.handleEditMessage} onDelete={actions.handleDeleteRequest} onError={actions.setError} />
+                <GeoChatMessages
+                    messages={messages}
+                    currentProfileId={currentProfile.id}
+                    canSend={canSend}
+                    isRefreshing={isRefreshing}
+                    pullDistance={pullDistance}
+                    refreshReady={refreshReady}
+                    isPulling={isPulling}
+                    messagesContainerRef={messagesContainerRef}
+                    messagesEndRef={messagesEndRef}
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                    onReply={actions.handleReplyToMessage}
+                    onEdit={actions.handleEditMessage}
+                    onDelete={actions.handleDeleteRequest}
+                    onError={actions.setError}
+                />
 
-                {!isAdminMode && <GeoChatAccessWarning status={accessStatus} error={accessError} />}
+                {!isAdminMode && (
+                    <GeoChatAccessWarning
+                        status={accessStatus}
+                        error={accessError}
+                    />
+                )}
 
-                <GeoChatComposer content={actions.content} error={actions.error} isPending={actions.isPending} canSend={canSend} accessStatus={accessStatus} editingMessage={actions.editingMessage} replyingTo={actions.replyingTo} textareaRef={actions.textareaRef} onContentChange={(value) => { actions.setContent(value); actions.setError("") }} onSubmit={() => void actions.handleSubmit()} onCancelEdit={actions.cancelEdit} onCancelReply={() => actions.setReplyingTo(null)} onFocus={() => { if (!actions.editingMessage) scrollToBottom() }} />
+                <GeoChatComposer
+                    content={actions.content}
+                    error={actions.error}
+                    isPending={actions.isPending}
+                    canSend={canSend}
+                    accessStatus={accessStatus}
+                    editingMessage={actions.editingMessage}
+                    replyingTo={actions.replyingTo}
+                    textareaRef={actions.textareaRef}
+                    onContentChange={(value) => {
+                        actions.setContent(value)
+                        actions.setError("")
+                    }}
+                    onSubmit={actions.handleSubmit}
+                    onCancelEdit={actions.cancelEdit}
+                    onCancelReply={() => actions.setReplyingTo(null)}
+                    onFocus={() => {
+                        if (!actions.editingMessage) {
+                            scrollToBottom()
+                        }
+                    }}
+                    onError={actions.setError}
+                />
             </div>
 
-            <GeoChatDeleteDialog target={actions.deleteTarget} isDeleting={actions.isDeleting} onClose={() => { if (!actions.isDeleting) actions.setDeleteTarget(null) }} onConfirm={() => void actions.handleDeleteConfirm()} />
+            <GeoChatDeleteDialog
+                target={actions.deleteTarget}
+                isDeleting={actions.isDeleting}
+                onClose={() => {
+                    if (!actions.isDeleting) {
+                        actions.setDeleteTarget(null)
+                    }
+                }}
+                onConfirm={() => void actions.handleDeleteConfirm()}
+            />
         </>
     )
 }
 
 function GeoChatRoom(props: Props) {
     if (props.initialAdminMode) {
-        return <GeoChatRoomContent {...props} accessStatus="active" accessError={null} accuracy={null} canSend isAdminMode />
+        return (
+            <GeoChatRoomContent
+                {...props}
+                accessStatus="active"
+                accessError={null}
+                accuracy={null}
+                canSend
+                isAdminMode
+            />
+        )
     }
 
     return <GeoChatRoomWithLiveAccess {...props} />

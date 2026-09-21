@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import GeoChatMessageItem from "./GeoChatMessageItem"
 import GeoChatMessageMenu, { type GeoChatMessageMenuPosition } from "./GeoChatMessageMenu"
 import useGeoChatMessageReactions from "./useGeoChatMessageReactions"
+import useGeoChatMessageAttachments from "./useGeoChatMessageAttachments"
 
 type Props = {
     messages: GeoChatMessage[]
@@ -63,6 +64,20 @@ function GeoChatMessages({
         pendingKeys: pendingReactionKeys,
         toggleReaction
     } = useGeoChatMessageReactions(messages, onError)
+
+    const messageIds = messages.map(
+        (message) => message.id
+    )
+
+    const roomId =
+        messages[0]?.chatId ?? ""
+
+    const {
+        attachments: attachmentsByMessage
+    } = useGeoChatMessageAttachments({
+        roomId,
+        messageIds
+    })
 
     const closeMessageMenu = useCallback(() => {
         setOpenMenuId(null)
@@ -121,27 +136,161 @@ function GeoChatMessages({
         }
     }, [closeMessageMenu, messages, openMenuId])
 
-    const getMenuPosition = (element: HTMLElement, isOwnMessage: boolean): GeoChatMessageMenuPosition => {
+    const getMenuPosition = (
+        element: HTMLElement,
+        isOwnMessage: boolean
+    ): GeoChatMessageMenuPosition => {
         const rect = element.getBoundingClientRect()
+
         const viewportWidth = window.innerWidth
         const viewportHeight = window.innerHeight
-        const menuHeight = isOwnMessage ? 220 : 138
-        const spaceBelow = viewportHeight - rect.bottom
-        const spaceAbove = rect.top
 
+        const menuHeight =
+            isOwnMessage
+                ? 220
+                : 138
+
+        const sideGap = 10
+
+        const maxLeft =
+            viewportWidth -
+            MESSAGE_MENU_WIDTH -
+            VIEWPORT_MARGIN
+
+        const maxTop =
+            viewportHeight -
+            menuHeight -
+            VIEWPORT_MARGIN
+
+        const clampLeft = (value: number) =>
+            Math.max(
+                VIEWPORT_MARGIN,
+                Math.min(
+                    value,
+                    maxLeft
+                )
+            )
+
+        const clampTop = (value: number) =>
+            Math.max(
+                VIEWPORT_MARGIN,
+                Math.min(
+                    value,
+                    maxTop
+                )
+            )
+
+        const rightLeft =
+            rect.right +
+            sideGap
+
+        const leftLeft =
+            rect.left -
+            MESSAGE_MENU_WIDTH -
+            sideGap
+
+        const fitsRight =
+            rightLeft +
+            MESSAGE_MENU_WIDTH <=
+            viewportWidth -
+            VIEWPORT_MARGIN
+
+        const fitsLeft =
+            leftLeft >=
+            VIEWPORT_MARGIN
+
+        let left: number
         let top: number
 
-        if (spaceBelow >= menuHeight + MESSAGE_MENU_GAP + VIEWPORT_MARGIN) {
-            top = rect.bottom + MESSAGE_MENU_GAP
-        } else if (spaceAbove >= menuHeight + MESSAGE_MENU_GAP + VIEWPORT_MARGIN) {
-            top = rect.top - menuHeight - MESSAGE_MENU_GAP
-        } else {
-            top = Math.max(VIEWPORT_MARGIN, Math.min(rect.top, viewportHeight - menuHeight - VIEWPORT_MARGIN))
+        if (
+            !isOwnMessage &&
+            fitsRight
+        ) {
+            left = rightLeft
+            top = clampTop(rect.top)
+
+            return {
+                top,
+                left
+            }
         }
 
-        const left = Math.max(VIEWPORT_MARGIN, Math.min(rect.right - MESSAGE_MENU_WIDTH, viewportWidth - MESSAGE_MENU_WIDTH - VIEWPORT_MARGIN))
+        if (
+            isOwnMessage &&
+            fitsLeft
+        ) {
+            left = leftLeft
+            top = clampTop(rect.top)
 
-        return { top, left }
+            return {
+                top,
+                left
+            }
+        }
+
+        if (
+            !isOwnMessage &&
+            fitsLeft
+        ) {
+            left = leftLeft
+            top = clampTop(rect.top)
+
+            return {
+                top,
+                left
+            }
+        }
+
+        if (
+            isOwnMessage &&
+            fitsRight
+        ) {
+            left = rightLeft
+            top = clampTop(rect.top)
+
+            return {
+                top,
+                left
+            }
+        }
+
+        left = clampLeft(
+            isOwnMessage
+                ? rect.right -
+                MESSAGE_MENU_WIDTH
+                : rect.left
+        )
+
+        const fitsBelow =
+            rect.bottom +
+            MESSAGE_MENU_GAP +
+            menuHeight <=
+            viewportHeight -
+            VIEWPORT_MARGIN
+
+        const fitsAbove =
+            rect.top -
+            MESSAGE_MENU_GAP -
+            menuHeight >=
+            VIEWPORT_MARGIN
+
+        if (fitsBelow) {
+            top =
+                rect.bottom +
+                MESSAGE_MENU_GAP
+        } else if (fitsAbove) {
+            top =
+                rect.top -
+                menuHeight -
+                MESSAGE_MENU_GAP
+        } else {
+            top = clampTop(rect.top)
+        }
+
+        return {
+            top,
+            left
+        }
     }
 
     const openMessageMenu = (messageId: string, anchor?: HTMLElement) => {
@@ -306,6 +455,7 @@ function GeoChatMessages({
                                     onStartLongPress={startLongPress}
                                     onClearLongPress={clearLongPress}
                                     onScrollToReply={scrollToMessage}
+                                    attachments={attachmentsByMessage[message.id] ?? []}
                                 />
                             ))}
 
