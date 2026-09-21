@@ -3,7 +3,6 @@
 import type { GeoChatMessage } from "@/types/geoChat"
 import type { GeoChatMessageAttachment } from "@/types/geoChatAttachments"
 import type { GeoChatMessageReaction } from "@/types/geoChatReactions"
-import { MoreHorizontal } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import GeoChatMessageAttachments from "./GeoChatMessageAttachments"
@@ -86,27 +85,21 @@ function GeoChatMessageItem({
                 onTouchEnd={onClearLongPress}
                 onTouchMove={onClearLongPress}
                 onTouchCancel={onClearLongPress}
-                className={`min-w-0 max-w-[82%] sm:max-w-155 ${isOwnMessage ? "ml-auto" : "mr-auto"}`}
+                className={`min-w-0 max-w-[82%] select-none sm:max-w-155 ${isOwnMessage ? "ml-auto" : "mr-auto"}`}
             >
-                <div className={`group relative rounded-[18px] px-3 py-2.5 pr-9 sm:rounded-[20px] sm:px-4 sm:pr-10 ${isOwnMessage ? "bg-[#e7f8ed]" : "bg-[#f2f3f2]"}`}>
+                <div className={`relative rounded-[18px] px-3 py-2.5 sm:rounded-[20px] sm:px-4 ${isOwnMessage ? "bg-[#e7f8ed]" : "bg-[#f2f3f2]"}`}>
                     {!isOwnMessage && (
                         <Link href={`/profile/${message.authorUsername}`} className="text-xs font-semibold text-main-green hover:underline sm:text-sm">
                             {message.authorDisplayName}
                         </Link>
                     )}
 
-                    <button
-                        type="button"
-                        onPointerDown={(event) => event.stopPropagation()}
-                        onClick={() => onOpenMenu(message.id)}
-                        aria-label="Меню сообщения"
-                        className={`absolute right-2 top-2 flex size-6 cursor-pointer items-center justify-center rounded-full text-main-gray transition-colors hover:text-gray-900 sm:opacity-0 sm:group-hover:opacity-100 ${isOwnMessage ? "hover:bg-white/70" : "hover:bg-white"}`}
-                    >
-                        <MoreHorizontal className="size-4" />
-                    </button>
-
                     {message.replyTo && (
-                        <button type="button" onClick={() => onScrollToReply(message.replyTo!.id)} className="mb-2 mt-1.5 block w-full cursor-pointer rounded-xl border-l-2 border-main-green bg-white/70 px-3 py-2 text-left transition-colors hover:bg-white">
+                        <button
+                            type="button"
+                            onClick={() => onScrollToReply(message.replyTo!.id)}
+                            className="mb-2 mt-1.5 block w-full cursor-pointer rounded-xl border-l-2 border-main-green bg-white/70 px-3 py-2 text-left transition-colors hover:bg-white"
+                        >
                             <div className="truncate text-xs font-semibold text-main-green">
                                 Ответ {message.replyTo.authorDisplayName}
                             </div>
@@ -117,10 +110,16 @@ function GeoChatMessageItem({
                         </button>
                     )}
 
-                    <GeoChatMessageAttachments attachments={attachments} />
+                    <GeoChatMessageAttachments
+                        attachments={attachments}
+                        expectedCount={Math.max(
+                            message.attachmentCount ?? 0,
+                            attachments.length
+                        )}
+                    />
 
                     {hasContent && (
-                        <div className={`${attachments.length > 0 ? "mt-2" : isOwnMessage ? "" : "mt-0.5"} whitespace-pre-wrap wrap-break-word text-sm leading-5 text-gray-900 sm:text-[15px] sm:leading-6`}>
+                        <div className={`${attachments.length > 0 ? "mt-2" : !isOwnMessage ? "mt-0.5" : ""} whitespace-pre-wrap wrap-break-word text-sm leading-5 text-gray-900 sm:text-[15px] sm:leading-6`}>
                             {message.content}
                         </div>
                     )}

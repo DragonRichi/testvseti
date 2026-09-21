@@ -49,4 +49,5 @@ export type GeoChatMessage = {
     authorAvatarUrl: string | null
     replyTo: GeoChatMessageReply | null
     senderRole?: GeoChatSenderRole | null
+    attachmentCount?: number
 }

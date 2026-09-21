@@ -13,6 +13,7 @@ import useGeoChatLiveAccess from "./useGeoChatLiveAccess"
 import useGeoChatMessageActions from "./useGeoChatMessageActions"
 import useGeoChatPullRefresh from "./useGeoChatPullRefresh"
 import useGeoChatRealtime from "./useGeoChatRealtime"
+import useGeoChatBottomPin from "./useGeoChatBottomPin"
 
 type Props = {
     room: GeoChatRoomType
@@ -100,6 +101,13 @@ function GeoChatRoomContent({
         scrollToBottom
     })
 
+    useGeoChatBottomPin({
+        roomId: room.id,
+        messageCount: messages.length,
+        messagesContainerRef,
+        messagesEndRef
+    })
+
     const actions = useGeoChatMessageActions({
         room,
         currentProfile,
@@ -124,10 +132,6 @@ function GeoChatRoomContent({
         setMessages,
         setError: actions.setError
     })
-
-    useEffect(() => {
-        scrollToBottom("instant")
-    }, [scrollToBottom])
 
     return (
         <>
