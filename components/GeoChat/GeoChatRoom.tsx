@@ -189,6 +189,7 @@ function GeoChatRoomContent({
                     room={room}
                     accuracy={accuracy}
                     isAdminMode={isAdminMode}
+                    currentProfileId={currentProfile.id}
                 />
 
                 <GeoChatMessages
