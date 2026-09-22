@@ -8,6 +8,7 @@ import type { GeoChatMessage, GeoChatRoom as GeoChatRoomType } from "@/types/geo
 import { MapPin } from "lucide-react"
 import Link from "next/link"
 import { redirect } from "next/navigation"
+import type { GeoChatMessageAttachmentMap } from "@/types/geoChatAttachments"
 
 type Props = {
     params: Promise<{
@@ -100,12 +101,28 @@ async function Page({ params }: Props) {
         )
     }
 
-    let initialMessages: GeoChatMessage[] = []
+    let initialMessages:
+        GeoChatMessage[] = []
+
+    let initialAttachments:
+        GeoChatMessageAttachmentMap = {}
 
     try {
-        initialMessages = await loadGeoChatMessages(id)
+        const initialData =
+            await loadGeoChatMessages(
+                id
+            )
+
+        initialMessages =
+            initialData.messages
+
+        initialAttachments =
+            initialData.initialAttachments
     } catch (error) {
-        console.error("GEO CHAT INITIAL MESSAGES LOAD ERROR:", error)
+        console.error(
+            "GEO CHAT INITIAL MESSAGES LOAD ERROR:",
+            error
+        )
     }
 
     const room: GeoChatRoomType = {
@@ -120,7 +137,7 @@ async function Page({ params }: Props) {
 
     return (
         <SocialLayout profile={currentProfile}>
-            <GeoChatRoom room={room} initialMessages={initialMessages} currentProfile={currentProfile} initialAdminMode={adminMode} />
+            <GeoChatRoom room={room} initialMessages={initialMessages} currentProfile={currentProfile} initialAdminMode={adminMode} initialAttachments={initialAttachments} />
         </SocialLayout>
     )
 }

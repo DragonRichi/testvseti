@@ -14,5 +14,11 @@ export type GeoChatMessageAttachment = {
     url: string | null
 }
 
+export type GeoChatMessageAttachmentMap =
+    Record<
+        string,
+        GeoChatMessageAttachment[]
+    >
+
 export type UploadedGeoChatAttachment =
     GeoChatPendingAttachment

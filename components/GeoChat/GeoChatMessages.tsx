@@ -1,16 +1,19 @@
 "use client"
 
 import type { GeoChatMessage } from "@/types/geoChat"
+import type { GeoChatMessageAttachmentMap } from "@/types/geoChatAttachments"
 import { ArrowDown, RefreshCw } from "lucide-react"
 import type { RefObject, TouchEvent } from "react"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useMemo } from "react"
 import GeoChatMessageItem from "./GeoChatMessageItem"
-import GeoChatMessageMenu, { type GeoChatMessageMenuPosition } from "./GeoChatMessageMenu"
-import useGeoChatMessageReactions from "./useGeoChatMessageReactions"
+import GeoChatMessageMenu from "./GeoChatMessageMenu"
 import useGeoChatMessageAttachments from "./useGeoChatMessageAttachments"
+import useGeoChatMessageMenu from "./useGeoChatMessageMenu"
+import useGeoChatMessageReactions from "./useGeoChatMessageReactions"
 
 type Props = {
     messages: GeoChatMessage[]
+    initialAttachments: GeoChatMessageAttachmentMap
     currentProfileId: string
     canSend: boolean
     isRefreshing: boolean
@@ -28,12 +31,9 @@ type Props = {
     onError: (message: string) => void
 }
 
-const MESSAGE_MENU_WIDTH = 220
-const MESSAGE_MENU_GAP = 6
-const VIEWPORT_MARGIN = 8
-
 function GeoChatMessages({
     messages,
+    initialAttachments,
     currentProfileId,
     canSend,
     isRefreshing,
@@ -50,360 +50,87 @@ function GeoChatMessages({
     onDelete,
     onError
 }: Props) {
-    const [openMenuId, setOpenMenuId] = useState<string | null>(null)
-    const [menuPosition, setMenuPosition] = useState<GeoChatMessageMenuPosition | null>(null)
-    const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
-
-    const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map())
-    const messageMenuRef = useRef<HTMLDivElement>(null)
-    const longPressTimerRef = useRef<number | null>(null)
-    const highlightTimerRef = useRef<number | null>(null)
-
     const {
         reactionsByMessage,
         pendingKeys: pendingReactionKeys,
         toggleReaction
     } = useGeoChatMessageReactions(messages, onError)
 
-    const messageIds = messages.map(
-        (message) => message.id
+    const messageIds = useMemo(
+        () => messages.map((message) => message.id),
+        [messages]
     )
 
-    const roomId =
-        messages[0]?.chatId ?? ""
+    const roomId = messages[0]?.chatId ?? ""
 
     const {
         attachments: attachmentsByMessage
     } = useGeoChatMessageAttachments({
         roomId,
-        messageIds
+        messageIds,
+        initialAttachments
     })
 
-    const closeMessageMenu = useCallback(() => {
-        setOpenMenuId(null)
-        setMenuPosition(null)
-    }, [])
-
-    useEffect(() => {
-        return () => {
-            if (longPressTimerRef.current !== null) {
-                window.clearTimeout(longPressTimerRef.current)
-            }
-
-            if (highlightTimerRef.current !== null) {
-                window.clearTimeout(highlightTimerRef.current)
-            }
-        }
-    }, [])
-
-    useEffect(() => {
-        if (!openMenuId) return
-
-        const handlePointerDown = (event: PointerEvent) => {
-            const target = event.target as Node
-
-            if (messageMenuRef.current?.contains(target)) return
-
-            closeMessageMenu()
-        }
-
-        const handleKeyDown = (event: globalThis.KeyboardEvent) => {
-            if (event.key === "Escape") closeMessageMenu()
-        }
-
-        const handleViewportChange = () => {
-            closeMessageMenu()
-        }
-
-        document.addEventListener("pointerdown", handlePointerDown)
-        document.addEventListener("keydown", handleKeyDown)
-        window.addEventListener("resize", handleViewportChange)
-        window.addEventListener("orientationchange", handleViewportChange)
-
-        return () => {
-            document.removeEventListener("pointerdown", handlePointerDown)
-            document.removeEventListener("keydown", handleKeyDown)
-            window.removeEventListener("resize", handleViewportChange)
-            window.removeEventListener("orientationchange", handleViewportChange)
-        }
-    }, [closeMessageMenu, openMenuId])
-
-    useEffect(() => {
-        if (!openMenuId) return
-
-        if (!messages.some((message) => message.id === openMenuId)) {
-            closeMessageMenu()
-        }
-    }, [closeMessageMenu, messages, openMenuId])
-
-    const getMenuPosition = (
-        element: HTMLElement,
-        isOwnMessage: boolean
-    ): GeoChatMessageMenuPosition => {
-        const rect = element.getBoundingClientRect()
-
-        const viewportWidth = window.innerWidth
-        const viewportHeight = window.innerHeight
-
-        const menuHeight =
-            isOwnMessage
-                ? 220
-                : 138
-
-        const sideGap = 10
-
-        const maxLeft =
-            viewportWidth -
-            MESSAGE_MENU_WIDTH -
-            VIEWPORT_MARGIN
-
-        const maxTop =
-            viewportHeight -
-            menuHeight -
-            VIEWPORT_MARGIN
-
-        const clampLeft = (value: number) =>
-            Math.max(
-                VIEWPORT_MARGIN,
-                Math.min(
-                    value,
-                    maxLeft
-                )
+    const eagerAttachmentMessageIds = useMemo(() => {
+        const ids = messages
+            .filter(
+                (message) =>
+                    (message.attachmentCount ?? 0) > 0 ||
+                    (attachmentsByMessage[message.id]?.length ?? 0) > 0
             )
+            .slice(-3)
+            .map((message) => message.id)
 
-        const clampTop = (value: number) =>
-            Math.max(
-                VIEWPORT_MARGIN,
-                Math.min(
-                    value,
-                    maxTop
-                )
-            )
+        return new Set(ids)
+    }, [
+        attachmentsByMessage,
+        messages
+    ])
 
-        const rightLeft =
-            rect.right +
-            sideGap
+    const menu = useGeoChatMessageMenu({
+        messages,
+        currentProfileId,
+        messagesContainerRef,
+        onError
+    })
 
-        const leftLeft =
-            rect.left -
-            MESSAGE_MENU_WIDTH -
-            sideGap
-
-        const fitsRight =
-            rightLeft +
-            MESSAGE_MENU_WIDTH <=
-            viewportWidth -
-            VIEWPORT_MARGIN
-
-        const fitsLeft =
-            leftLeft >=
-            VIEWPORT_MARGIN
-
-        let left: number
-        let top: number
-
-        if (
-            !isOwnMessage &&
-            fitsRight
-        ) {
-            left = rightLeft
-            top = clampTop(rect.top)
-
-            return {
-                top,
-                left
-            }
-        }
-
-        if (
-            isOwnMessage &&
-            fitsLeft
-        ) {
-            left = leftLeft
-            top = clampTop(rect.top)
-
-            return {
-                top,
-                left
-            }
-        }
-
-        if (
-            !isOwnMessage &&
-            fitsLeft
-        ) {
-            left = leftLeft
-            top = clampTop(rect.top)
-
-            return {
-                top,
-                left
-            }
-        }
-
-        if (
-            isOwnMessage &&
-            fitsRight
-        ) {
-            left = rightLeft
-            top = clampTop(rect.top)
-
-            return {
-                top,
-                left
-            }
-        }
-
-        left = clampLeft(
-            isOwnMessage
-                ? rect.right -
-                MESSAGE_MENU_WIDTH
-                : rect.left
-        )
-
-        const fitsBelow =
-            rect.bottom +
-            MESSAGE_MENU_GAP +
-            menuHeight <=
-            viewportHeight -
-            VIEWPORT_MARGIN
-
-        const fitsAbove =
-            rect.top -
-            MESSAGE_MENU_GAP -
-            menuHeight >=
-            VIEWPORT_MARGIN
-
-        if (fitsBelow) {
-            top =
-                rect.bottom +
-                MESSAGE_MENU_GAP
-        } else if (fitsAbove) {
-            top =
-                rect.top -
-                menuHeight -
-                MESSAGE_MENU_GAP
-        } else {
-            top = clampTop(rect.top)
-        }
-
-        return {
-            top,
-            left
-        }
-    }
-
-    const openMessageMenu = (messageId: string, anchor?: HTMLElement) => {
-        if (openMenuId === messageId) {
-            closeMessageMenu()
-            return
-        }
-
-        const message = messages.find((item) => item.id === messageId)
-        const element = anchor ?? messageRefs.current.get(messageId)
-
-        if (!message || !element) return
-
-        setMenuPosition(getMenuPosition(element, message.userId === currentProfileId))
-        setOpenMenuId(messageId)
-    }
-
-    const clearLongPress = () => {
-        if (longPressTimerRef.current === null) return
-
-        window.clearTimeout(longPressTimerRef.current)
-        longPressTimerRef.current = null
-    }
-
-    const startLongPress = (messageId: string) => {
-        clearLongPress()
-
-        longPressTimerRef.current = window.setTimeout(() => {
-            const message = messages.find((item) => item.id === messageId)
-            const element = messageRefs.current.get(messageId)
-
-            if (message && element) {
-                setMenuPosition(getMenuPosition(element, message.userId === currentProfileId))
-                setOpenMenuId(messageId)
-            }
-
-            longPressTimerRef.current = null
-        }, 500)
-    }
-
-    const setMessageRef = (messageId: string, element: HTMLDivElement | null) => {
-        if (element) {
-            messageRefs.current.set(messageId, element)
-        } else {
-            messageRefs.current.delete(messageId)
-        }
-    }
-
-    const scrollToMessage = (messageId: string) => {
-        const element = messageRefs.current.get(messageId)
-
-        if (!element) {
-            onError("Исходное сообщение пока не загружено")
-            return
-        }
-
-        closeMessageMenu()
-
-        element.scrollIntoView({
-            behavior: "smooth",
-            block: "center"
-        })
-
-        setHighlightedMessageId(messageId)
-
-        if (highlightTimerRef.current !== null) {
-            window.clearTimeout(highlightTimerRef.current)
-        }
-
-        highlightTimerRef.current = window.setTimeout(() => {
-            setHighlightedMessageId(null)
-            highlightTimerRef.current = null
-        }, 1600)
-    }
-
-    const handleCopy = async (message: GeoChatMessage) => {
-        closeMessageMenu()
-
-        try {
-            await navigator.clipboard.writeText(message.content)
-        } catch (error) {
-            console.error("GEO CHAT COPY ERROR:", error)
-            onError("Не удалось скопировать сообщение")
-        }
-    }
-
-    const openMenuMessage = openMenuId
-        ? messages.find((message) => message.id === openMenuId) ?? null
-        : null
-
-    const openMenuReactions = openMenuMessage
-        ? reactionsByMessage[openMenuMessage.id] ?? []
-        : []
+    const openMenuReactions =
+        menu.openMenuMessage
+            ? reactionsByMessage[
+            menu.openMenuMessage.id
+            ] ?? []
+            : []
 
     return (
         <>
             <div className="relative min-h-0 flex-1 overflow-hidden">
-                <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center overflow-hidden" style={{ height: `${isRefreshing ? 54 : pullDistance}px` }}>
+                <div
+                    className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center overflow-hidden"
+                    style={{
+                        height: `${isRefreshing ? 54 : pullDistance}px`
+                    }}
+                >
                     <div className="flex h-[54] items-center justify-center gap-2 text-xs font-medium text-main-gray">
                         {isRefreshing ? (
                             <>
                                 <RefreshCw className="size-4 animate-spin text-main-green" />
-                                <span>Обновляем сообщения...</span>
+                                <span>
+                                    Обновляем сообщения...
+                                </span>
                             </>
                         ) : refreshReady ? (
                             <>
                                 <RefreshCw className="size-4 text-main-green" />
-                                <span className="text-main-green">Отпустите для обновления</span>
+                                <span className="text-main-green">
+                                    Отпустите для обновления
+                                </span>
                             </>
                         ) : pullDistance > 8 ? (
                             <>
                                 <ArrowDown className="size-4 text-main-green" />
-                                <span>Потяните для обновления</span>
+                                <span>
+                                    Потяните для обновления
+                                </span>
                             </>
                         ) : null}
                     </div>
@@ -411,31 +138,41 @@ function GeoChatMessages({
 
                 <div
                     ref={messagesContainerRef}
-                    onScroll={closeMessageMenu}
+                    onScroll={menu.closeMessageMenu}
                     onTouchStart={(event) => {
-                        closeMessageMenu()
+                        menu.closeMessageMenu()
                         onTouchStart(event)
                     }}
                     onTouchMove={(event) => {
-                        clearLongPress()
+                        menu.clearLongPress()
                         onTouchMove(event)
                     }}
                     onTouchEnd={() => {
-                        clearLongPress()
+                        menu.clearLongPress()
                         onTouchEnd()
                     }}
                     onTouchCancel={() => {
-                        clearLongPress()
+                        menu.clearLongPress()
                         onTouchEnd()
                     }}
                     className="h-full overflow-x-hidden overflow-y-auto overscroll-contain px-3 py-4 sm:px-5 sm:py-5"
-                    style={{ transform: `translateY(${isRefreshing ? 54 : pullDistance}px)`, transition: isPulling ? "none" : "transform 180ms ease-out" }}
+                    style={{
+                        transform: `translateY(${isRefreshing ? 54 : pullDistance}px)`,
+                        transition: isPulling
+                            ? "none"
+                            : "transform 180ms ease-out"
+                    }}
                 >
                     {messages.length === 0 ? (
                         <div className="flex h-full min-h-[220] items-center justify-center text-center">
                             <div className="max-w-[360]">
-                                <div className="text-base font-semibold text-gray-900">Пока здесь тихо</div>
-                                <div className="mt-2 text-sm leading-6 text-main-gray">Напишите первое сообщение в этом геочате.</div>
+                                <div className="text-base font-semibold text-gray-900">
+                                    Пока здесь тихо
+                                </div>
+
+                                <div className="mt-2 text-sm leading-6 text-main-gray">
+                                    Напишите первое сообщение в этом геочате.
+                                </div>
                             </div>
                         </div>
                     ) : (
@@ -445,17 +182,53 @@ function GeoChatMessages({
                                     key={message.id}
                                     message={message}
                                     currentProfileId={currentProfileId}
-                                    highlighted={highlightedMessageId === message.id}
-                                    reactions={reactionsByMessage[message.id] ?? []}
-                                    pendingReactionKeys={pendingReactionKeys}
+                                    highlighted={
+                                        menu.highlightedMessageId ===
+                                        message.id
+                                    }
+                                    reactions={
+                                        reactionsByMessage[
+                                        message.id
+                                        ] ?? []
+                                    }
+                                    attachments={
+                                        attachmentsByMessage[
+                                        message.id
+                                        ] ?? []
+                                    }
+                                    pendingReactionKeys={
+                                        pendingReactionKeys
+                                    }
                                     canReact={canSend}
-                                    onToggleReaction={(messageId, emoji) => void toggleReaction(messageId, emoji)}
-                                    onSetRef={setMessageRef}
-                                    onOpenMenu={openMessageMenu}
-                                    onStartLongPress={startLongPress}
-                                    onClearLongPress={clearLongPress}
-                                    onScrollToReply={scrollToMessage}
-                                    attachments={attachmentsByMessage[message.id] ?? []}
+                                    eagerAttachments={
+                                        eagerAttachmentMessageIds.has(
+                                            message.id
+                                        )
+                                    }
+                                    onToggleReaction={(
+                                        messageId,
+                                        emoji
+                                    ) =>
+                                        void toggleReaction(
+                                            messageId,
+                                            emoji
+                                        )
+                                    }
+                                    onSetRef={
+                                        menu.setMessageRef
+                                    }
+                                    onOpenMenu={
+                                        menu.openMessageMenu
+                                    }
+                                    onStartLongPress={
+                                        menu.startLongPress
+                                    }
+                                    onClearLongPress={
+                                        menu.clearLongPress
+                                    }
+                                    onScrollToReply={
+                                        menu.scrollToMessage
+                                    }
                                 />
                             ))}
 
@@ -466,30 +239,41 @@ function GeoChatMessages({
             </div>
 
             <GeoChatMessageMenu
-                message={openMenuMessage}
-                position={menuPosition}
-                menuRef={messageMenuRef}
+                message={menu.openMenuMessage}
+                position={menu.menuPosition}
+                menuRef={menu.messageMenuRef}
                 currentProfileId={currentProfileId}
                 canSend={canSend}
                 reactions={openMenuReactions}
-                pendingReactionKeys={pendingReactionKeys}
-                onToggleReaction={(messageId, emoji) => {
-                    closeMessageMenu()
-                    void toggleReaction(messageId, emoji)
+                pendingReactionKeys={
+                    pendingReactionKeys
+                }
+                onToggleReaction={(
+                    messageId,
+                    emoji
+                ) => {
+                    menu.closeMessageMenu()
+
+                    void toggleReaction(
+                        messageId,
+                        emoji
+                    )
                 }}
                 onReply={(message) => {
-                    closeMessageMenu()
+                    menu.closeMessageMenu()
                     onReply(message)
                 }}
-                onCopy={(message) => {
-                    void handleCopy(message)
-                }}
+                onCopy={(message) =>
+                    void menu.handleCopy(
+                        message
+                    )
+                }
                 onEdit={(message) => {
-                    closeMessageMenu()
+                    menu.closeMessageMenu()
                     onEdit(message)
                 }}
                 onDelete={(message) => {
-                    closeMessageMenu()
+                    menu.closeMessageMenu()
                     onDelete(message)
                 }}
             />

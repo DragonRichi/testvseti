@@ -1,40 +1,49 @@
 "use client"
 
 import { getGeoChatMessageAttachments } from "@/actions/getGeoChatMessageAttachments"
-import type { GeoChatMessageAttachment } from "@/types/geoChatAttachments"
-import { useEffect, useMemo, useRef, useState } from "react"
+import type { GeoChatMessageAttachmentMap } from "@/types/geoChatAttachments"
+import {
+    useEffect,
+    useMemo,
+    useRef,
+    useState
+} from "react"
 
 type Options = {
     roomId: string
     messageIds: string[]
+    initialAttachments?:
+    GeoChatMessageAttachmentMap
 }
-
-export type GeoChatMessageAttachmentMap =
-    Record<
-        string,
-        GeoChatMessageAttachment[]
-    >
 
 const REFRESH_INTERVAL_MS =
     30 * 60 * 1000
 
 function useGeoChatMessageAttachments({
     roomId,
-    messageIds
+    messageIds,
+    initialAttachments = {}
 }: Options) {
     const [
         attachments,
         setAttachments
     ] =
         useState<GeoChatMessageAttachmentMap>(
-            {}
+            () =>
+                initialAttachments
         )
 
-    const [isLoading, setIsLoading] =
+    const [
+        isLoading,
+        setIsLoading
+    ] =
         useState(false)
 
     const requestIdRef =
         useRef(0)
+
+    const activeRoomIdRef =
+        useRef(roomId)
 
     const messageIdsKey =
         useMemo(
@@ -46,12 +55,33 @@ function useGeoChatMessageAttachments({
         )
 
     useEffect(() => {
+        if (
+            activeRoomIdRef.current ===
+            roomId
+        ) {
+            return
+        }
 
+        activeRoomIdRef.current =
+            roomId
+
+        setAttachments(
+            initialAttachments
+        )
+    }, [
+        initialAttachments,
+        roomId
+    ])
+
+    useEffect(() => {
         if (
             !roomId ||
             messageIds.length === 0
         ) {
-            setAttachments({})
+            setAttachments(
+                initialAttachments
+            )
+
             setIsLoading(false)
             return
         }
@@ -110,12 +140,21 @@ function useGeoChatMessageAttachments({
                         requestId ===
                         requestIdRef.current
                     ) {
-                        setIsLoading(false)
+                        setIsLoading(
+                            false
+                        )
                     }
                 }
             }
 
-        void loadAttachments()
+        const hasInitialAttachments =
+            Object.keys(
+                initialAttachments
+            ).length > 0
+
+        void loadAttachments(
+            hasInitialAttachments
+        )
 
         const refreshTimer =
             window.setInterval(
