@@ -19,11 +19,16 @@ function useGeoChatBottomPin({
     messagesEndRef
 }: Options) {
     const pinnedRef = useRef(true)
-    const initializedRoomRef = useRef<string | null>(null)
+
+    const initializedRoomRef =
+        useRef<string | null>(null)
 
     useEffect(() => {
-        const container = messagesContainerRef.current
-        const end = messagesEndRef.current
+        const container =
+            messagesContainerRef.current
+
+        const end =
+            messagesEndRef.current
 
         if (!container || !end) return
 
@@ -32,10 +37,13 @@ function useGeoChatBottomPin({
         if (!content) return
 
         const isNewRoom =
-            initializedRoomRef.current !== roomId
+            initializedRoomRef.current !==
+            roomId
 
         if (isNewRoom) {
-            initializedRoomRef.current = roomId
+            initializedRoomRef.current =
+                roomId
+
             pinnedRef.current = true
         }
 
@@ -61,12 +69,15 @@ function useGeoChatBottomPin({
             if (!pinnedRef.current) return
 
             if (frameId !== null) {
-                cancelAnimationFrame(frameId)
+                cancelAnimationFrame(
+                    frameId
+                )
             }
 
-            frameId = requestAnimationFrame(
-                scrollToBottom
-            )
+            frameId =
+                requestAnimationFrame(
+                    scrollToBottom
+                )
         }
 
         const resizeObserver =
@@ -75,6 +86,7 @@ function useGeoChatBottomPin({
             })
 
         resizeObserver.observe(content)
+        resizeObserver.observe(container)
 
         container.addEventListener(
             "scroll",
@@ -101,7 +113,9 @@ function useGeoChatBottomPin({
             )
 
             if (frameId !== null) {
-                cancelAnimationFrame(frameId)
+                cancelAnimationFrame(
+                    frameId
+                )
             }
         }
     }, [

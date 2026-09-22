@@ -1,19 +1,27 @@
 "use client"
 
 import type { GeoChatAccessStatus } from "@/components/GeoChat/GeoChatAccessWarning"
-import type { GeoChatMessage, GeoChatRoom as GeoChatRoomType } from "@/types/geoChat"
+import type {
+    GeoChatMessage,
+    GeoChatRoom as GeoChatRoomType
+} from "@/types/geoChat"
 import type { Profile } from "@/types/social"
-import { useCallback, useEffect, useRef } from "react"
+import {
+    useCallback,
+    useEffect,
+    useRef
+} from "react"
 import GeoChatAccessWarning from "./GeoChatAccessWarning"
 import GeoChatComposer from "./GeoChatComposer"
 import GeoChatDeleteDialog from "./GeoChatDeleteDialog"
 import GeoChatHeader from "./GeoChatHeader"
 import GeoChatMessages from "./GeoChatMessages"
+import useGeoChatBottomPin from "./useGeoChatBottomPin"
 import useGeoChatLiveAccess from "./useGeoChatLiveAccess"
 import useGeoChatMessageActions from "./useGeoChatMessageActions"
 import useGeoChatPullRefresh from "./useGeoChatPullRefresh"
 import useGeoChatRealtime from "./useGeoChatRealtime"
-import useGeoChatBottomPin from "./useGeoChatBottomPin"
+import useGeoChatVisualViewport from "./useGeoChatVisualViewport"
 
 type Props = {
     room: GeoChatRoomType
@@ -30,8 +38,13 @@ type AccessProps = {
     isAdminMode: boolean
 }
 
-function GeoChatRoomWithLiveAccess(props: Props) {
-    const access = useGeoChatLiveAccess(props.room.id)
+function GeoChatRoomWithLiveAccess(
+    props: Props
+) {
+    const access =
+        useGeoChatLiveAccess(
+            props.room.id
+        )
 
     return (
         <GeoChatRoomContent
@@ -55,46 +68,107 @@ function GeoChatRoomContent({
     canSend,
     isAdminMode
 }: Props & AccessProps) {
-    const messagesContainerRef = useRef<HTMLDivElement>(null)
-    const messagesEndRef = useRef<HTMLDivElement>(null)
+    const messagesContainerRef =
+        useRef<HTMLDivElement>(null)
+
+    const messagesEndRef =
+        useRef<HTMLDivElement>(null)
+
+    const mobileViewportStyle =
+        useGeoChatVisualViewport()
 
     useEffect(() => {
-        const previousBodyOverflow = document.body.style.overflow
-        const previousHtmlOverflow = document.documentElement.style.overflow
-        const previousBodyOverscroll = document.body.style.overscrollBehavior
-        const previousHtmlOverscroll = document.documentElement.style.overscrollBehavior
+        const previousBodyOverflow =
+            document.body.style.overflow
 
-        document.body.style.overflow = "hidden"
-        document.documentElement.style.overflow = "hidden"
-        document.body.style.overscrollBehavior = "none"
-        document.documentElement.style.overscrollBehavior = "none"
+        const previousHtmlOverflow =
+            document.documentElement.style
+                .overflow
+
+        const previousBodyOverscroll =
+            document.body.style
+                .overscrollBehavior
+
+        const previousHtmlOverscroll =
+            document.documentElement.style
+                .overscrollBehavior
+
+        document.body.style.overflow =
+            "hidden"
+
+        document.documentElement.style
+            .overflow = "hidden"
+
+        document.body.style
+            .overscrollBehavior = "none"
+
+        document.documentElement.style
+            .overscrollBehavior = "none"
 
         return () => {
-            document.body.style.overflow = previousBodyOverflow
-            document.documentElement.style.overflow = previousHtmlOverflow
-            document.body.style.overscrollBehavior = previousBodyOverscroll
-            document.documentElement.style.overscrollBehavior = previousHtmlOverscroll
+            document.body.style.overflow =
+                previousBodyOverflow
+
+            document.documentElement.style
+                .overflow =
+                previousHtmlOverflow
+
+            document.body.style
+                .overscrollBehavior =
+                previousBodyOverscroll
+
+            document.documentElement.style
+                .overscrollBehavior =
+                previousHtmlOverscroll
         }
     }, [])
 
-    const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
-        requestAnimationFrame(() => {
-            messagesEndRef.current?.scrollIntoView({
-                behavior,
-                block: "end"
-            })
-        })
-    }, [])
+    const scrollToBottom =
+        useCallback(
+            (
+                behavior:
+                    ScrollBehavior =
+                    "smooth"
+            ) => {
+                requestAnimationFrame(
+                    () => {
+                        const container =
+                            messagesContainerRef.current
 
-    const isNearBottom = useCallback(() => {
-        const container = messagesContainerRef.current
+                        if (!container) {
+                            return
+                        }
 
-        if (!container) return true
+                        container.scrollTo({
+                            top:
+                                container.scrollHeight,
+                            behavior
+                        })
+                    }
+                )
+            },
+            []
+        )
 
-        return container.scrollHeight - container.scrollTop - container.clientHeight < 160
-    }, [])
+    const isNearBottom =
+        useCallback(() => {
+            const container =
+                messagesContainerRef.current
 
-    const { messages, setMessages } = useGeoChatRealtime({
+            if (!container) return true
+
+            return (
+                container.scrollHeight -
+                container.scrollTop -
+                container.clientHeight <
+                160
+            )
+        }, [])
+
+    const {
+        messages,
+        setMessages
+    } = useGeoChatRealtime({
         roomId: room.id,
         initialMessages,
         isNearBottom,
@@ -108,15 +182,16 @@ function GeoChatRoomContent({
         messagesEndRef
     })
 
-    const actions = useGeoChatMessageActions({
-        room,
-        currentProfile,
-        messages,
-        setMessages,
-        canSend,
-        isAdminMode,
-        scrollToBottom
-    })
+    const actions =
+        useGeoChatMessageActions({
+            room,
+            currentProfile,
+            messages,
+            setMessages,
+            canSend,
+            isAdminMode,
+            scrollToBottom
+        })
 
     const {
         isRefreshing,
@@ -135,79 +210,161 @@ function GeoChatRoomContent({
 
     return (
         <>
-            <div className="fixed inset-x-0 bottom-0 top-[64] z-40 flex flex-col overflow-hidden bg-white lg:static lg:z-auto lg:h-[calc(100dvh-32px)] lg:min-h-[520] lg:rounded-3xl lg:border lg:border-green-100">
+            <div
+                style={mobileViewportStyle}
+                className="fixed inset-x-0 bottom-0 top-[64] z-40 flex flex-col overflow-hidden bg-white lg:static lg:z-auto lg:h-[calc(100dvh-32px)] lg:min-h-[520] lg:rounded-3xl lg:border lg:border-green-100"
+            >
                 <GeoChatHeader
                     room={room}
                     accuracy={accuracy}
-                    isAdminMode={isAdminMode}
+                    isAdminMode={
+                        isAdminMode
+                    }
                 />
 
                 <GeoChatMessages
                     messages={messages}
-                    currentProfileId={currentProfile.id}
+                    currentProfileId={
+                        currentProfile.id
+                    }
                     canSend={canSend}
-                    isRefreshing={isRefreshing}
-                    pullDistance={pullDistance}
-                    refreshReady={refreshReady}
-                    isPulling={isPulling}
-                    messagesContainerRef={messagesContainerRef}
-                    messagesEndRef={messagesEndRef}
-                    onTouchStart={handleTouchStart}
-                    onTouchMove={handleTouchMove}
-                    onTouchEnd={handleTouchEnd}
-                    onReply={actions.handleReplyToMessage}
-                    onEdit={actions.handleEditMessage}
-                    onDelete={actions.handleDeleteRequest}
-                    onError={actions.setError}
+                    isRefreshing={
+                        isRefreshing
+                    }
+                    pullDistance={
+                        pullDistance
+                    }
+                    refreshReady={
+                        refreshReady
+                    }
+                    isPulling={
+                        isPulling
+                    }
+                    messagesContainerRef={
+                        messagesContainerRef
+                    }
+                    messagesEndRef={
+                        messagesEndRef
+                    }
+                    onTouchStart={
+                        handleTouchStart
+                    }
+                    onTouchMove={
+                        handleTouchMove
+                    }
+                    onTouchEnd={
+                        handleTouchEnd
+                    }
+                    onReply={
+                        actions.handleReplyToMessage
+                    }
+                    onEdit={
+                        actions.handleEditMessage
+                    }
+                    onDelete={
+                        actions.handleDeleteRequest
+                    }
+                    onError={
+                        actions.setError
+                    }
                 />
 
                 {!isAdminMode && (
                     <GeoChatAccessWarning
-                        status={accessStatus}
-                        error={accessError}
+                        status={
+                            accessStatus
+                        }
+                        error={
+                            accessError
+                        }
                     />
                 )}
 
                 <GeoChatComposer
-                    content={actions.content}
+                    content={
+                        actions.content
+                    }
                     error={actions.error}
-                    isPending={actions.isPending}
+                    isPending={
+                        actions.isPending
+                    }
                     canSend={canSend}
-                    accessStatus={accessStatus}
-                    editingMessage={actions.editingMessage}
-                    replyingTo={actions.replyingTo}
-                    textareaRef={actions.textareaRef}
-                    onContentChange={(value) => {
-                        actions.setContent(value)
-                        actions.setError("")
+                    accessStatus={
+                        accessStatus
+                    }
+                    editingMessage={
+                        actions.editingMessage
+                    }
+                    replyingTo={
+                        actions.replyingTo
+                    }
+                    textareaRef={
+                        actions.textareaRef
+                    }
+                    onContentChange={(
+                        value
+                    ) => {
+                        actions.setContent(
+                            value
+                        )
+
+                        actions.setError(
+                            ""
+                        )
                     }}
-                    onSubmit={actions.handleSubmit}
-                    onCancelEdit={actions.cancelEdit}
-                    onCancelReply={() => actions.setReplyingTo(null)}
+                    onSubmit={
+                        actions.handleSubmit
+                    }
+                    onCancelEdit={
+                        actions.cancelEdit
+                    }
+                    onCancelReply={() =>
+                        actions.setReplyingTo(
+                            null
+                        )
+                    }
                     onFocus={() => {
-                        if (!actions.editingMessage) {
-                            scrollToBottom()
+                        if (
+                            !actions.editingMessage
+                        ) {
+                            scrollToBottom(
+                                "auto"
+                            )
                         }
                     }}
-                    onError={actions.setError}
+                    onError={
+                        actions.setError
+                    }
                 />
             </div>
 
             <GeoChatDeleteDialog
-                target={actions.deleteTarget}
-                isDeleting={actions.isDeleting}
+                target={
+                    actions.deleteTarget
+                }
+                isDeleting={
+                    actions.isDeleting
+                }
                 onClose={() => {
-                    if (!actions.isDeleting) {
-                        actions.setDeleteTarget(null)
+                    if (
+                        !actions.isDeleting
+                    ) {
+                        actions.setDeleteTarget(
+                            null
+                        )
                     }
                 }}
-                onConfirm={() => void actions.handleDeleteConfirm()}
+                onConfirm={() =>
+                    void actions.handleDeleteConfirm()
+                }
             />
         </>
     )
 }
 
-function GeoChatRoom(props: Props) {
+function GeoChatRoom(
+    props: Props
+) {
     if (props.initialAdminMode) {
         return (
             <GeoChatRoomContent
@@ -221,7 +378,11 @@ function GeoChatRoom(props: Props) {
         )
     }
 
-    return <GeoChatRoomWithLiveAccess {...props} />
+    return (
+        <GeoChatRoomWithLiveAccess
+            {...props}
+        />
+    )
 }
 
 export default GeoChatRoom

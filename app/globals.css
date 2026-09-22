@@ -85,3 +85,12 @@ body {
 html {
   scrollbar-gutter: stable;
 }
+
+@media (max-width: 1023px) {
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]):not([type="button"]):not([type="submit"]):not([type="reset"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
