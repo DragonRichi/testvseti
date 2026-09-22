@@ -14,6 +14,8 @@ type Props = {
         value: string
     ) => void
     onSubmit: () => void
+    onFocus: () => void
+    onBlur: () => void
 }
 
 function DirectMessageComposer({
@@ -21,7 +23,9 @@ function DirectMessageComposer({
     isPending,
     textareaRef,
     onContentChange,
-    onSubmit
+    onSubmit,
+    onFocus,
+    onBlur
 }: Props) {
     const canSubmit =
         Boolean(
@@ -53,6 +57,8 @@ function DirectMessageComposer({
                     ref={textareaRef}
                     value={content}
                     disabled={isPending}
+                    onFocus={onFocus}
+                    onBlur={onBlur}
                     onKeyDown={handleKeyDown}
                     onChange={(event) => {
                         onContentChange(
@@ -77,14 +83,14 @@ function DirectMessageComposer({
                             event
                                 .currentTarget
                                 .scrollHeight >
-                            100
+                                100
                                 ? "auto"
                                 : "hidden"
                     }}
                     placeholder="Написать сообщение..."
                     maxLength={4000}
                     rows={1}
-                    className="min-h-[38] max-h-[100] min-w-0 flex-1 resize-none overflow-y-hidden border-0 bg-transparent px-2 py-2 text-[16px] leading-5.5 text-gray-900 outline-none placeholder:text-main-gray disabled:opacity-50 lg:text-sm"
+                    className="min-h-[38] max-h-[100] min-w-0 flex-1 resize-none overflow-y-hidden border-0 bg-transparent px-2 py-2 text-[16px]! leading-5.5 text-gray-900 outline-none placeholder:text-[13px]! placeholder:text-main-gray disabled:opacity-50 lg:text-sm"
                 />
 
                 <button
