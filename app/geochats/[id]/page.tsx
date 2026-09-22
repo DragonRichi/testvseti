@@ -5,10 +5,10 @@ import { loadGeoChatMessages } from "@/lib/geochats/loadGeoChatMessages"
 import { supabaseAdmin } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import type { GeoChatMessage, GeoChatRoom as GeoChatRoomType } from "@/types/geoChat"
+import type { GeoChatMessageAttachmentMap } from "@/types/geoChatAttachments"
 import { MapPin } from "lucide-react"
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import type { GeoChatMessageAttachmentMap } from "@/types/geoChatAttachments"
 
 type Props = {
     params: Promise<{
@@ -35,48 +35,91 @@ async function Page({ params }: Props) {
         error: userError
     } = await supabase.auth.getUser()
 
-    if (userError || !user) redirect("/")
+    if (userError || !user) {
+        redirect("/")
+    }
 
-    const [{ data: currentProfile, error: profileError }, adminMode] = await Promise.all([
-        supabase.from("profiles").select("id,username,display_name,avatar_url").eq("id", user.id).single(),
+    const [
+        {
+            data: currentProfile,
+            error: profileError
+        },
+        adminMode
+    ] = await Promise.all([
+        supabase
+            .from("profiles")
+            .select("id,username,display_name,avatar_url")
+            .eq("id", user.id)
+            .single(),
         hasGeoChatAdminMode()
     ])
 
     if (profileError || !currentProfile) {
-        console.error("GEO CHAT PROFILE ERROR:", profileError)
+        console.error(
+            "GEO CHAT PROFILE ERROR:",
+            profileError
+        )
+
         redirect("/")
     }
 
     let roomRow: RoomRow | null = null
 
     if (adminMode) {
-        const { data: adminRoom, error: adminRoomError } = await supabaseAdmin.from("geo_chats").select("id,creator_id,name,description,radius_m,created_at").eq("id", id).maybeSingle()
+        const {
+            data: adminRoom,
+            error: adminRoomError
+        } = await supabaseAdmin
+            .from("geo_chats")
+            .select(
+                "id,creator_id,name,description,radius_m,created_at"
+            )
+            .eq("id", id)
+            .maybeSingle()
 
         if (adminRoomError) {
-            console.error("ADMIN GEO CHAT ROOM LOAD ERROR:", adminRoomError)
+            console.error(
+                "ADMIN GEO CHAT ROOM LOAD ERROR:",
+                adminRoomError
+            )
         }
 
         if (adminRoom) {
             roomRow = {
                 id: adminRoom.id,
-                creator_id: adminRoom.creator_id,
+                creator_id:
+                    adminRoom.creator_id,
                 name: adminRoom.name,
-                description: adminRoom.description,
-                radius_m: adminRoom.radius_m,
+                description:
+                    adminRoom.description,
+                radius_m:
+                    adminRoom.radius_m,
                 distance_m: null,
-                created_at: adminRoom.created_at
+                created_at:
+                    adminRoom.created_at
             }
         }
     } else {
-        const { data: roomData, error: roomError } = await supabase.rpc("get_geo_chat_room", {
-            p_chat_id: id
-        })
+        const {
+            data: roomData,
+            error: roomError
+        } = await supabase.rpc(
+            "get_geo_chat_room",
+            {
+                p_chat_id: id
+            }
+        )
 
         if (roomError) {
-            console.error("GEO CHAT ROOM LOAD ERROR:", roomError)
+            console.error(
+                "GEO CHAT ROOM LOAD ERROR:",
+                roomError
+            )
         }
 
-        roomRow = ((roomData ?? []) as RoomRow[])[0] ?? null
+        roomRow =
+            ((roomData ?? []) as RoomRow[])[0] ??
+            null
     }
 
     if (!roomRow) {
@@ -88,11 +131,20 @@ async function Page({ params }: Props) {
                             <MapPin className="size-6" />
                         </div>
 
-                        <h1 className="mt-4 text-lg font-bold text-gray-900">Геочат сейчас недоступен</h1>
+                        <h1 className="mt-4 text-lg font-bold text-gray-900">
+                            Геочат сейчас недоступен
+                        </h1>
 
-                        <p className="mt-2 text-sm leading-6 text-main-gray">{adminMode ? "Геочат больше не существует." : "Вы находитесь вне зоны этого геочата или геочат больше не существует."}</p>
+                        <p className="mt-2 text-sm leading-6 text-main-gray">
+                            {adminMode
+                                ? "Геочат больше не существует."
+                                : "Вы находитесь вне зоны этого геочата или геочат больше не существует."}
+                        </p>
 
-                        <Link href="/geochats" className="mt-5 inline-flex h-10 items-center justify-center rounded-xl bg-main-green px-4 text-sm font-medium text-white transition-colors hover:bg-hover-green">
+                        <Link
+                            href="/geochats"
+                            className="mt-5 inline-flex h-10 items-center justify-center rounded-xl bg-main-green px-4 text-sm font-medium text-white transition-colors hover:bg-hover-green"
+                        >
                             Вернуться к геочатам
                         </Link>
                     </div>
@@ -107,6 +159,8 @@ async function Page({ params }: Props) {
     let initialAttachments:
         GeoChatMessageAttachmentMap = {}
 
+    let initialHasMore = false
+
     try {
         const initialData =
             await loadGeoChatMessages(
@@ -118,6 +172,9 @@ async function Page({ params }: Props) {
 
         initialAttachments =
             initialData.initialAttachments
+
+        initialHasMore =
+            initialData.hasMore
     } catch (error) {
         console.error(
             "GEO CHAT INITIAL MESSAGES LOAD ERROR:",
@@ -127,17 +184,39 @@ async function Page({ params }: Props) {
 
     const room: GeoChatRoomType = {
         id: roomRow.id,
-        creatorId: roomRow.creator_id,
+        creatorId:
+            roomRow.creator_id,
         name: roomRow.name,
-        description: roomRow.description,
-        radiusM: roomRow.radius_m,
-        distanceM: roomRow.distance_m,
-        createdAt: roomRow.created_at
+        description:
+            roomRow.description,
+        radiusM:
+            roomRow.radius_m,
+        distanceM:
+            roomRow.distance_m,
+        createdAt:
+            roomRow.created_at
     }
 
     return (
         <SocialLayout profile={currentProfile}>
-            <GeoChatRoom room={room} initialMessages={initialMessages} currentProfile={currentProfile} initialAdminMode={adminMode} initialAttachments={initialAttachments} />
+            <GeoChatRoom
+                room={room}
+                initialMessages={
+                    initialMessages
+                }
+                initialAttachments={
+                    initialAttachments
+                }
+                initialHasMore={
+                    initialHasMore
+                }
+                currentProfile={
+                    currentProfile
+                }
+                initialAdminMode={
+                    adminMode
+                }
+            />
         </SocialLayout>
     )
 }

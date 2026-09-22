@@ -1,8 +1,12 @@
 "use client"
 
 import { getGeoChatMessageAttachments } from "@/actions/getGeoChatMessageAttachments"
-import type { GeoChatMessageAttachmentMap } from "@/types/geoChatAttachments"
+import type {
+    GeoChatMessageAttachment,
+    GeoChatMessageAttachmentMap
+} from "@/types/geoChatAttachments"
 import {
+    useCallback,
     useEffect,
     useMemo,
     useRef,
@@ -12,38 +16,40 @@ import {
 type Options = {
     roomId: string
     messageIds: string[]
-    initialAttachments?:
-    GeoChatMessageAttachmentMap
+    initialAttachments:
+        GeoChatMessageAttachmentMap
 }
-
-const REFRESH_INTERVAL_MS =
-    30 * 60 * 1000
 
 function useGeoChatMessageAttachments({
     roomId,
     messageIds,
-    initialAttachments = {}
+    initialAttachments
 }: Options) {
     const [
         attachments,
         setAttachments
     ] =
         useState<GeoChatMessageAttachmentMap>(
-            () =>
-                initialAttachments
+            () => initialAttachments
         )
 
-    const [
-        isLoading,
-        setIsLoading
-    ] =
+    const [isLoading, setIsLoading] =
         useState(false)
+
+    const activeRoomIdRef =
+        useRef(roomId)
 
     const requestIdRef =
         useRef(0)
 
-    const activeRoomIdRef =
-        useRef(roomId)
+    const loadedMessageIdsRef =
+        useRef(
+            new Set(
+                Object.keys(
+                    initialAttachments
+                )
+            )
+        )
 
     const messageIdsKey =
         useMemo(
@@ -52,6 +58,62 @@ function useGeoChatMessageAttachments({
                     .sort()
                     .join(","),
             [messageIds]
+        )
+
+    const setMessageAttachments =
+        useCallback(
+            (
+                messageId: string,
+                nextAttachments:
+                    GeoChatMessageAttachment[]
+            ) => {
+                loadedMessageIdsRef.current.add(
+                    messageId
+                )
+
+                setAttachments(
+                    (current) => ({
+                        ...current,
+                        [messageId]:
+                            nextAttachments
+                    })
+                )
+            },
+            []
+        )
+
+    const removeMessageAttachments =
+        useCallback(
+            (
+                messageId: string
+            ) => {
+                loadedMessageIdsRef.current.delete(
+                    messageId
+                )
+
+                setAttachments(
+                    (current) => {
+                        if (
+                            !current[
+                                messageId
+                            ]
+                        ) {
+                            return current
+                        }
+
+                        const next = {
+                            ...current
+                        }
+
+                        delete next[
+                            messageId
+                        ]
+
+                        return next
+                    }
+                )
+            },
+            []
         )
 
     useEffect(() => {
@@ -65,9 +127,20 @@ function useGeoChatMessageAttachments({
         activeRoomIdRef.current =
             roomId
 
+        requestIdRef.current += 1
+
+        loadedMessageIdsRef.current =
+            new Set(
+                Object.keys(
+                    initialAttachments
+                )
+            )
+
         setAttachments(
             initialAttachments
         )
+
+        setIsLoading(false)
     }, [
         initialAttachments,
         roomId
@@ -78,38 +151,44 @@ function useGeoChatMessageAttachments({
             !roomId ||
             messageIds.length === 0
         ) {
-            setAttachments(
-                initialAttachments
+            return
+        }
+
+        const missingMessageIds =
+            messageIds.filter(
+                (messageId) =>
+                    !loadedMessageIdsRef
+                        .current
+                        .has(messageId)
             )
 
-            setIsLoading(false)
+        if (
+            missingMessageIds.length ===
+            0
+        ) {
             return
         }
 
         let disposed = false
 
-        const loadAttachments =
-            async (
-                background = false
-            ) => {
-                const requestId =
-                    ++requestIdRef.current
+        const requestId =
+            ++requestIdRef.current
 
-                if (!background) {
-                    setIsLoading(true)
-                }
+        const loadAttachments =
+            async () => {
+                setIsLoading(true)
 
                 try {
                     const result =
                         await getGeoChatMessageAttachments(
                             roomId,
-                            messageIds
+                            missingMessageIds
                         )
 
                     if (
                         disposed ||
                         requestId !==
-                        requestIdRef.current
+                            requestIdRef.current
                     ) {
                         return
                     }
@@ -127,8 +206,50 @@ function useGeoChatMessageAttachments({
                     }
 
                     setAttachments(
-                        result.attachments
+                        (current) => {
+                            const next = {
+                                ...current
+                            }
+
+                            for (
+                                const messageId of
+                                missingMessageIds
+                            ) {
+                                if (
+                                    messageId in
+                                    result.attachments
+                                ) {
+                                    next[
+                                        messageId
+                                    ] =
+                                        result
+                                            .attachments[
+                                            messageId
+                                        ]
+                                } else if (
+                                    !(
+                                        messageId in
+                                        next
+                                    )
+                                ) {
+                                    next[
+                                        messageId
+                                    ] = []
+                                }
+                            }
+
+                            return next
+                        }
                     )
+
+                    for (
+                        const messageId of
+                        missingMessageIds
+                    ) {
+                        loadedMessageIdsRef.current.add(
+                            messageId
+                        )
+                    }
                 } catch (error) {
                     console.error(
                         "GEO CHAT ATTACHMENTS LOAD ERROR:",
@@ -138,7 +259,7 @@ function useGeoChatMessageAttachments({
                     if (
                         !disposed &&
                         requestId ===
-                        requestIdRef.current
+                            requestIdRef.current
                     ) {
                         setIsLoading(
                             false
@@ -147,40 +268,21 @@ function useGeoChatMessageAttachments({
                 }
             }
 
-        const hasInitialAttachments =
-            Object.keys(
-                initialAttachments
-            ).length > 0
-
-        void loadAttachments(
-            hasInitialAttachments
-        )
-
-        const refreshTimer =
-            window.setInterval(
-                () => {
-                    void loadAttachments(
-                        true
-                    )
-                },
-                REFRESH_INTERVAL_MS
-            )
+        void loadAttachments()
 
         return () => {
             disposed = true
-
-            window.clearInterval(
-                refreshTimer
-            )
         }
     }, [
-        roomId,
-        messageIdsKey
+        messageIdsKey,
+        roomId
     ])
 
     return {
         attachments,
-        isLoading
+        isLoading,
+        setMessageAttachments,
+        removeMessageAttachments
     }
 }
 

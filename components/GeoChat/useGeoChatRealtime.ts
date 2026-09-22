@@ -2,8 +2,8 @@
 
 import { getGeoChatMessages } from "@/actions/getGeoChatMessages"
 import { createClient } from "@/lib/supabase/client"
-import type { AuthChangeEvent, Session } from "@supabase/supabase-js"
 import type { GeoChatMessage } from "@/types/geoChat"
+import type { AuthChangeEvent, Session } from "@supabase/supabase-js"
 import { useEffect, useRef, useState } from "react"
 import {
     applyRealtimeGeoChatDelete,
@@ -14,6 +14,7 @@ import {
     RealtimeGeoChatMessageRow,
     RealtimeGeoChatUpdateRow
 } from "./loadRealtimeGeoChatMessage"
+import { mergeGeoChatRecentMessages } from "./mergeGeoChatRecentMessages"
 
 type Options = {
     roomId: string
@@ -39,8 +40,15 @@ type RealtimeDeletePayload = {
 const BACKGROUND_SYNC_AFTER_MS = 30000
 const FOREGROUND_RECONNECT_AFTER_MS = 3000
 
-function useGeoChatRealtime({ roomId, initialMessages, isNearBottom, scrollToBottom }: Options) {
-    const [messages, setMessages] = useState<GeoChatMessage[]>(initialMessages)
+function useGeoChatRealtime({
+    roomId,
+    initialMessages,
+    isNearBottom,
+    scrollToBottom
+}: Options) {
+    const [messages, setMessages] =
+        useState<GeoChatMessage[]>(initialMessages)
+
     const activeRoomIdRef = useRef(roomId)
     const messagesRef = useRef(initialMessages)
     const profileCacheRef = useRef<GeoChatProfileCache>(new Map())
@@ -51,19 +59,32 @@ function useGeoChatRealtime({ roomId, initialMessages, isNearBottom, scrollToBot
     }, [messages])
 
     useEffect(() => {
-        if (activeRoomIdRef.current === roomId) return
+        if (activeRoomIdRef.current === roomId) {
+            return
+        }
 
         activeRoomIdRef.current = roomId
         messagesRef.current = initialMessages
         profileCacheRef.current.clear()
-        fillGeoChatProfileCache(profileCacheRef.current, initialMessages)
+
+        fillGeoChatProfileCache(
+            profileCacheRef.current,
+            initialMessages
+        )
+
         setMessages(initialMessages)
-    }, [initialMessages, roomId])
+    }, [
+        initialMessages,
+        roomId
+    ])
 
     useEffect(() => {
         const supabase = createClient()
 
-        let channel: ReturnType<typeof supabase.channel> | null = null
+        let channel:
+            ReturnType<typeof supabase.channel> | null =
+            null
+
         let disposed = false
         let subscribed = false
         let hasSubscribedOnce = false
@@ -73,240 +94,546 @@ function useGeoChatRealtime({ roomId, initialMessages, isNearBottom, scrollToBot
         let lastRecoveryAt = 0
         let reconnectAttempt = 0
         let syncInProgress = false
-        let hiddenAt: number | null = document.visibilityState === "hidden" ? Date.now() : null
 
-        const replaceMessages = (nextMessages: GeoChatMessage[]) => {
-            messagesRef.current = nextMessages
-            fillGeoChatProfileCache(profileCacheRef.current, nextMessages)
-            setMessages(nextMessages)
-        }
+        let hiddenAt:
+            number | null =
+            document.visibilityState === "hidden"
+                ? Date.now()
+                : null
 
         const syncMessages = async () => {
-            if (disposed || syncInProgress) return
+            if (
+                disposed ||
+                syncInProgress
+            ) {
+                return
+            }
 
             syncInProgress = true
 
             try {
-                const result = await getGeoChatMessages(roomId)
+                const result =
+                    await getGeoChatMessages(
+                        roomId
+                    )
 
-                if (disposed) return
-
-                if (result.success === false) {
-                    console.error("GEO CHAT REALTIME SYNC ERROR:", result.error)
+                if (disposed) {
                     return
                 }
 
-                replaceMessages(result.messages)
+                if (
+                    result.success ===
+                    false
+                ) {
+                    console.error(
+                        "GEO CHAT REALTIME SYNC ERROR:",
+                        result.error
+                    )
+
+                    return
+                }
+
+                setMessages(
+                    (
+                        currentMessages
+                    ) => {
+                        const nextMessages =
+                            mergeGeoChatRecentMessages(
+                                currentMessages,
+                                result.messages
+                            )
+
+                        messagesRef.current =
+                            nextMessages
+
+                        fillGeoChatProfileCache(
+                            profileCacheRef.current,
+                            nextMessages
+                        )
+
+                        return nextMessages
+                    }
+                )
             } catch (error) {
-                console.error("GEO CHAT REALTIME SYNC ERROR:", error)
+                console.error(
+                    "GEO CHAT REALTIME SYNC ERROR:",
+                    error
+                )
             } finally {
                 syncInProgress = false
             }
         }
 
         const scheduleReconnect = () => {
-            if (disposed || reconnectTimer !== null) return
+            if (
+                disposed ||
+                reconnectTimer !== null
+            ) {
+                return
+            }
 
             subscribed = false
 
-            const delay = Math.min(1000 * 2 ** reconnectAttempt, 8000)
-            reconnectAttempt = Math.min(reconnectAttempt + 1, 4)
+            const delay = Math.min(
+                1000 * 2 ** reconnectAttempt,
+                8000
+            )
 
-            reconnectTimer = window.setTimeout(() => {
-                reconnectTimer = null
-                void connect()
-            }, delay)
+            reconnectAttempt = Math.min(
+                reconnectAttempt + 1,
+                4
+            )
+
+            reconnectTimer =
+                window.setTimeout(
+                    () => {
+                        reconnectTimer = null
+                        void connect()
+                    },
+                    delay
+                )
         }
 
         const connect = async () => {
-            if (disposed || connecting) return
+            if (
+                disposed ||
+                connecting
+            ) {
+                return
+            }
 
             connecting = true
 
             try {
                 const {
-                    data: { session },
-                    error: sessionError
-                } = await supabase.auth.getSession()
+                    data: {
+                        session
+                    },
+                    error:
+                    sessionError
+                } =
+                    await supabase.auth.getSession()
 
-                if (disposed) return
+                if (disposed) {
+                    return
+                }
 
-                if (sessionError || !session) {
-                    console.error("GEO CHAT REALTIME SESSION ERROR:", sessionError)
+                if (
+                    sessionError ||
+                    !session
+                ) {
+                    console.error(
+                        "GEO CHAT REALTIME SESSION ERROR:",
+                        sessionError
+                    )
+
                     scheduleReconnect()
                     return
                 }
 
-                supabase.realtime.setAuth(session.access_token)
+                supabase.realtime.setAuth(
+                    session.access_token
+                )
 
-                const previousChannel = channel
+                const previousChannel =
+                    channel
+
                 channel = null
                 subscribed = false
 
                 if (previousChannel) {
-                    await supabase.removeChannel(previousChannel)
+                    await supabase.removeChannel(
+                        previousChannel
+                    )
                 }
 
-                if (disposed) return
+                if (disposed) {
+                    return
+                }
 
-                const nextChannel = supabase
-                    .channel(`geo-chat:${roomId}:${Date.now()}`)
-                    .on("postgres_changes", { event: "INSERT", schema: "public", table: "geo_chat_messages", filter: `chat_id=eq.${roomId}` }, async (payload: RealtimeInsertPayload) => {
-                        const row = payload.new
-                        const shouldScroll = isNearBottom()
-                        const newMessage = await loadRealtimeGeoChatMessage(supabase, row, messagesRef.current, profileCacheRef.current)
+                const nextChannel =
+                    supabase
+                        .channel(
+                            `geo-chat:${roomId}:${Date.now()}`
+                        )
+                        .on(
+                            "postgres_changes",
+                            {
+                                event: "INSERT",
+                                schema: "public",
+                                table: "geo_chat_messages",
+                                filter:
+                                    `chat_id=eq.${roomId}`
+                            },
+                            async (
+                                payload:
+                                    RealtimeInsertPayload
+                            ) => {
+                                const shouldScroll =
+                                    isNearBottom()
 
-                        if (!newMessage) {
-                            void syncMessages()
-                            return
-                        }
+                                const newMessage =
+                                    await loadRealtimeGeoChatMessage(
+                                        supabase,
+                                        payload.new,
+                                        messagesRef.current,
+                                        profileCacheRef.current
+                                    )
 
-                        setMessages((currentMessages) => {
-                            if (currentMessages.some((message) => message.id === newMessage.id)) return currentMessages
+                                if (
+                                    !newMessage
+                                ) {
+                                    void syncMessages()
+                                    return
+                                }
 
-                            const nextMessages = [...currentMessages, newMessage]
-                            messagesRef.current = nextMessages
-                            return nextMessages
-                        })
+                                setMessages(
+                                    (
+                                        currentMessages
+                                    ) => {
+                                        if (
+                                            currentMessages.some(
+                                                (
+                                                    message
+                                                ) =>
+                                                    message.id ===
+                                                    newMessage.id
+                                            )
+                                        ) {
+                                            return currentMessages
+                                        }
 
-                        if (shouldScroll) scrollToBottom()
-                    })
-                    .on("postgres_changes", { event: "UPDATE", schema: "public", table: "geo_chat_messages", filter: `chat_id=eq.${roomId}` }, (payload: RealtimeUpdatePayload) => {
-                        const row = payload.new
+                                        const nextMessages =
+                                            [
+                                                ...currentMessages,
+                                                newMessage
+                                            ]
 
-                        setMessages((currentMessages) => {
-                            const nextMessages = applyRealtimeGeoChatUpdate(currentMessages, row)
-                            messagesRef.current = nextMessages
-                            return nextMessages
-                        })
-                    })
-                    .on("postgres_changes", { event: "DELETE", schema: "public", table: "geo_chat_messages" }, (payload: RealtimeDeletePayload) => {
-                        const row = payload.old
-                        const deletedMessageId = row.id
+                                        messagesRef.current =
+                                            nextMessages
 
-                        if (!deletedMessageId) {
-                            void syncMessages()
-                            return
-                        }
+                                        return nextMessages
+                                    }
+                                )
 
-                        setMessages((currentMessages) => {
-                            const nextMessages = applyRealtimeGeoChatDelete(currentMessages, deletedMessageId)
-                            messagesRef.current = nextMessages
-                            return nextMessages
-                        })
-                    })
+                                if (
+                                    shouldScroll
+                                ) {
+                                    scrollToBottom()
+                                }
+                            }
+                        )
+                        .on(
+                            "postgres_changes",
+                            {
+                                event: "UPDATE",
+                                schema: "public",
+                                table: "geo_chat_messages",
+                                filter:
+                                    `chat_id=eq.${roomId}`
+                            },
+                            (
+                                payload:
+                                    RealtimeUpdatePayload
+                            ) => {
+                                setMessages(
+                                    (
+                                        currentMessages
+                                    ) => {
+                                        const nextMessages =
+                                            applyRealtimeGeoChatUpdate(
+                                                currentMessages,
+                                                payload.new
+                                            )
+
+                                        messagesRef.current =
+                                            nextMessages
+
+                                        return nextMessages
+                                    }
+                                )
+                            }
+                        )
+                        .on(
+                            "postgres_changes",
+                            {
+                                event: "DELETE",
+                                schema: "public",
+                                table: "geo_chat_messages"
+                            },
+                            (
+                                payload:
+                                    RealtimeDeletePayload
+                            ) => {
+                                const deletedMessageId =
+                                    payload.old.id
+
+                                if (
+                                    !deletedMessageId
+                                ) {
+                                    void syncMessages()
+                                    return
+                                }
+
+                                setMessages(
+                                    (
+                                        currentMessages
+                                    ) => {
+                                        const nextMessages =
+                                            applyRealtimeGeoChatDelete(
+                                                currentMessages,
+                                                deletedMessageId
+                                            )
+
+                                        messagesRef.current =
+                                            nextMessages
+
+                                        return nextMessages
+                                    }
+                                )
+                            }
+                        )
 
                 channel = nextChannel
 
-                nextChannel.subscribe((status: string, realtimeError?: Error) => {
-                    if (disposed || channel !== nextChannel) return
+                nextChannel.subscribe(
+                    (
+                        status: string,
+                        realtimeError?: Error
+                    ) => {
+                        if (
+                            disposed ||
+                            channel !==
+                            nextChannel
+                        ) {
+                            return
+                        }
 
-                    if (process.env.NODE_ENV === "development") {
-                        console.log("GEO CHAT REALTIME STATUS:", status, realtimeError ?? "")
+                        if (
+                            process.env
+                                .NODE_ENV ===
+                            "development"
+                        ) {
+                            console.log(
+                                "GEO CHAT REALTIME STATUS:",
+                                status,
+                                realtimeError ??
+                                ""
+                            )
+                        }
+
+                        if (
+                            status ===
+                            "SUBSCRIBED"
+                        ) {
+                            const shouldRecover =
+                                hasSubscribedOnce
+
+                            subscribed = true
+                            hasSubscribedOnce =
+                                true
+                            reconnectAttempt = 0
+
+                            if (
+                                shouldRecover
+                            ) {
+                                void syncMessages()
+                            }
+
+                            return
+                        }
+
+                        if (
+                            status ===
+                            "CHANNEL_ERROR" ||
+                            status ===
+                            "TIMED_OUT" ||
+                            status ===
+                            "CLOSED"
+                        ) {
+                            console.error(
+                                "GEO CHAT REALTIME CONNECTION LOST:",
+                                status,
+                                realtimeError ??
+                                ""
+                            )
+
+                            scheduleReconnect()
+                        }
                     }
-
-                    if (status === "SUBSCRIBED") {
-                        const shouldRecoverMessages = hasSubscribedOnce
-
-                        subscribed = true
-                        hasSubscribedOnce = true
-                        reconnectAttempt = 0
-
-                        if (shouldRecoverMessages) void syncMessages()
-                        return
-                    }
-
-                    if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
-                        console.error("GEO CHAT REALTIME CONNECTION LOST:", status, realtimeError ?? "")
-                        scheduleReconnect()
-                    }
-                })
+                )
             } catch (error) {
-                console.error("GEO CHAT REALTIME CONNECT ERROR:", error)
+                console.error(
+                    "GEO CHAT REALTIME CONNECT ERROR:",
+                    error
+                )
+
                 scheduleReconnect()
             } finally {
                 connecting = false
             }
         }
 
-        const recoverRealtime = async () => {
-            if (disposed || recoveryInProgress) return
-
-            const now = Date.now()
-
-            if (now - lastRecoveryAt < 1000) return
-
-            lastRecoveryAt = now
-            recoveryInProgress = true
-
-            try {
-                if (reconnectTimer !== null) {
-                    window.clearTimeout(reconnectTimer)
-                    reconnectTimer = null
-                }
-
-                void syncMessages()
-
-                const previousChannel = channel
-                channel = null
-                subscribed = false
-                reconnectAttempt = 0
-
-                if (previousChannel) {
-                    await supabase.removeChannel(previousChannel)
-                }
-
-                if (disposed) return
-
-                if (connecting) {
-                    scheduleReconnect()
+        const recoverRealtime =
+            async () => {
+                if (
+                    disposed ||
+                    recoveryInProgress
+                ) {
                     return
                 }
 
-                await connect()
-            } catch (error) {
-                console.error("GEO CHAT REALTIME RECOVERY ERROR:", error)
-                subscribed = false
-                scheduleReconnect()
-            } finally {
-                recoveryInProgress = false
-            }
-        }
+                const now =
+                    Date.now()
 
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === "hidden") {
-                hiddenAt = Date.now()
-                return
+                if (
+                    now -
+                    lastRecoveryAt <
+                    1000
+                ) {
+                    return
+                }
+
+                lastRecoveryAt = now
+                recoveryInProgress =
+                    true
+
+                try {
+                    if (
+                        reconnectTimer !==
+                        null
+                    ) {
+                        window.clearTimeout(
+                            reconnectTimer
+                        )
+
+                        reconnectTimer =
+                            null
+                    }
+
+                    void syncMessages()
+
+                    const previousChannel =
+                        channel
+
+                    channel = null
+                    subscribed = false
+                    reconnectAttempt = 0
+
+                    if (
+                        previousChannel
+                    ) {
+                        await supabase.removeChannel(
+                            previousChannel
+                        )
+                    }
+
+                    if (disposed) {
+                        return
+                    }
+
+                    if (connecting) {
+                        scheduleReconnect()
+                        return
+                    }
+
+                    await connect()
+                } catch (error) {
+                    console.error(
+                        "GEO CHAT REALTIME RECOVERY ERROR:",
+                        error
+                    )
+
+                    subscribed = false
+                    scheduleReconnect()
+                } finally {
+                    recoveryInProgress =
+                        false
+                }
             }
 
-            const hiddenFor = hiddenAt === null ? 0 : Date.now() - hiddenAt
-            hiddenAt = null
+        const handleVisibilityChange =
+            () => {
+                if (
+                    document.visibilityState ===
+                    "hidden"
+                ) {
+                    hiddenAt =
+                        Date.now()
 
-            if (!subscribed || hiddenFor >= FOREGROUND_RECONNECT_AFTER_MS) {
-                void recoverRealtime()
-                return
-            }
+                    return
+                }
 
-            if (hiddenFor >= BACKGROUND_SYNC_AFTER_MS) {
-                void syncMessages()
+                const hiddenFor =
+                    hiddenAt === null
+                        ? 0
+                        : Date.now() -
+                        hiddenAt
+
+                hiddenAt = null
+
+                if (
+                    !subscribed ||
+                    hiddenFor >=
+                    FOREGROUND_RECONNECT_AFTER_MS
+                ) {
+                    void recoverRealtime()
+                    return
+                }
+
+                if (
+                    hiddenFor >=
+                    BACKGROUND_SYNC_AFTER_MS
+                ) {
+                    void syncMessages()
+                }
             }
-        }
 
         const handleFocus = () => {
-            if (!subscribed) void recoverRealtime()
+            if (!subscribed) {
+                void recoverRealtime()
+            }
         }
 
         const handleOnline = () => {
             void recoverRealtime()
         }
 
-        const { data: authListener } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
-            if (session?.access_token) supabase.realtime.setAuth(session.access_token)
-        })
+        const {
+            data:
+            authListener
+        } =
+            supabase.auth.onAuthStateChange(
+                (
+                    _event:
+                        AuthChangeEvent,
+                    session:
+                        Session | null
+                ) => {
+                    if (
+                        session?.access_token
+                    ) {
+                        supabase.realtime.setAuth(
+                            session.access_token
+                        )
+                    }
+                }
+            )
 
-        document.addEventListener("visibilitychange", handleVisibilityChange)
-        window.addEventListener("online", handleOnline)
-        window.addEventListener("focus", handleFocus)
+        document.addEventListener(
+            "visibilitychange",
+            handleVisibilityChange
+        )
+
+        window.addEventListener(
+            "online",
+            handleOnline
+        )
+
+        window.addEventListener(
+            "focus",
+            handleFocus
+        )
 
         void connect()
 
@@ -314,22 +641,47 @@ function useGeoChatRealtime({ roomId, initialMessages, isNearBottom, scrollToBot
             disposed = true
             subscribed = false
 
-            if (reconnectTimer !== null) {
-                window.clearTimeout(reconnectTimer)
-                reconnectTimer = null
+            if (
+                reconnectTimer !== null
+            ) {
+                window.clearTimeout(
+                    reconnectTimer
+                )
             }
 
-            document.removeEventListener("visibilitychange", handleVisibilityChange)
-            window.removeEventListener("online", handleOnline)
-            window.removeEventListener("focus", handleFocus)
+            document.removeEventListener(
+                "visibilitychange",
+                handleVisibilityChange
+            )
+
+            window.removeEventListener(
+                "online",
+                handleOnline
+            )
+
+            window.removeEventListener(
+                "focus",
+                handleFocus
+            )
+
             authListener.subscription.unsubscribe()
 
-            const currentChannel = channel
+            const currentChannel =
+                channel
+
             channel = null
 
-            if (currentChannel) void supabase.removeChannel(currentChannel)
+            if (currentChannel) {
+                void supabase.removeChannel(
+                    currentChannel
+                )
+            }
         }
-    }, [isNearBottom, roomId, scrollToBottom])
+    }, [
+        isNearBottom,
+        roomId,
+        scrollToBottom
+    ])
 
     return {
         messages,

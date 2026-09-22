@@ -4,7 +4,10 @@ import { hasGeoChatAdminMode } from "@/lib/geochats/geoChatAdminMode"
 import { supabaseAdmin } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 import { isUuid } from "@/lib/validation/uuid"
-import type { GeoChatPendingAttachment } from "@/types/geoChatAttachments"
+import type {
+    GeoChatMessageAttachment,
+    GeoChatPendingAttachment
+} from "@/types/geoChatAttachments"
 
 type MessageRow = {
     status: string
@@ -16,6 +19,14 @@ type MessageRow = {
     sender_role: string | null
     created_at: string | null
     updated_at: string | null
+}
+
+type AttachmentRow = {
+    id: string
+    storage_path: string
+    file_name: string
+    mime_type: string
+    size_bytes: number | string
 }
 
 type Result =
@@ -31,14 +42,20 @@ type Result =
             created_at: string
             updated_at: string
         }
+        attachments:
+            GeoChatMessageAttachment[]
     }
     | {
         success: false
         error: string
     }
 
-function getErrorMessage(status: string) {
-    if (status === "unauthorized") {
+function getErrorMessage(
+    status: string
+) {
+    if (
+        status === "unauthorized"
+    ) {
         return "Необходимо войти в аккаунт"
     }
 
@@ -50,27 +67,45 @@ function getErrorMessage(status: string) {
         return "Сообщение слишком длинное"
     }
 
-    if (status === "chat_not_found") {
+    if (
+        status ===
+        "chat_not_found"
+    ) {
         return "Геочат не найден"
     }
 
-    if (status === "reply_not_found") {
+    if (
+        status ===
+        "reply_not_found"
+    ) {
         return "Сообщение для ответа не найдено"
     }
 
-    if (status === "too_many_attachments") {
+    if (
+        status ===
+        "too_many_attachments"
+    ) {
         return "Можно прикрепить не более 5 изображений"
     }
 
-    if (status === "invalid_image") {
+    if (
+        status ===
+        "invalid_image"
+    ) {
         return "В геочат можно прикреплять только изображения"
     }
 
-    if (status === "invalid_attachments") {
+    if (
+        status ===
+        "invalid_attachments"
+    ) {
         return "Некорректные изображения"
     }
 
-    if (status === "attachment_not_found") {
+    if (
+        status ===
+        "attachment_not_found"
+    ) {
         return "Одно из загруженных изображений не найдено"
     }
 
@@ -78,32 +113,138 @@ function getErrorMessage(status: string) {
 }
 
 function isValidAttachment(
-    attachment: GeoChatPendingAttachment
+    attachment:
+        GeoChatPendingAttachment
 ) {
     return (
-        typeof attachment.storagePath === "string" &&
-        attachment.storagePath.trim().length > 0 &&
-        typeof attachment.fileName === "string" &&
-        attachment.fileName.trim().length > 0 &&
-        attachment.fileName.length <= 255 &&
-        typeof attachment.mimeType === "string" &&
+        typeof attachment.storagePath ===
+            "string" &&
+        attachment.storagePath
+            .trim()
+            .length > 0 &&
+        typeof attachment.fileName ===
+            "string" &&
+        attachment.fileName
+            .trim()
+            .length > 0 &&
+        attachment.fileName.length <=
+            255 &&
+        typeof attachment.mimeType ===
+            "string" &&
         [
             "image/jpeg",
             "image/png",
             "image/webp",
             "image/gif"
-        ].includes(attachment.mimeType) &&
-        Number.isSafeInteger(attachment.sizeBytes) &&
+        ].includes(
+            attachment.mimeType
+        ) &&
+        Number.isSafeInteger(
+            attachment.sizeBytes
+        ) &&
         attachment.sizeBytes > 0 &&
-        attachment.sizeBytes <= 10 * 1024 * 1024
+        attachment.sizeBytes <=
+            10 * 1024 * 1024
+    )
+}
+
+async function loadSignedAttachments(
+    messageId: string
+): Promise<
+    GeoChatMessageAttachment[]
+> {
+    const {
+        data,
+        error
+    } = await supabaseAdmin
+        .from(
+            "geo_chat_message_attachments"
+        )
+        .select(
+            "id,storage_path,file_name,mime_type,size_bytes"
+        )
+        .eq(
+            "message_id",
+            messageId
+        )
+        .order(
+            "created_at",
+            {
+                ascending: true
+            }
+        )
+
+    if (error) {
+        console.error(
+            "ADMIN GEO CHAT ATTACHMENTS LOAD ERROR:",
+            error
+        )
+
+        return []
+    }
+
+    const rows =
+        (data ??
+            []) as AttachmentRow[]
+
+    return Promise.all(
+        rows.map(
+            async (row) => {
+                const {
+                    data:
+                        signedData,
+                    error:
+                        signedError
+                } =
+                    await supabaseAdmin
+                        .storage
+                        .from(
+                            "geo-chat-media"
+                        )
+                        .createSignedUrl(
+                            row.storage_path,
+                            60 * 60 *
+                                12
+                        )
+
+                if (
+                    signedError
+                ) {
+                    console.error(
+                        "ADMIN GEO CHAT ATTACHMENT SIGN ERROR:",
+                        signedError
+                    )
+                }
+
+                return {
+                    id: row.id,
+                    storagePath:
+                        row.storage_path,
+                    fileName:
+                        row.file_name,
+                    mimeType:
+                        row.mime_type,
+                    sizeBytes:
+                        Number(
+                            row.size_bytes
+                        ) || 0,
+                    url:
+                        signedData
+                            ?.signedUrl ??
+                        null
+                }
+            }
+        )
     )
 }
 
 export async function createAdminGeoChatMessage(
     chatId: string,
     content: string,
-    replyToId: string | null = null,
-    attachments: GeoChatPendingAttachment[] = []
+    replyToId:
+        string | null = null,
+    attachments:
+        GeoChatPendingAttachment[] = []
 ): Promise<Result> {
     if (!isUuid(chatId)) {
         return {
@@ -123,7 +264,8 @@ export async function createAdminGeoChatMessage(
     }
 
     const normalizedContent =
-        typeof content === "string"
+        typeof content ===
+        "string"
             ? content.trim()
             : ""
 
@@ -137,14 +279,19 @@ export async function createAdminGeoChatMessage(
         }
     }
 
-    if (normalizedContent.length > 4000) {
+    if (
+        normalizedContent.length >
+        4000
+    ) {
         return {
             success: false,
             error: "Сообщение слишком длинное"
         }
     }
 
-    if (attachments.length > 5) {
+    if (
+        attachments.length > 5
+    ) {
         return {
             success: false,
             error: "Можно прикрепить не более 5 изображений"
@@ -179,30 +326,44 @@ export async function createAdminGeoChatMessage(
         await createClient()
 
     const {
-        data: { user },
-        error: userError
-    } = await supabase.auth.getUser()
+        data: {
+            user
+        },
+        error:
+            userError
+    } =
+        await supabase.auth.getUser()
 
-    if (userError || !user) {
+    if (
+        userError ||
+        !user
+    ) {
         return {
             success: false,
             error: "Необходимо войти в аккаунт"
         }
     }
 
-    const { data, error } =
+    const {
+        data,
+        error
+    } =
         await supabaseAdmin.rpc(
             "create_admin_geo_chat_message",
             {
-                p_chat_id: chatId,
-                p_user_id: user.id,
+                p_chat_id:
+                    chatId,
+                p_user_id:
+                    user.id,
                 p_content:
                     normalizedContent,
                 p_reply_to_id:
                     replyToId,
                 p_attachments:
                     attachments.map(
-                        (attachment) => ({
+                        (
+                            attachment
+                        ) => ({
                             storage_path:
                                 attachment.storagePath,
                             file_name:
@@ -229,9 +390,11 @@ export async function createAdminGeoChatMessage(
     }
 
     const rows =
-        (data ?? []) as MessageRow[]
+        (data ??
+            []) as MessageRow[]
 
-    const row = rows[0]
+    const row =
+        rows[0]
 
     if (
         !row ||
@@ -239,9 +402,11 @@ export async function createAdminGeoChatMessage(
     ) {
         return {
             success: false,
-            error: getErrorMessage(
-                row?.status ?? ""
-            )
+            error:
+                getErrorMessage(
+                    row?.status ??
+                        ""
+                )
         }
     }
 
@@ -260,10 +425,16 @@ export async function createAdminGeoChatMessage(
         }
     }
 
+    const signedAttachments =
+        await loadSignedAttachments(
+            row.id
+        )
+
     return {
         success: true,
         message: {
-            id: row.id,
+            id:
+                row.id,
             chat_id:
                 row.chat_id,
             user_id:
@@ -278,6 +449,8 @@ export async function createAdminGeoChatMessage(
                 row.created_at,
             updated_at:
                 row.updated_at
-        }
+        },
+        attachments:
+            signedAttachments
     }
 }

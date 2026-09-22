@@ -1,21 +1,44 @@
 "use client"
 
-import type { GeoChatMessage, GeoChatRoom } from "@/types/geoChat"
+import type {
+    GeoChatMessage,
+    GeoChatRoom
+} from "@/types/geoChat"
+import type { GeoChatMessageAttachment } from "@/types/geoChatAttachments"
 import type { Profile } from "@/types/social"
-import type { Dispatch, SetStateAction } from "react"
-import { useCallback, useEffect, useRef, useState } from "react"
-
-import useGeoChatMessageSubmit from "./useGeoChatMessageSubmit"
+import type {
+    Dispatch,
+    SetStateAction
+} from "react"
+import {
+    useCallback,
+    useEffect,
+    useRef,
+    useState
+} from "react"
 import useGeoChatMessageDelete from "./useGeoChatMessageDelete"
+import useGeoChatMessageSubmit from "./useGeoChatMessageSubmit"
 
 type Options = {
     room: GeoChatRoom
     currentProfile: Profile
     messages: GeoChatMessage[]
-    setMessages: Dispatch<SetStateAction<GeoChatMessage[]>>
+    setMessages:
+        Dispatch<
+            SetStateAction<
+                GeoChatMessage[]
+            >
+        >
+    setMessageAttachments: (
+        messageId: string,
+        attachments:
+            GeoChatMessageAttachment[]
+    ) => void
     canSend: boolean
     isAdminMode: boolean
-    scrollToBottom: (behavior?: ScrollBehavior) => void
+    scrollToBottom: (
+        behavior?: ScrollBehavior
+    ) => void
 }
 
 function useGeoChatMessageActions({
@@ -23,83 +46,140 @@ function useGeoChatMessageActions({
     currentProfile,
     messages,
     setMessages,
+    setMessageAttachments,
     canSend,
     isAdminMode,
     scrollToBottom
 }: Options) {
-    const [content, setContent] = useState("")
-    const [error, setError] = useState("")
-    const [replyingTo, setReplyingTo] = useState<GeoChatMessage | null>(null)
-    const [editingMessage, setEditingMessage] = useState<GeoChatMessage | null>(null)
-    const textareaRef = useRef<HTMLTextAreaElement>(null)
+    const [content, setContent] =
+        useState("")
 
-    const resetTextareaHeight = useCallback(() => {
-        const textarea = textareaRef.current
+    const [error, setError] =
+        useState("")
 
-        if (!textarea) return
+    const [
+        replyingTo,
+        setReplyingTo
+    ] =
+        useState<GeoChatMessage | null>(
+            null
+        )
 
-        textarea.style.height = "38px"
-        textarea.style.overflowY = "hidden"
-    }, [])
+    const [
+        editingMessage,
+        setEditingMessage
+    ] =
+        useState<GeoChatMessage | null>(
+            null
+        )
 
-    const resizeTextarea = useCallback(() => {
-        requestAnimationFrame(() => {
-            const textarea = textareaRef.current
+    const textareaRef =
+        useRef<HTMLTextAreaElement>(
+            null
+        )
+
+    const resetTextareaHeight =
+        useCallback(() => {
+            const textarea =
+                textareaRef.current
 
             if (!textarea) return
 
-            textarea.style.height = "38px"
+            textarea.style.height =
+                "38px"
 
-            const nextHeight = Math.min(
-                textarea.scrollHeight,
-                100
-            )
-
-            textarea.style.height = `${nextHeight}px`
             textarea.style.overflowY =
-                textarea.scrollHeight > 100
-                    ? "auto"
-                    : "hidden"
-        })
-    }, [])
+                "hidden"
+        }, [])
 
-    const focusComposer = useCallback(() => {
-        requestAnimationFrame(() => {
-            const textarea = textareaRef.current
+    const resizeTextarea =
+        useCallback(() => {
+            requestAnimationFrame(
+                () => {
+                    const textarea =
+                        textareaRef.current
 
-            if (!textarea) return
+                    if (!textarea) {
+                        return
+                    }
 
-            textarea.focus()
+                    textarea.style.height =
+                        "38px"
 
-            textarea.setSelectionRange(
-                textarea.value.length,
-                textarea.value.length
+                    const nextHeight =
+                        Math.min(
+                            textarea.scrollHeight,
+                            100
+                        )
+
+                    textarea.style.height =
+                        `${nextHeight}px`
+
+                    textarea.style.overflowY =
+                        textarea.scrollHeight >
+                        100
+                            ? "auto"
+                            : "hidden"
+                }
             )
-        })
-    }, [])
+        }, [])
 
-    const cancelEdit = useCallback(() => {
-        setEditingMessage(null)
-        setContent("")
-        setError("")
-        resetTextareaHeight()
-    }, [resetTextareaHeight])
+    const focusComposer =
+        useCallback(() => {
+            requestAnimationFrame(
+                () => {
+                    const textarea =
+                        textareaRef.current
+
+                    if (!textarea) {
+                        return
+                    }
+
+                    textarea.focus()
+
+                    textarea.setSelectionRange(
+                        textarea.value
+                            .length,
+                        textarea.value
+                            .length
+                    )
+                }
+            )
+        }, [])
+
+    const cancelEdit =
+        useCallback(() => {
+            setEditingMessage(null)
+            setContent("")
+            setError("")
+            resetTextareaHeight()
+        }, [
+            resetTextareaHeight
+        ])
 
     useEffect(() => {
-        const messageIds = new Set(
-            messages.map((message) => message.id)
-        )
+        const messageIds =
+            new Set(
+                messages.map(
+                    (message) =>
+                        message.id
+                )
+            )
 
         if (
             replyingTo &&
-            !messageIds.has(replyingTo.id)
+            !messageIds.has(
+                replyingTo.id
+            )
         ) {
             setReplyingTo(null)
         }
 
         if (
             editingMessage &&
-            !messageIds.has(editingMessage.id)
+            !messageIds.has(
+                editingMessage.id
+            )
         ) {
             setEditingMessage(null)
             setContent("")
@@ -129,7 +209,13 @@ function useGeoChatMessageActions({
         message: GeoChatMessage
     ) => {
         if (!canSend) return
-        if (message.userId !== currentProfile.id) return
+
+        if (
+            message.userId !==
+            currentProfile.id
+        ) {
+            return
+        }
 
         setReplyingTo(null)
         setEditingMessage(message)
@@ -146,6 +232,7 @@ function useGeoChatMessageActions({
         room,
         currentProfile,
         setMessages,
+        setMessageAttachments,
         canSend,
         isAdminMode,
         scrollToBottom,
@@ -168,7 +255,8 @@ function useGeoChatMessageActions({
         handleDeleteConfirm
     } = useGeoChatMessageDelete({
         roomId: room.id,
-        currentProfileId: currentProfile.id,
+        currentProfileId:
+            currentProfile.id,
         messages,
         setMessages,
         replyingTo,

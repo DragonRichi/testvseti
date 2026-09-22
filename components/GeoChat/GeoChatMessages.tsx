@@ -7,13 +7,12 @@ import type { RefObject, TouchEvent } from "react"
 import { useMemo } from "react"
 import GeoChatMessageItem from "./GeoChatMessageItem"
 import GeoChatMessageMenu from "./GeoChatMessageMenu"
-import useGeoChatMessageAttachments from "./useGeoChatMessageAttachments"
 import useGeoChatMessageMenu from "./useGeoChatMessageMenu"
 import useGeoChatMessageReactions from "./useGeoChatMessageReactions"
 
 type Props = {
     messages: GeoChatMessage[]
-    initialAttachments: GeoChatMessageAttachmentMap
+    attachmentsByMessage: GeoChatMessageAttachmentMap
     currentProfileId: string
     canSend: boolean
     isRefreshing: boolean
@@ -33,7 +32,7 @@ type Props = {
 
 function GeoChatMessages({
     messages,
-    initialAttachments,
+    attachmentsByMessage,
     currentProfileId,
     canSend,
     isRefreshing,
@@ -55,21 +54,6 @@ function GeoChatMessages({
         pendingKeys: pendingReactionKeys,
         toggleReaction
     } = useGeoChatMessageReactions(messages, onError)
-
-    const messageIds = useMemo(
-        () => messages.map((message) => message.id),
-        [messages]
-    )
-
-    const roomId = messages[0]?.chatId ?? ""
-
-    const {
-        attachments: attachmentsByMessage
-    } = useGeoChatMessageAttachments({
-        roomId,
-        messageIds,
-        initialAttachments
-    })
 
     const eagerAttachmentMessageIds = useMemo(() => {
         const ids = messages
@@ -96,9 +80,7 @@ function GeoChatMessages({
 
     const openMenuReactions =
         menu.openMenuMessage
-            ? reactionsByMessage[
-            menu.openMenuMessage.id
-            ] ?? []
+            ? reactionsByMessage[menu.openMenuMessage.id] ?? []
             : []
 
     return (
@@ -182,53 +164,18 @@ function GeoChatMessages({
                                     key={message.id}
                                     message={message}
                                     currentProfileId={currentProfileId}
-                                    highlighted={
-                                        menu.highlightedMessageId ===
-                                        message.id
-                                    }
-                                    reactions={
-                                        reactionsByMessage[
-                                        message.id
-                                        ] ?? []
-                                    }
-                                    attachments={
-                                        attachmentsByMessage[
-                                        message.id
-                                        ] ?? []
-                                    }
-                                    pendingReactionKeys={
-                                        pendingReactionKeys
-                                    }
+                                    highlighted={menu.highlightedMessageId === message.id}
+                                    reactions={reactionsByMessage[message.id] ?? []}
+                                    attachments={attachmentsByMessage[message.id] ?? []}
+                                    pendingReactionKeys={pendingReactionKeys}
                                     canReact={canSend}
-                                    eagerAttachments={
-                                        eagerAttachmentMessageIds.has(
-                                            message.id
-                                        )
-                                    }
-                                    onToggleReaction={(
-                                        messageId,
-                                        emoji
-                                    ) =>
-                                        void toggleReaction(
-                                            messageId,
-                                            emoji
-                                        )
-                                    }
-                                    onSetRef={
-                                        menu.setMessageRef
-                                    }
-                                    onOpenMenu={
-                                        menu.openMessageMenu
-                                    }
-                                    onStartLongPress={
-                                        menu.startLongPress
-                                    }
-                                    onClearLongPress={
-                                        menu.clearLongPress
-                                    }
-                                    onScrollToReply={
-                                        menu.scrollToMessage
-                                    }
+                                    eagerAttachments={eagerAttachmentMessageIds.has(message.id)}
+                                    onToggleReaction={(messageId, emoji) => void toggleReaction(messageId, emoji)}
+                                    onSetRef={menu.setMessageRef}
+                                    onOpenMenu={menu.openMessageMenu}
+                                    onStartLongPress={menu.startLongPress}
+                                    onClearLongPress={menu.clearLongPress}
+                                    onScrollToReply={menu.scrollToMessage}
                                 />
                             ))}
 
@@ -245,29 +192,16 @@ function GeoChatMessages({
                 currentProfileId={currentProfileId}
                 canSend={canSend}
                 reactions={openMenuReactions}
-                pendingReactionKeys={
-                    pendingReactionKeys
-                }
-                onToggleReaction={(
-                    messageId,
-                    emoji
-                ) => {
+                pendingReactionKeys={pendingReactionKeys}
+                onToggleReaction={(messageId, emoji) => {
                     menu.closeMessageMenu()
-
-                    void toggleReaction(
-                        messageId,
-                        emoji
-                    )
+                    void toggleReaction(messageId, emoji)
                 }}
                 onReply={(message) => {
                     menu.closeMessageMenu()
                     onReply(message)
                 }}
-                onCopy={(message) =>
-                    void menu.handleCopy(
-                        message
-                    )
-                }
+                onCopy={(message) => void menu.handleCopy(message)}
                 onEdit={(message) => {
                     menu.closeMessageMenu()
                     onEdit(message)

@@ -40,11 +40,12 @@ type AttachmentRow = {
 type Result = {
     messages: GeoChatMessage[]
     initialAttachments:
-    GeoChatMessageAttachmentMap
+        GeoChatMessageAttachmentMap
+    hasMore: boolean
 }
 
-const INITIAL_IMAGE_MESSAGE_LIMIT = 3
-
+const INITIAL_MESSAGES = 40
+const INITIAL_IMAGE_MESSAGES = 3
 const SIGNED_URL_TTL_SECONDS =
     60 * 60 * 6
 
@@ -69,16 +70,17 @@ export async function loadGeoChatMessages(
         data,
         error
     } = await supabaseAdmin.rpc(
-        "get_geo_chat_messages",
+        "get_geo_chat_messages_page",
         {
             p_chat_id: chatId,
-            p_limit: 100
+            p_limit:
+                INITIAL_MESSAGES + 1
         }
     )
 
     if (error) {
         console.error(
-            "GEO CHAT MESSAGES LOAD ERROR:",
+            "GEO CHAT INITIAL MESSAGES ERROR:",
             error
         )
 
@@ -90,15 +92,29 @@ export async function loadGeoChatMessages(
     const rows =
         (data ?? []) as MessageRow[]
 
-    if (rows.length === 0) {
+    const hasMore =
+        rows.length >
+        INITIAL_MESSAGES
+
+    const visibleRows =
+        hasMore
+            ? rows.slice(
+                -INITIAL_MESSAGES
+            )
+            : rows
+
+    if (
+        visibleRows.length === 0
+    ) {
         return {
             messages: [],
-            initialAttachments: {}
+            initialAttachments: {},
+            hasMore: false
         }
     }
 
     const messageIds =
-        rows.map(
+        visibleRows.map(
             (message) =>
                 message.id
         )
@@ -156,79 +172,71 @@ export async function loadGeoChatMessages(
         )
     }
 
-    const messages:
-        GeoChatMessage[] =
-        rows.map((message) => ({
-            id: message.id,
-            chatId:
-                message.chat_id,
-            userId:
-                message.user_id,
-            content:
-                message.content ?? "",
-            createdAt:
-                message.created_at,
-            updatedAt:
-                message.updated_at,
-            authorUsername:
-                message.author_username,
-            authorDisplayName:
-                message.author_display_name ??
-                message.author_username,
-            authorAvatarUrl:
-                message.author_avatar_url,
-            replyTo:
-                message.reply_to_id
-                    ? {
-                        id:
-                            message.reply_to_id,
-                        authorUsername:
-                            message.reply_author_username ??
-                            "unknown",
-                        authorDisplayName:
-                            message.reply_author_display_name ??
-                            message.reply_author_username ??
-                            "Пользователь",
-                        content:
-                            message.reply_content ??
-                            ""
-                    }
-                    : null,
-            senderRole:
-                normalizeSenderRole(
-                    message.sender_role
-                ),
-            attachmentCount:
-                attachmentCounts.get(
-                    message.id
-                ) ?? 0
-        }))
+    const messages =
+        visibleRows.map(
+            (
+                message
+            ): GeoChatMessage => ({
+                id:
+                    message.id,
+                chatId:
+                    message.chat_id,
+                userId:
+                    message.user_id,
+                content:
+                    message.content ??
+                    "",
+                createdAt:
+                    message.created_at,
+                updatedAt:
+                    message.updated_at,
+                authorUsername:
+                    message.author_username,
+                authorDisplayName:
+                    message.author_display_name ??
+                    message.author_username,
+                authorAvatarUrl:
+                    message.author_avatar_url,
+                replyTo:
+                    message.reply_to_id
+                        ? {
+                            id:
+                                message.reply_to_id,
+                            authorUsername:
+                                message.reply_author_username ??
+                                "unknown",
+                            authorDisplayName:
+                                message.reply_author_display_name ??
+                                message.reply_author_username ??
+                                "Пользователь",
+                            content:
+                                message.reply_content ??
+                                ""
+                        }
+                        : null,
+                senderRole:
+                    normalizeSenderRole(
+                        message.sender_role
+                    ),
+                attachmentCount:
+                    attachmentCounts.get(
+                        message.id
+                    ) ?? 0
+            })
+        )
 
-    const initialMessageIds =
+    const imageMessageIds =
         new Set(
-            [...rows]
+            messages
                 .filter(
                     (message) =>
                         (
-                            attachmentCounts.get(
-                                message.id
-                            ) ?? 0
+                            message.attachmentCount ??
+                            0
                         ) > 0
                 )
-                .sort(
-                    (
-                        first,
-                        second
-                    ) =>
-                        new Date(
-                            first.created_at
-                        ).getTime() -
-                        new Date(
-                            second.created_at
-                        ).getTime()
-                )
                 .slice(
-                    -INITIAL_IMAGE_MESSAGE_LIMIT
+                    -INITIAL_IMAGE_MESSAGES
                 )
                 .map(
                     (message) =>
@@ -239,7 +247,7 @@ export async function loadGeoChatMessages(
     const rowsToSign =
         attachmentRows.filter(
             (attachment) =>
-                initialMessageIds.has(
+                imageMessageIds.has(
                     attachment.message_id
                 )
         )
@@ -247,12 +255,12 @@ export async function loadGeoChatMessages(
     const signedRows =
         await Promise.all(
             rowsToSign.map(
-                async (
-                    row
-                ) => {
+                async (row) => {
                     const {
-                        data: signedData,
-                        error: signedError
+                        data:
+                            signedData,
+                        error:
+                            signedError
                     } =
                         await supabaseAdmin
                             .storage
@@ -264,7 +272,9 @@ export async function loadGeoChatMessages(
                                 SIGNED_URL_TTL_SECONDS
                             )
 
-                    if (signedError) {
+                    if (
+                        signedError
+                    ) {
                         console.error(
                             "GEO CHAT INITIAL IMAGE SIGN ERROR:",
                             signedError
@@ -294,24 +304,24 @@ export async function loadGeoChatMessages(
     ) {
         const attachment:
             GeoChatMessageAttachment =
-        {
-            id: row.id,
-            storagePath:
-                row.storage_path,
-            fileName:
-                row.file_name,
-            mimeType:
-                row.mime_type,
-            sizeBytes:
-                Number(
-                    row.size_bytes
-                ) || 0,
-            url
-        }
+            {
+                id: row.id,
+                storagePath:
+                    row.storage_path,
+                fileName:
+                    row.file_name,
+                mimeType:
+                    row.mime_type,
+                sizeBytes:
+                    Number(
+                        row.size_bytes
+                    ) || 0,
+                url
+            }
 
         if (
             !initialAttachments[
-            row.message_id
+                row.message_id
             ]
         ) {
             initialAttachments[
@@ -328,6 +338,7 @@ export async function loadGeoChatMessages(
 
     return {
         messages,
-        initialAttachments
+        initialAttachments,
+        hasMore
     }
 }

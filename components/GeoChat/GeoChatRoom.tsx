@@ -4,7 +4,7 @@ import type { GeoChatAccessStatus } from "@/components/GeoChat/GeoChatAccessWarn
 import type { GeoChatMessage, GeoChatRoom as GeoChatRoomType } from "@/types/geoChat"
 import type { GeoChatMessageAttachmentMap } from "@/types/geoChatAttachments"
 import type { Profile } from "@/types/social"
-import { useCallback, useEffect, useRef } from "react"
+import { useCallback, useEffect, useMemo, useRef } from "react"
 import GeoChatAccessWarning from "./GeoChatAccessWarning"
 import GeoChatComposer from "./GeoChatComposer"
 import GeoChatDeleteDialog from "./GeoChatDeleteDialog"
@@ -13,6 +13,8 @@ import GeoChatMessages from "./GeoChatMessages"
 import useGeoChatBottomPin from "./useGeoChatBottomPin"
 import useGeoChatLiveAccess from "./useGeoChatLiveAccess"
 import useGeoChatMessageActions from "./useGeoChatMessageActions"
+import useGeoChatMessageAttachments from "./useGeoChatMessageAttachments"
+import useGeoChatOlderMessages from "./useGeoChatOlderMessages"
 import useGeoChatPullRefresh from "./useGeoChatPullRefresh"
 import useGeoChatRealtime from "./useGeoChatRealtime"
 import useGeoChatVisualViewport from "./useGeoChatVisualViewport"
@@ -21,6 +23,7 @@ type Props = {
     room: GeoChatRoomType
     initialMessages: GeoChatMessage[]
     initialAttachments: GeoChatMessageAttachmentMap
+    initialHasMore: boolean
     currentProfile: Profile
     initialAdminMode: boolean
 }
@@ -52,6 +55,7 @@ function GeoChatRoomContent({
     room,
     initialMessages,
     initialAttachments,
+    initialHasMore,
     currentProfile,
     accessStatus,
     accessError,
@@ -106,8 +110,8 @@ function GeoChatRoomContent({
 
         return (
             container.scrollHeight -
-                container.scrollTop -
-                container.clientHeight <
+            container.scrollTop -
+            container.clientHeight <
             160
         )
     }, [])
@@ -117,6 +121,20 @@ function GeoChatRoomContent({
         initialMessages,
         isNearBottom,
         scrollToBottom
+    })
+
+    const messageIds = useMemo(
+        () => messages.map((message) => message.id),
+        [messages]
+    )
+
+    const {
+        attachments: attachmentsByMessage,
+        setMessageAttachments
+    } = useGeoChatMessageAttachments({
+        roomId: room.id,
+        messageIds,
+        initialAttachments
     })
 
     useGeoChatBottomPin({
@@ -131,9 +149,19 @@ function GeoChatRoomContent({
         currentProfile,
         messages,
         setMessages,
+        setMessageAttachments,
         canSend,
         isAdminMode,
         scrollToBottom
+    })
+
+    useGeoChatOlderMessages({
+        roomId: room.id,
+        messages,
+        setMessages,
+        initialHasMore,
+        messagesContainerRef,
+        setError: actions.setError
     })
 
     const {
@@ -165,7 +193,7 @@ function GeoChatRoomContent({
 
                 <GeoChatMessages
                     messages={messages}
-                    initialAttachments={initialAttachments}
+                    attachmentsByMessage={attachmentsByMessage}
                     currentProfileId={currentProfile.id}
                     canSend={canSend}
                     isRefreshing={isRefreshing}
