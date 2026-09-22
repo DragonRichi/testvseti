@@ -1,16 +1,17 @@
 "use client"
 
-import type { GeoChatMessage } from "@/types/geoChat"
 import {
     GEO_CHAT_ALLOWED_MIME_TYPES,
     GEO_CHAT_MAX_ATTACHMENTS,
     GEO_CHAT_MAX_FILE_SIZE
 } from "@/lib/geochats/uploadGeoChatMedia"
+import type { GeoChatMessage } from "@/types/geoChat"
 import { CornerUpLeft, Paperclip, Pencil, Send, Smile, X } from "lucide-react"
 import Image from "next/image"
 import type { ChangeEvent, KeyboardEvent, RefObject } from "react"
 import { useEffect, useRef, useState } from "react"
 import type { GeoChatAccessStatus } from "./GeoChatAccessWarning"
+import GeoChatEmojiPicker from "./GeoChatEmojiPicker"
 
 type SelectedImage = {
     file: File
@@ -51,7 +52,9 @@ function GeoChatComposer({
     onError
 }: Props) {
     const [selectedImages, setSelectedImages] = useState<SelectedImage[]>([])
+    const [isEmojiOpen, setIsEmojiOpen] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const emojiAreaRef = useRef<HTMLDivElement>(null)
 
     const clearImages = () => {
         setSelectedImages((current) => {
@@ -67,9 +70,27 @@ function GeoChatComposer({
         }
     }
 
+    const resizeTextarea = () => {
+        const textarea = textareaRef.current
+
+        if (!textarea) return
+
+        textarea.style.height = "38px"
+
+        const nextHeight = Math.min(
+            textarea.scrollHeight,
+            100
+        )
+
+        textarea.style.height = `${nextHeight}px`
+        textarea.style.overflowY = textarea.scrollHeight > 100 ? "auto" : "hidden"
+    }
+
     useEffect(() => {
         if (!editingMessage) return
+
         clearImages()
+        setIsEmojiOpen(false)
     }, [editingMessage])
 
     useEffect(() => {
@@ -80,85 +101,218 @@ function GeoChatComposer({
         }
     }, [selectedImages])
 
-    const handleFilesChange = (event: ChangeEvent<HTMLInputElement>) => {
-        const files = Array.from(event.target.files ?? [])
+    useEffect(() => {
+        if (!isEmojiOpen) return
+
+        const handlePointerDown = (event: PointerEvent) => {
+            const target = event.target as Node
+
+            if (emojiAreaRef.current?.contains(target)) {
+                return
+            }
+
+            setIsEmojiOpen(false)
+        }
+
+        document.addEventListener(
+            "pointerdown",
+            handlePointerDown
+        )
+
+        return () => {
+            document.removeEventListener(
+                "pointerdown",
+                handlePointerDown
+            )
+        }
+    }, [isEmojiOpen])
+
+    const handleEmojiSelect = (emoji: string) => {
+        const textarea = textareaRef.current
+
+        if (!textarea) {
+            const nextContent = `${content}${emoji}`
+
+            if (nextContent.length <= 4000) {
+                onContentChange(nextContent)
+            }
+
+            return
+        }
+
+        const start = textarea.selectionStart
+        const end = textarea.selectionEnd
+
+        const nextContent =
+            `${content.slice(0, start)}${emoji}${content.slice(end)}`
+
+        if (nextContent.length > 4000) {
+            return
+        }
+
+        onContentChange(nextContent)
+        onError("")
+
+        requestAnimationFrame(() => {
+            textarea.focus()
+
+            const nextPosition =
+                start + emoji.length
+
+            textarea.setSelectionRange(
+                nextPosition,
+                nextPosition
+            )
+
+            resizeTextarea()
+        })
+    }
+
+    const handleFilesChange = (
+        event: ChangeEvent<HTMLInputElement>
+    ) => {
+        const files =
+            Array.from(
+                event.target.files ?? []
+            )
 
         event.target.value = ""
 
         if (files.length === 0) return
 
-        if (selectedImages.length + files.length > GEO_CHAT_MAX_ATTACHMENTS) {
-            onError(`Можно прикрепить не более ${GEO_CHAT_MAX_ATTACHMENTS} изображений`)
+        if (
+            selectedImages.length +
+            files.length >
+            GEO_CHAT_MAX_ATTACHMENTS
+        ) {
+            onError(
+                `Можно прикрепить не более ${GEO_CHAT_MAX_ATTACHMENTS} изображений`
+            )
+
             return
         }
 
         for (const file of files) {
-            if (!GEO_CHAT_ALLOWED_MIME_TYPES.includes(file.type)) {
-                onError(`Файл "${file.name}" не является поддерживаемым изображением`)
+            if (
+                !GEO_CHAT_ALLOWED_MIME_TYPES.includes(
+                    file.type
+                )
+            ) {
+                onError(
+                    `Файл "${file.name}" не является поддерживаемым изображением`
+                )
+
                 return
             }
 
             if (file.size <= 0) {
-                onError(`Файл "${file.name}" пуст`)
+                onError(
+                    `Файл "${file.name}" пуст`
+                )
+
                 return
             }
 
-            if (file.size > GEO_CHAT_MAX_FILE_SIZE) {
-                onError(`Изображение "${file.name}" превышает 10 МБ`)
+            if (
+                file.size >
+                GEO_CHAT_MAX_FILE_SIZE
+            ) {
+                onError(
+                    `Изображение "${file.name}" превышает 10 МБ`
+                )
+
                 return
             }
         }
 
-        const newImages = files.map((file) => ({
-            file,
-            previewUrl: URL.createObjectURL(file)
-        }))
+        const newImages =
+            files.map((file) => ({
+                file,
+                previewUrl:
+                    URL.createObjectURL(
+                        file
+                    )
+            }))
 
-        setSelectedImages((current) => [
-            ...current,
-            ...newImages
-        ])
+        setSelectedImages(
+            (current) => [
+                ...current,
+                ...newImages
+            ]
+        )
+
+        setIsEmojiOpen(false)
     }
 
-    const removeImage = (index: number) => {
+    const removeImage = (
+        index: number
+    ) => {
         if (isPending) return
 
-        setSelectedImages((current) => {
-            const target = current[index]
+        setSelectedImages(
+            (current) => {
+                const target =
+                    current[index]
 
-            if (target) {
-                URL.revokeObjectURL(target.previewUrl)
+                if (target) {
+                    URL.revokeObjectURL(
+                        target.previewUrl
+                    )
+                }
+
+                return current.filter(
+                    (_, itemIndex) =>
+                        itemIndex !== index
+                )
             }
-
-            return current.filter((_, itemIndex) => itemIndex !== index)
-        })
+        )
     }
 
     const submit = async () => {
         if (isPending) return
 
-        if (!content.trim() && selectedImages.length === 0) {
+        if (
+            !content.trim() &&
+            selectedImages.length === 0
+        ) {
             return
         }
 
-        const success = await onSubmit(
-            selectedImages.map((image) => image.file)
-        )
+        setIsEmojiOpen(false)
+
+        const success =
+            await onSubmit(
+                selectedImages.map(
+                    (image) =>
+                        image.file
+                )
+            )
 
         if (success) {
             clearImages()
         }
     }
 
-    const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-        if (event.key === "Escape" && editingMessage) {
+    const handleKeyDown = (
+        event:
+            KeyboardEvent<HTMLTextAreaElement>
+    ) => {
+        if (
+            event.key === "Escape" &&
+            editingMessage
+        ) {
             event.preventDefault()
             onCancelEdit()
+
             return
         }
 
-        if (event.key !== "Enter") return
-        if (event.shiftKey) return
+        if (
+            event.key !== "Enter" ||
+            event.shiftKey
+        ) {
+            return
+        }
 
         event.preventDefault()
         void submit()
@@ -244,15 +398,70 @@ function GeoChatComposer({
                     <Paperclip className="size-4 sm:size-5" />
                 </button>
 
-                <button type="button" disabled={!canSend || Boolean(editingMessage)} aria-label="Эмодзи" className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-main-green transition-colors hover:bg-green-50 disabled:pointer-events-none disabled:opacity-40 sm:size-9">
-                    <Smile className="size-4 sm:size-5" />
-                </button>
+                <div ref={emojiAreaRef} className="relative shrink-0">
+                    {isEmojiOpen && (
+                        <GeoChatEmojiPicker
+                            onSelect={
+                                handleEmojiSelect
+                            }
+                        />
+                    )}
 
-                <textarea ref={textareaRef} value={content} disabled={!canSend} onKeyDown={handleKeyDown} onFocus={onFocus} onChange={(event) => { onContentChange(event.target.value); event.currentTarget.style.height = "38px"; const nextHeight = Math.min(event.currentTarget.scrollHeight, 100); event.currentTarget.style.height = `${nextHeight}px`; event.currentTarget.style.overflowY = event.currentTarget.scrollHeight > 100 ? "auto" : "hidden" }} placeholder={canSend ? editingMessage ? "Изменить сообщение..." : replyingTo ? `Ответ ${replyingTo.authorDisplayName}...` : "Написать сообщение..." : accessStatus === "checking" ? "Проверяем местоположение..." : "Вы вне зоны геочата"} maxLength={4000} rows={1}
-                    className="min-h-[38] max-h-[100] min-w-0 flex-1 resize-none overflow-y-hidden border-0 bg-transparent px-1 py-2 text-[16px] leading-5.5 text-gray-900 outline-none placeholder:text-main-gray disabled:cursor-not-allowed disabled:opacity-50 lg:text-sm" />
+                    <button
+                        type="button"
+                        onPointerDown={(event) => {
+                            event.preventDefault()
+                        }}
+                        onClick={() => {
+                            setIsEmojiOpen(
+                                (current) =>
+                                    !current
+                            )
+                        }}
+                        disabled={!canSend || isPending}
+                        aria-label="Эмодзи"
+                        aria-expanded={isEmojiOpen}
+                        className={`flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors disabled:pointer-events-none disabled:opacity-40 sm:size-9 ${isEmojiOpen ? "bg-green-50 text-main-green" : "text-main-green hover:bg-green-50"}`}
+                    >
+                        <Smile className="size-4 sm:size-5" />
+                    </button>
+                </div>
+
+                <textarea
+                    ref={textareaRef}
+                    value={content}
+                    disabled={!canSend}
+                    onKeyDown={handleKeyDown}
+                    onFocus={onFocus}
+                    onChange={(event) => {
+                        onContentChange(
+                            event.target.value
+                        )
+
+                        resizeTextarea()
+                    }}
+                    placeholder={
+                        canSend
+                            ? editingMessage
+                                ? "Изменить сообщение..."
+                                : replyingTo
+                                    ? `Ответ ${replyingTo.authorDisplayName}...`
+                                    : "Написать сообщение..."
+                            : accessStatus === "checking"
+                                ? "Проверяем местоположение..."
+                                : "Вы вне зоны геочата"
+                    }
+                    maxLength={4000}
+                    rows={1}
+                    className="min-h-[38] max-h-[100] min-w-0 flex-1 resize-none overflow-y-hidden border-0 bg-transparent px-1 py-2 text-[16px] leading-5.5 text-gray-900 outline-none placeholder:text-main-gray disabled:cursor-not-allowed disabled:opacity-50 lg:text-sm"
+                />
 
                 <button type="button" onClick={() => void submit()} disabled={!canSubmit} aria-label={editingMessage ? "Сохранить" : "Отправить"} className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-main-green text-white transition-colors hover:bg-hover-green disabled:pointer-events-none disabled:opacity-40 sm:size-10">
-                    {editingMessage ? <Pencil className="size-4" /> : <Send className="size-4" />}
+                    {editingMessage ? (
+                        <Pencil className="size-4" />
+                    ) : (
+                        <Send className="size-4" />
+                    )}
                 </button>
             </div>
         </div>

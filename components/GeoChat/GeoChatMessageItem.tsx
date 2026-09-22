@@ -135,12 +135,11 @@ function GeoChatMessageItem({
                 className={`min-w-0 max-w-[82%] select-none sm:max-w-155 ${isOwnMessage ? "ml-auto" : "mr-auto"}`}
             >
                 <div className={`relative rounded-[18px] px-3 py-2.5 sm:rounded-[20px] sm:px-4 ${isOwnMessage ? "bg-[#e7f8ed]" : "bg-[#f2f3f2]"}`}>
+
                     {!isOwnMessage && (
-                        <Link href={`/profile/${message.authorUsername}`} className="text-xs font-semibold text-main-green hover:underline sm:text-sm">
-                            {
-                                message.authorDisplayName
-                            }
-                        </Link>
+                        <div className="text-xs font-semibold text-main-green sm:text-sm">
+                            {message.authorDisplayName}
+                        </div>
                     )}
 
                     {message.replyTo && (
