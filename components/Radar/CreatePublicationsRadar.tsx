@@ -3,9 +3,9 @@
 import { createPublicationsRadar } from "@/actions/createPublicationsRadar"
 import { searchRadarProfiles, type RadarProfileOption } from "@/actions/searchRadarProfiles"
 import { Check, LoaderCircle, Plus, Search, X } from "lucide-react"
-import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useEffect, useState, useTransition } from "react"
+import UserAvatar from "../ui/UserAvatar"
 
 type Props = {
     currentUserId: string
@@ -115,8 +115,12 @@ function CreatePublicationsRadar({ currentUserId, suggestedProfiles }: Props) {
         return (
             <button key={profile.id} type="button" onClick={() => toggleProfile(profile)} className="flex w-full cursor-pointer items-center gap-3 rounded-xl p-3 text-left transition-colors hover:bg-green-50">
                 <div className="relative size-11 shrink-0 overflow-hidden rounded-full bg-bg-green">
-                    <Image src={profile.avatar_url ?? "/user-avatar.svg"} alt={profile.display_name} fill sizes="44px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
-                </div>
+                    <UserAvatar
+                        userId={profile.id}
+                        displayName={profile.display_name}
+                        avatarUrl={profile.avatar_url}
+                        size={44}
+                    />                </div>
 
                 <div className="min-w-0 flex-1">
                     <div className="flex min-w-0 items-center gap-2">
@@ -194,7 +198,12 @@ function CreatePublicationsRadar({ currentUserId, suggestedProfiles }: Props) {
                         {selectedProfiles.map((profile) => (
                             <button key={profile.id} type="button" onClick={() => toggleProfile(profile)} className="flex cursor-pointer items-center gap-2 rounded-full bg-green-50 py-1.5 pl-2 pr-3 text-sm text-gray-800 transition-colors hover:bg-green-100">
                                 <div className="relative size-6 overflow-hidden rounded-full bg-bg-green">
-                                    <Image src={profile.avatar_url ?? "/user-avatar.svg"} alt={profile.display_name} fill sizes="24px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
+                                    <UserAvatar
+                                        userId={profile.id}
+                                        displayName={profile.display_name}
+                                        avatarUrl={profile.avatar_url}
+                                        size={24}
+                                    />
                                 </div>
 
                                 <span className="max-w-[150] truncate">{profile.id === currentUserId ? "Вы" : profile.display_name}</span>

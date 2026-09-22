@@ -10,6 +10,7 @@ import CommentsSection from "./CommentsSection"
 import PostActions from "./PostActions"
 import PostEditForm from "./PostEditForm"
 import PostMediaGrid from "./PostMediaGrid"
+import UserAvatar from "../ui/UserAvatar"
 
 type Props = {
     profile: Profile
@@ -142,7 +143,12 @@ function PostCard({
         <article className="rounded-2xl border border-green-100 bg-white p-4">
             <div className="flex items-start gap-3">
                 <Link href={`/profile/${profile.username}`} className="relative size-11 shrink-0 overflow-hidden rounded-full bg-bg-green">
-                    <Image src={profile.avatar_url ?? "/user-avatar.svg"} alt={profile.display_name} fill sizes="44px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
+                    <UserAvatar
+                        userId={profile.id}
+                        displayName={profile.display_name}
+                        avatarUrl={profile.avatar_url}
+                        size={44}
+                    />
                 </Link>
 
                 <div className="min-w-0 flex-1">

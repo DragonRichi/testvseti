@@ -10,7 +10,6 @@ import {
     ArrowLeft,
     LoaderCircle
 } from "lucide-react"
-import Image from "next/image"
 import Link from "next/link"
 import {
     useCallback,
@@ -24,6 +23,7 @@ import useDirectBottomPin from "./useDirectBottomPin"
 import useDirectMessageRealtime from "./useDirectMessageRealtime"
 import useDirectOlderMessages from "./useDirectOlderMessages"
 import useDirectVisualViewport from "./useDirectVisualViewport"
+import UserAvatar from "../ui/UserAvatar"
 
 type Props = {
     conversation: DirectConversation
@@ -206,61 +206,61 @@ function DirectConversationRoom({
 
                 const newMessage:
                     DirectMessage =
-                    {
-                        id:
-                            result
-                                .message
-                                .id,
+                {
+                    id:
+                        result
+                            .message
+                            .id,
 
-                        conversationId:
-                            result
-                                .message
-                                .conversation_id,
+                    conversationId:
+                        result
+                            .message
+                            .conversation_id,
 
-                        userId:
-                            result
-                                .message
-                                .user_id,
+                    userId:
+                        result
+                            .message
+                            .user_id,
 
-                        content:
-                            result
-                                .message
-                                .content,
+                    content:
+                        result
+                            .message
+                            .content,
 
-                        replyToId:
-                            result
-                                .message
-                                .reply_to_id,
+                    replyToId:
+                        result
+                            .message
+                            .reply_to_id,
 
-                        forwardedFromMessageId:
-                            null,
+                    forwardedFromMessageId:
+                        null,
 
-                        isEdited:
-                            false,
+                    isEdited:
+                        false,
 
-                        editedAt:
-                            null,
+                    editedAt:
+                        null,
 
-                        deliveredAt:
-                            null,
+                    deliveredAt:
+                        null,
 
-                        createdAt:
-                            result
-                                .message
-                                .created_at,
+                    createdAt:
+                        result
+                            .message
+                            .created_at,
 
-                        authorUsername:
-                            currentProfile.username,
+                    authorUsername:
+                        currentProfile.username,
 
-                        authorDisplayName:
-                            currentProfile.display_name,
+                    authorDisplayName:
+                        currentProfile.display_name,
 
-                        authorAvatarUrl:
-                            currentProfile.avatar_url,
+                    authorAvatarUrl:
+                        currentProfile.avatar_url,
 
-                        replyTo:
-                            null
-                    }
+                    replyTo:
+                        null
+                }
 
                 setMessages(
                     (
@@ -317,25 +317,14 @@ function DirectConversationRoom({
 
                 <Link
                     href={`/profile/${conversation.username}`}
-                    className="relative size-9 shrink-0 overflow-hidden rounded-full bg-bg-green sm:size-10"
+                    className="shrink-0 rounded-full"
                 >
-                    <Image
-                        src={
-                            conversation.avatarUrl ??
-                            "/user-avatar.svg"
-                        }
-                        alt={
-                            conversation.displayName
-                        }
-                        fill
-                        sizes="40px"
+                    <UserAvatar
+                        userId={conversation.otherUserId}
+                        displayName={conversation.displayName}
+                        avatarUrl={conversation.avatarUrl}
+                        size={40}
                         priority
-                        unoptimized={
-                            process.env
-                                .NODE_ENV ===
-                            "development"
-                        }
-                        className="object-cover"
                     />
                 </Link>
 
@@ -372,7 +361,7 @@ function DirectConversationRoom({
                     className="h-full overflow-x-hidden overflow-y-auto overscroll-contain px-3 py-4 sm:px-5 sm:py-5"
                 >
                     {messages.length ===
-                    0 ? (
+                        0 ? (
                         <div className="flex min-h-full items-center justify-center px-6 text-center">
                             <div>
                                 <div className="text-sm font-semibold text-gray-900">
@@ -415,13 +404,13 @@ function DirectConversationRoom({
 
                     {messages.length ===
                         0 && (
-                        <div
-                            ref={
-                                endRef
-                            }
-                            className="h-px"
-                        />
-                    )}
+                            <div
+                                ref={
+                                    endRef
+                                }
+                                className="h-px"
+                            />
+                        )}
                 </div>
             </div>
 

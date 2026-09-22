@@ -7,6 +7,8 @@ import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
+import useUnreadDirectMessagesCount from "../Messages/useUnreadDirectMessagesCount"
+import UserAvatar from "../ui/UserAvatar"
 
 type Profile = {
     id: string
@@ -51,6 +53,10 @@ function FeedSidebar({ profile }: Props) {
     const [isOpen, setIsOpen] = useState<boolean>(false)
     const pathName = usePathname()
     const profileHref = profile ? `/profile/${profile.username}` : "#"
+    const unreadMessagesCount =
+        useUnreadDirectMessagesCount(
+            profile?.id ?? null
+        )
 
     useEffect(() => {
         if (!isOpen) return
@@ -87,8 +93,21 @@ function FeedSidebar({ profile }: Props) {
 
                     return (
                         <Link href={item.href} key={item.href} onClick={() => mobile && setIsOpen(false)} className={`flex h-12 items-center gap-4 rounded-xl px-4 text-[15] font-medium transition-colors ${isActive ? "bg-green-50 text-main-green" : "text-gray-700 hover:bg-green-50 hover:text-main-green"}`}>
-                            <Icon className="size-5 shrink-0" strokeWidth={1.8} />
+                            <Icon
+                                className="size-5 shrink-0"
+                                strokeWidth={1.8}
+                            />
+
                             <span>{item.name}</span>
+
+                            {item.href === "/messages" &&
+                                unreadMessagesCount > 0 && (
+                                    <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-main-green px-1.5 text-[11px] font-bold leading-none text-white">
+                                        {unreadMessagesCount > 99
+                                            ? "99+"
+                                            : unreadMessagesCount}
+                                    </span>
+                                )}
                         </Link>
                     )
                 })}
@@ -99,8 +118,13 @@ function FeedSidebar({ profile }: Props) {
                     <div className="border-t border-gray-100 pt-4">
                         <Link href={profileHref} onClick={() => setIsOpen(false)} className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-green-50">
                             <div className="relative size-11 shrink-0 overflow-hidden rounded-full bg-bg-green">
-                                <Image src={profile?.avatar_url ?? "/user-avatar.svg"} alt={profile?.display_name ?? "Профиль"} fill sizes="44px" loading="eager" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
-                            </div>
+                                <UserAvatar
+                                    userId={profile?.id}
+                                    displayName={profile?.display_name}
+                                    avatarUrl={profile?.avatar_url}
+                                    size={44}
+                                    priority
+                                />                            </div>
 
                             <div className="min-w-0 flex-1">
                                 <div className="truncate text-sm font-bold text-gray-900">{profile?.display_name ?? "Профиль"}</div>

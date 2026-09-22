@@ -1,240 +1,245 @@
 "use client"
 
-import { getDirectConversations } from "@/actions/getDirectConversations"
-import { createClient } from "@/lib/supabase/client"
+import {
+    searchDirectMessages,
+    type DirectMessageSearchMatch
+} from "@/actions/searchDirectMessages"
+import UserAvatar from "@/components/ui/UserAvatar"
 import type { DirectConversationSummary } from "@/types/directMessages"
 import {
+    LoaderCircle,
     MessageCircle,
     Pin,
     Search
 } from "lucide-react"
-import Image from "next/image"
 import Link from "next/link"
 import {
     useEffect,
     useMemo,
-    useRef,
     useState
 } from "react"
+import {
+    formatConversationTime
+} from "./directConversationListHelpers"
+import useDirectConversationListRealtime from "./useDirectConversationListRealtime"
 
 type Props = {
     initialConversations: DirectConversationSummary[]
     currentProfileId: string
 }
 
-function formatListTime(
-    value: string | null
-) {
-    if (!value) return ""
-
-    const date =
-        new Date(value)
-
-    const now =
-        new Date()
-
-    const sameDay =
-        date.getFullYear() ===
-        now.getFullYear() &&
-        date.getMonth() ===
-        now.getMonth() &&
-        date.getDate() ===
-        now.getDate()
-
-    return new Intl.DateTimeFormat(
-        "ru-RU",
-        sameDay
-            ? {
-                hour: "2-digit",
-                minute: "2-digit"
-            }
-            : {
-                day: "2-digit",
-                month: "2-digit"
-            }
-    ).format(date)
+type DisplayConversation = {
+    conversation: DirectConversationSummary
+    preview: string
+    previewUserId: string | null
+    previewTime: string | null
+    isMessageMatch: boolean
 }
 
 function DirectConversationList({
     initialConversations,
     currentProfileId
 }: Props) {
-    const [
-        conversations,
-        setConversations
-    ] =
-        useState(
-            initialConversations
-        )
-
-    const [
-        query,
-        setQuery
-    ] =
+    const [query, setQuery] =
         useState("")
 
-    const syncTimerRef =
-        useRef<number | null>(
-            null
-        )
+    const [
+        messageMatches,
+        setMessageMatches
+    ] =
+        useState<DirectMessageSearchMatch[]>([])
+
+    const [
+        isSearchingMessages,
+        setIsSearchingMessages
+    ] =
+        useState(false)
+
+    const conversations =
+        useDirectConversationListRealtime({
+            initialConversations,
+            currentProfileId
+        })
 
     useEffect(() => {
-        const supabase =
-            createClient()
+        const normalizedQuery =
+            query.trim()
 
-        let disposed =
-            false
+        if (
+            normalizedQuery.length < 2
+        ) {
+            setMessageMatches([])
+            setIsSearchingMessages(false)
+            return
+        }
 
-        let channel:
-            ReturnType<
-                typeof supabase.channel
-            > | null =
-            null
+        let cancelled = false
 
-        const sync =
-            async () => {
-                const next =
-                    await getDirectConversations()
+        setIsSearchingMessages(true)
 
-                if (!disposed) {
-                    setConversations(
-                        next
-                    )
-                }
-            }
+        const timer =
+            window.setTimeout(
+                async () => {
+                    try {
+                        const matches =
+                            await searchDirectMessages(
+                                normalizedQuery
+                            )
 
-        const scheduleSync =
-            () => {
-                if (
-                    syncTimerRef.current !==
-                    null
-                ) {
-                    window.clearTimeout(
-                        syncTimerRef.current
-                    )
-                }
+                        if (cancelled) {
+                            return
+                        }
 
-                syncTimerRef.current =
-                    window.setTimeout(
-                        () =>
-                            void sync(),
-                        120
-                    )
-            }
+                        setMessageMatches(
+                            matches
+                        )
+                    } catch (error) {
+                        if (cancelled) {
+                            return
+                        }
 
-        const connect =
-            async () => {
-                const {
-                    data: {
-                        session
+                        console.error(
+                            "DIRECT MESSAGE SEARCH ERROR:",
+                            error
+                        )
+
+                        setMessageMatches([])
+                    } finally {
+                        if (
+                            !cancelled
+                        ) {
+                            setIsSearchingMessages(
+                                false
+                            )
+                        }
                     }
-                } =
-                    await supabase.auth.getSession()
-
-                if (
-                    disposed ||
-                    !session
-                ) {
-                    return
-                }
-
-                supabase.realtime.setAuth(
-                    session.access_token
-                )
-
-                channel =
-                    supabase
-                        .channel(
-                            `direct-conversations:${currentProfileId}`
-                        )
-                        .on(
-                            "postgres_changes",
-                            {
-                                event:
-                                    "*",
-                                schema:
-                                    "public",
-                                table:
-                                    "messages"
-                            },
-                            scheduleSync
-                        )
-                        .subscribe()
-            }
-
-        void connect()
-        void sync()
-
-        const handleFocus =
-            () =>
-                void sync()
-
-        window.addEventListener(
-            "focus",
-            handleFocus
-        )
+                },
+                300
+            )
 
         return () => {
-            disposed = true
+            cancelled = true
 
-            window.removeEventListener(
-                "focus",
-                handleFocus
+            window.clearTimeout(
+                timer
             )
-
-            if (
-                syncTimerRef.current !==
-                null
-            ) {
-                window.clearTimeout(
-                    syncTimerRef.current
-                )
-            }
-
-            if (channel) {
-                void supabase.removeChannel(
-                    channel
-                )
-            }
         }
-    }, [currentProfileId])
+    }, [query])
 
     const filtered =
-        useMemo(() => {
-            const normalized =
-                query
-                    .trim()
-                    .toLocaleLowerCase(
-                        "ru-RU"
+        useMemo<DisplayConversation[]>(
+            () => {
+                const normalized =
+                    query
+                        .trim()
+                        .toLocaleLowerCase(
+                            "ru-RU"
+                        )
+
+                if (!normalized) {
+                    return conversations.map(
+                        (conversation) => ({
+                            conversation,
+                            preview:
+                                conversation.lastMessage ||
+                                "Сообщение",
+                            previewUserId:
+                                conversation.lastMessageUserId,
+                            previewTime:
+                                conversation.lastMessageTime,
+                            isMessageMatch:
+                                false
+                        })
                     )
+                }
 
-            if (!normalized) {
-                return conversations
-            }
+                const matchesByConversation =
+                    new Map<
+                        string,
+                        DirectMessageSearchMatch
+                    >()
 
-            return conversations.filter(
-                (conversation) =>
-                    conversation
-                        .displayName
-                        .toLocaleLowerCase(
-                            "ru-RU"
+                for (
+                    const match of
+                    messageMatches
+                ) {
+                    if (
+                        !matchesByConversation.has(
+                            match.conversationId
                         )
-                        .includes(
-                            normalized
-                        ) ||
-                    conversation
-                        .username
-                        .toLocaleLowerCase(
-                            "ru-RU"
+                    ) {
+                        matchesByConversation.set(
+                            match.conversationId,
+                            match
                         )
-                        .includes(
-                            normalized
+                    }
+                }
+
+                const result:
+                    DisplayConversation[] =
+                    []
+
+                for (
+                    const conversation of
+                    conversations
+                ) {
+                    const nameMatches =
+                        conversation.displayName
+                            .toLocaleLowerCase(
+                                "ru-RU"
+                            )
+                            .includes(
+                                normalized
+                            ) ||
+                        conversation.username
+                            .toLocaleLowerCase(
+                                "ru-RU"
+                            )
+                            .includes(
+                                normalized
+                            )
+
+                    const messageMatch =
+                        matchesByConversation.get(
+                            conversation.id
                         )
-            )
-        }, [
-            conversations,
-            query
-        ])
+
+                    if (
+                        !nameMatches &&
+                        !messageMatch
+                    ) {
+                        continue
+                    }
+
+                    result.push({
+                        conversation,
+                        preview:
+                            messageMatch?.content ??
+                            conversation.lastMessage ??
+                            "Сообщение",
+                        previewUserId:
+                            messageMatch
+                                ?.messageUserId ??
+                            conversation.lastMessageUserId,
+                        previewTime:
+                            messageMatch
+                                ?.createdAt ??
+                            conversation.lastMessageTime,
+                        isMessageMatch:
+                            Boolean(
+                                messageMatch
+                            )
+                    })
+                }
+
+                return result
+            },
+            [
+                conversations,
+                messageMatches,
+                query
+            ]
+        )
 
     return (
         <section className="overflow-hidden rounded-3xl border border-green-100 bg-white">
@@ -247,26 +252,23 @@ function DirectConversationList({
                     <Search className="size-4 shrink-0 text-main-gray" />
 
                     <input
-                        value={
-                            query
-                        }
-                        onChange={(
-                            event
-                        ) =>
+                        value={query}
+                        onChange={(event) =>
                             setQuery(
-                                event
-                                    .target
-                                    .value
+                                event.target.value
                             )
                         }
-                        placeholder="Поиск диалогов"
+                        placeholder="Поиск по диалогам и сообщениям"
                         className="min-w-0 flex-1 bg-transparent text-[16px] text-gray-900 outline-none placeholder:text-main-gray lg:text-sm"
                     />
+
+                    {isSearchingMessages && (
+                        <LoaderCircle className="size-4 shrink-0 animate-spin text-main-gray" />
+                    )}
                 </label>
             </div>
 
-            {filtered.length ===
-                0 ? (
+            {filtered.length === 0 ? (
                 <div className="flex min-h-[360] flex-col items-center justify-center px-6 py-12 text-center">
                     <div className="flex size-14 items-center justify-center rounded-full bg-green-50 text-main-green">
                         <MessageCircle className="size-6" />
@@ -274,60 +276,51 @@ function DirectConversationList({
 
                     <div className="mt-4 font-semibold text-gray-900">
                         {query.trim()
-                            ? "Диалоги не найдены"
+                            ? "Ничего не найдено"
                             : "Пока нет сообщений"}
                     </div>
 
                     <div className="mt-1 max-w-[360] text-sm leading-6 text-main-gray">
                         {query.trim()
-                            ? "Попробуйте изменить запрос."
+                            ? "Попробуйте изменить поисковый запрос."
                             : "Откройте профиль пользователя и нажмите «Написать», чтобы начать переписку."}
                     </div>
                 </div>
             ) : (
                 <div className="divide-y divide-gray-100">
                     {filtered.map(
-                        (
-                            conversation
-                        ) => {
-                            const isOwnLastMessage =
-                                conversation.lastMessageUserId ===
+                        ({
+                            conversation,
+                            preview,
+                            previewUserId,
+                            previewTime,
+                            isMessageMatch
+                        }) => {
+                            const isOwnPreview =
+                                previewUserId ===
                                 currentProfileId
 
                             return (
                                 <Link
                                     href={`/messages/${conversation.id}`}
-                                    key={
-                                        conversation.id
-                                    }
-                                    className="flex min-w-0 items-center gap-3 px-4 py-3 transition-colors hover:bg-green-50/60 sm:px-5 sm:py-4"
+                                    key={conversation.id}
+                                    className={`relative flex min-w-0 items-center gap-3 px-4 py-3 transition-colors sm:px-5 sm:py-4 ${conversation.unreadCount > 0 ? "bg-green-50/80 hover:bg-green-50" : "hover:bg-green-50/60"}`}
                                 >
-                                    <div className="relative size-12 shrink-0 overflow-hidden rounded-full bg-bg-green sm:size-[52]">
-                                        <Image
-                                            src={
-                                                conversation.avatarUrl ??
-                                                "/user-avatar.svg"
-                                            }
-                                            alt={
-                                                conversation.displayName
-                                            }
-                                            fill
-                                            sizes="52px"
-                                            unoptimized={
-                                                process.env
-                                                    .NODE_ENV ===
-                                                "development"
-                                            }
-                                            className="object-cover"
-                                        />
-                                    </div>
+                                    {conversation.unreadCount > 0 && (
+                                        <div className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-main-green" />
+                                    )}
+
+                                    <UserAvatar
+                                        userId={conversation.otherUserId}
+                                        displayName={conversation.displayName}
+                                        avatarUrl={conversation.avatarUrl}
+                                        size={52}
+                                    />
 
                                     <div className="min-w-0 flex-1">
                                         <div className="flex min-w-0 items-center gap-2">
                                             <div className={`truncate text-sm ${conversation.unreadCount > 0 ? "font-bold text-gray-950" : "font-semibold text-gray-900"}`}>
-                                                {
-                                                    conversation.displayName
-                                                }
+                                                {conversation.displayName}
                                             </div>
 
                                             {conversation.isPinned && (
@@ -335,33 +328,36 @@ function DirectConversationList({
                                             )}
 
                                             <div className="ml-auto shrink-0 text-[11px] text-main-gray">
-                                                {formatListTime(
-                                                    conversation.lastMessageTime
+                                                {formatConversationTime(
+                                                    previewTime
                                                 )}
                                             </div>
                                         </div>
 
                                         <div className="mt-1 flex min-w-0 items-center gap-2">
                                             <div className={`min-w-0 flex-1 truncate text-sm ${conversation.unreadCount > 0 ? "font-medium text-gray-700" : "text-main-gray"}`}>
-                                                {isOwnLastMessage && (
-                                                    <span>
+                                                {isMessageMatch && (
+                                                    <span className="mr-1 text-main-green">
+                                                        Найдено:
+                                                    </span>
+                                                )}
+
+                                                {isOwnPreview && (
+                                                    <span className="text-gray-500">
                                                         Вы:{" "}
                                                     </span>
                                                 )}
 
-                                                {conversation.lastMessage ||
-                                                    "Сообщение"}
+                                                {preview}
                                             </div>
 
-                                            {conversation.unreadCount >
-                                                0 && (
-                                                    <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-main-green px-1.5 text-[11px] font-bold text-white">
-                                                        {conversation.unreadCount >
-                                                            99
-                                                            ? "99+"
-                                                            : conversation.unreadCount}
-                                                    </span>
-                                                )}
+                                            {conversation.unreadCount > 0 && (
+                                                <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-main-green px-1.5 text-[11px] font-bold text-white">
+                                                    {conversation.unreadCount > 99
+                                                        ? "99+"
+                                                        : conversation.unreadCount}
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                 </Link>

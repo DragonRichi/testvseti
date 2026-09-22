@@ -7,6 +7,7 @@ import { LoaderCircle, UsersRound } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { useRef, useState } from "react"
+import UserAvatar from "../ui/UserAvatar"
 
 type Props = {
     profileId: string
@@ -120,8 +121,12 @@ function EnvironmentPage({ profileId, initialFollowers, initialFollowing, follow
                             <div key={item.id} className="flex items-center gap-3 px-4 py-3 sm:px-6">
                                 <Link href={`/profile/${item.username}`} className="flex min-w-0 flex-1 items-center gap-3">
                                     <div className="relative size-12 shrink-0 overflow-hidden rounded-full bg-bg-green">
-                                        <Image src={item.avatarUrl ?? "/user-avatar.svg"} alt={item.displayName} fill sizes="48px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
-                                    </div>
+                                        <UserAvatar
+                                            userId={item.id}
+                                            displayName={item.displayName}
+                                            avatarUrl={item.avatarUrl}
+                                            size={48}
+                                        />                                    </div>
 
                                     <div className="min-w-0">
                                         <div className="truncate text-sm font-semibold text-gray-900">{item.displayName}</div>

@@ -7,6 +7,7 @@ import { LoaderCircle, X } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
+import UserAvatar from "../ui/UserAvatar"
 
 type Props = {
     profileId: string
@@ -148,7 +149,12 @@ function ProfileConnectionsStats({ profileId, subscriberCount, followingCount }:
                                         <div key={item.id} className="flex items-center gap-3 px-5 py-3">
                                             <Link href={`/profile/${item.username}`} onClick={() => setOpenType(null)} className="flex min-w-0 flex-1 items-center gap-3">
                                                 <div className="relative size-11 shrink-0 overflow-hidden rounded-full bg-bg-green">
-                                                    <Image src={item.avatarUrl ?? "/user-avatar.svg"} alt={item.displayName} fill sizes="44px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
+                                                    <UserAvatar
+                                                        userId={item.id}
+                                                        displayName={item.displayName}
+                                                        avatarUrl={item.avatarUrl}
+                                                        size={44}
+                                                    />
                                                 </div>
 
                                                 <div className="min-w-0">

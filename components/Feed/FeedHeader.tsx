@@ -1,13 +1,14 @@
 "use client"
 
 import { Bell, UserRound, X } from "lucide-react"
-import Image from "next/image"
 import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 import LogoutButton from "../Auth/LogoutButton"
+import UserAvatar from "../ui/UserAvatar"
 
 type Props = {
   profile: {
+    id: string
     username: string
     display_name: string
     avatar_url: string | null
@@ -46,8 +47,13 @@ function FeedHeader({ profile }: Props) {
 
         <div ref={menuRef} className="relative">
           <button type="button" onClick={() => setIsUserMenuOpen((current) => !current)} aria-label="Меню пользователя" className="relative size-9 cursor-pointer overflow-hidden rounded-full bg-bg-green">
-            <Image src={profile?.avatar_url ?? "/user-avatar.svg"} alt={profile?.display_name ?? "Профиль"} fill sizes="36px" loading="eager" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
-          </button>
+            <UserAvatar
+              userId={profile?.id}
+              displayName={profile?.display_name}
+              avatarUrl={profile?.avatar_url}
+              size={36}
+              priority
+            />          </button>
 
           {isUserMenuOpen && (
             <div className="absolute right-0 top-12 z-1000 w-[220] overflow-hidden rounded-2xl border border-green-100 bg-white p-2 shadow-lg">

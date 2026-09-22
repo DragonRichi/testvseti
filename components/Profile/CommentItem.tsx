@@ -11,6 +11,7 @@ import CommentActions from "./CommentActions"
 import CommentEditForm from "./CommentEditForm"
 import CommentReplyForm from "./CommentReplyForm"
 import useCommentReplies from "./useCommentReplies"
+import UserAvatar from "../ui/UserAvatar"
 
 type Props = {
     comment: PagedPostComment
@@ -77,11 +78,21 @@ function CommentItem({ comment, postId, username, currentProfile, onCommentCreat
             <div className="flex items-start gap-3">
                 {authorUsername ? (
                     <Link href={`/profile/${authorUsername}`} className="relative size-9 shrink-0 overflow-hidden rounded-full bg-bg-green">
-                        <Image src={comment.author?.avatar_url ?? "/user-avatar.svg"} alt={comment.author?.display_name ?? "Пользователь"} fill sizes="36px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
+                        <UserAvatar
+                            userId={comment.user_id}
+                            displayName={comment.author?.display_name}
+                            avatarUrl={comment.author?.avatar_url}
+                            size={36}
+                        />
                     </Link>
                 ) : (
                     <div className="relative size-9 shrink-0 overflow-hidden rounded-full bg-bg-green">
-                        <Image src="/user-avatar.svg" alt="Пользователь" fill sizes="36px" className="object-cover" />
+                        <UserAvatar
+                            userId={comment.user_id}
+                            displayName={comment.author?.display_name ?? "Пользователь"}
+                            avatarUrl={comment.author?.avatar_url}
+                            size={36}
+                        />
                     </div>
                 )}
 

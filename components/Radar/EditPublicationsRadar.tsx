@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState, useTransition } from "react"
 import type { PublicationsRadarForEdit } from "@/lib/radars/getPublicationsRadarForEdit"
 import DeleteRadarButton from "./DeleteRadarButton"
+import UserAvatar from "../ui/UserAvatar"
 
 type Props = {
     radar: PublicationsRadarForEdit
@@ -107,7 +108,12 @@ function EditPublicationsRadar({ radar, suggestedProfiles }: Props) {
         return (
             <button key={profile.id} type="button" onClick={() => toggleProfile(profile)} className="flex w-full cursor-pointer items-center gap-3 rounded-xl p-3 text-left transition-colors hover:bg-green-50">
                 <div className="relative size-11 shrink-0 overflow-hidden rounded-full bg-bg-green">
-                    <Image src={profile.avatar_url ?? "/user-avatar.svg"} alt={profile.display_name} fill sizes="44px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
+                    <UserAvatar
+                        userId={profile.id}
+                        displayName={profile.display_name}
+                        avatarUrl={profile.avatar_url}
+                        size={44}
+                    />
                 </div>
 
                 <div className="min-w-0 flex-1">
@@ -167,7 +173,12 @@ function EditPublicationsRadar({ radar, suggestedProfiles }: Props) {
                         {selectedProfiles.map((profile) => (
                             <button key={profile.id} type="button" onClick={() => toggleProfile(profile)} className="flex cursor-pointer items-center gap-2 rounded-full bg-green-50 py-1.5 pl-2 pr-3 text-sm">
                                 <div className="relative size-6 overflow-hidden rounded-full bg-bg-green">
-                                    <Image src={profile.avatar_url ?? "/user-avatar.svg"} alt={profile.display_name} fill sizes="24px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
+                                    <UserAvatar
+                                        userId={profile.id}
+                                        displayName={profile.display_name}
+                                        avatarUrl={profile.avatar_url}
+                                        size={24}
+                                    />
                                 </div>
 
                                 <span>{profile.display_name}</span>

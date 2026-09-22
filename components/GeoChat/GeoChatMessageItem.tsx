@@ -7,6 +7,7 @@ import Image from "next/image"
 import Link from "next/link"
 import GeoChatMessageAttachments from "./GeoChatMessageAttachments"
 import GeoChatMessageReactions from "./GeoChatMessageReactions"
+import UserAvatar from "../ui/UserAvatar"
 
 type Props = {
     message: GeoChatMessage
@@ -85,19 +86,12 @@ function GeoChatMessageItem({
         <div className={`flex w-full items-end gap-2 rounded-2xl transition-colors ${isOwnMessage ? "justify-end" : "justify-start"} ${highlighted ? "bg-green-50" : ""}`}>
             {!isOwnMessage && (
                 <Link href={`/profile/${message.authorUsername}`} className="relative mb-5 size-8 shrink-0 overflow-hidden rounded-full bg-bg-green sm:size-9">
-                    <Image
-                        src={message.authorAvatarUrl ?? "/user-avatar.svg"}
-                        alt={
-                            message.authorDisplayName
-                        }
-                        fill
-                        sizes="36px"
-                        unoptimized={
-                            process.env
-                                .NODE_ENV ===
-                            "development"
-                        }
-                        className="object-cover"
+                    <UserAvatar
+                        userId={message.userId}
+                        displayName={message.authorDisplayName}
+                        avatarUrl={message.authorAvatarUrl}
+                        size={36}
+                        className="mb-5"
                     />
                 </Link>
             )}

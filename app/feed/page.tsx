@@ -39,10 +39,9 @@ async function Page({ searchParams }: Props) {
     return (
         <SocialLayout profile={profile}>
             <FeedHeader profile={profile} />
-
             <div className="flex flex-col gap-4">
                 <RadarSelector radars={radars} activeRadarId={activeRadarId} />
-                <CreatePostCard username={profile.username} displayName={profile.display_name} avatarUrl={profile.avatar_url} />
+                <CreatePostCard username={profile.username} displayName={profile.display_name} avatarUrl={profile.avatar_url} userId={profile.id} />
                 {activeRadarId ? <RadarFeed radarId={activeRadarId} currentProfile={profile} /> : <GeoFeed currentProfile={profile} />}
             </div>
         </SocialLayout>

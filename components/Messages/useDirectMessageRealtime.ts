@@ -2,6 +2,7 @@
 
 import { getDirectMessages } from "@/actions/getDirectMessages"
 import { markDirectConversationRead } from "@/actions/markDirectConversationRead"
+import { DIRECT_MESSAGES_UNREAD_CHANGED } from "@/lib/messages/directMessageEvents"
 import { createClient } from "@/lib/supabase/client"
 import type { DirectMessage } from "@/types/directMessages"
 import { useEffect, useRef, useState } from "react"
@@ -21,7 +22,6 @@ function useDirectMessageRealtime({
     initialMessages
 }: Options) {
     const [messages, setMessages] = useState<DirectMessage[]>(initialMessages)
-
     const messagesRef = useRef<DirectMessage[]>(initialMessages)
     const activeConversationRef = useRef(conversationId)
 
@@ -45,10 +45,25 @@ function useDirectMessageRealtime({
         let syncInProgress = false
         let syncQueued = false
 
-        const markRead = () => {
-            if (document.visibilityState !== "visible") return
+        const markRead = async () => {
+            if (
+                disposed ||
+                document.visibilityState !== "visible"
+            ) {
+                return
+            }
 
-            void markDirectConversationRead(conversationId)
+            const success = await markDirectConversationRead(
+                conversationId
+            )
+
+            if (success && !disposed) {
+                window.dispatchEvent(
+                    new Event(
+                        DIRECT_MESSAGES_UNREAD_CHANGED
+                    )
+                )
+            }
         }
 
         const syncRecent = async () => {
@@ -62,9 +77,16 @@ function useDirectMessageRealtime({
             syncInProgress = true
 
             try {
-                const result = await getDirectMessages(conversationId)
+                const result = await getDirectMessages(
+                    conversationId
+                )
 
-                if (disposed || result.success === false) return
+                if (
+                    disposed ||
+                    result.success === false
+                ) {
+                    return
+                }
 
                 setMessages((current) => {
                     const next = mergeDirectRecentMessages(
@@ -77,7 +99,7 @@ function useDirectMessageRealtime({
                     return next
                 })
 
-                markRead()
+                await markRead()
             } catch (error) {
                 console.error(
                     "DIRECT MESSAGE REALTIME SYNC ERROR:",
@@ -111,10 +133,14 @@ function useDirectMessageRealtime({
 
             if (!session) return
 
-            supabase.realtime.setAuth(session.access_token)
+            supabase.realtime.setAuth(
+                session.access_token
+            )
 
             channel = supabase
-                .channel(`direct-messages:${conversationId}`)
+                .channel(
+                    `direct-messages:${conversationId}`
+                )
                 .on(
                     "postgres_changes",
                     {
@@ -160,7 +186,8 @@ function useDirectMessageRealtime({
 
                         setMessages((current) => {
                             const next = current.filter(
-                                (message) => message.id !== deletedId
+                                (message) =>
+                                    message.id !== deletedId
                             )
 
                             messagesRef.current = next
@@ -172,19 +199,15 @@ function useDirectMessageRealtime({
                 .subscribe()
         }
 
-        void connect()
-        markRead()
-
         const handleVisible = () => {
-            if (document.visibilityState !== "visible") return
+            if (
+                document.visibilityState !==
+                "visible"
+            ) {
+                return
+            }
 
             void syncRecent()
-            markRead()
-        }
-
-        const handleFocus = () => {
-            void syncRecent()
-            markRead()
         }
 
         document.addEventListener(
@@ -192,10 +215,8 @@ function useDirectMessageRealtime({
             handleVisible
         )
 
-        window.addEventListener(
-            "focus",
-            handleFocus
-        )
+        void connect()
+        void markRead()
 
         return () => {
             disposed = true
@@ -205,13 +226,10 @@ function useDirectMessageRealtime({
                 handleVisible
             )
 
-            window.removeEventListener(
-                "focus",
-                handleFocus
-            )
-
             if (channel) {
-                void supabase.removeChannel(channel)
+                void supabase.removeChannel(
+                    channel
+                )
             }
         }
     }, [conversationId])

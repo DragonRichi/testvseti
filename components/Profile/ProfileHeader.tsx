@@ -5,6 +5,7 @@ import ProfileTabs from "./ProfileTabs"
 import FollowButton from "./FollowButton"
 import ProfileConnectionsStats from "./ProfileConnectionsStats"
 import StartDirectConversationButton from "./StartDirectConversationButton"
+import UserAvatar from "@/components/ui/UserAvatar"
 
 type Profile = {
     id: string
@@ -45,9 +46,15 @@ function ProfileHeader({ isOwnProfile, isFollowing, profile, postsCount }: Props
             <div className="px-5 pb-5 sm:px-7 sm:pb-7">
                 <div className="flex flex-col items-center sm:flex-row sm:items-start sm:justify-between">
                     <div className="relative mt-[-62] shrink-0 sm:mt-[-70]">
-                        <div className="relative size-[112] overflow-hidden rounded-full border-4 border-white bg-bg-green sm:size-[140]">
-                            <Image src={profile.avatar_url ?? "/user-avatar.svg"} alt={profile.display_name} fill priority sizes="(max-width: 640px) 112px, 140px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover" />
-                        </div>
+                        <UserAvatar
+                            userId={profile.id}
+                            displayName={profile.display_name}
+                            avatarUrl={profile.avatar_url}
+                            priority
+                            sizeClassName="size-[112] sm:size-[140]"
+                            textClassName="text-[46px] sm:text-[58px]"
+                            className="border-4 border-white"
+                        />
 
                         <span className="absolute bottom-1 right-1 size-5 rounded-full border-4 border-white bg-main-green sm:bottom-3 sm:right-3" />
                     </div>
