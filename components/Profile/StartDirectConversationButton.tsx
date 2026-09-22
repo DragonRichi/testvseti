@@ -1,119 +1,51 @@
 "use client"
 
 import { startDirectConversation } from "@/actions/startDirectConversation"
-import {
-    LoaderCircle,
-    MessageCircle
-} from "lucide-react"
+import { LoaderCircle, MessageCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
-import {
-    useRef,
-    useState
-} from "react"
+import { useRef, useState } from "react"
 
 type Props = {
     profileId: string
 }
 
-function StartDirectConversationButton({
-    profileId
-}: Props) {
-    const router =
-        useRouter()
+function StartDirectConversationButton({ profileId }: Props) {
+    const router = useRouter()
+    const lockRef = useRef(false)
+    const [isPending, setIsPending] = useState(false)
+    const [error, setError] = useState("")
 
-    const lockRef =
-        useRef(false)
+    const handleClick = async () => {
+        if (lockRef.current) return
 
-    const [
-        isPending,
-        setIsPending
-    ] =
-        useState(false)
+        lockRef.current = true
+        setIsPending(true)
+        setError("")
 
-    const [
-        error,
-        setError
-    ] =
-        useState("")
+        try {
+            const result = await startDirectConversation(profileId)
 
-    const handleClick =
-        async () => {
-            if (
-                lockRef.current
-            ) {
+            if (result.success === false) {
+                setError(result.error)
                 return
             }
 
-            lockRef.current =
-                true
-
-            setIsPending(
-                true
-            )
-
-            setError("")
-
-            try {
-                const result =
-                    await startDirectConversation(
-                        profileId
-                    )
-
-                if (
-                    result.success ===
-                    false
-                ) {
-                    setError(
-                        result.error
-                    )
-
-                    return
-                }
-
-                router.push(
-                    `/messages/${result.conversationId}`
-                )
-            } catch (error) {
-                console.error(
-                    "START DIRECT CONVERSATION ERROR:",
-                    error
-                )
-
-                setError(
-                    "Не удалось открыть диалог"
-                )
-            } finally {
-                lockRef.current =
-                    false
-
-                setIsPending(
-                    false
-                )
-            }
+            router.push(`/messages/${result.conversationId}`)
+        } catch (error) {
+            console.error("START DIRECT CONVERSATION ERROR:", error)
+            setError("Не удалось открыть диалог")
+        } finally {
+            lockRef.current = false
+            setIsPending(false)
         }
+    }
 
     return (
-        <div className="relative shrink-0">
-            <button
-                type="button"
-                onClick={() =>
-                    void handleClick()
-                }
-                disabled={
-                    isPending
-                }
-                aria-label="Написать сообщение"
-                className="flex size-10 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-green-200 bg-white text-sm font-medium text-main-green transition-colors hover:bg-green-50 disabled:pointer-events-none disabled:opacity-60 sm:w-auto sm:px-4"
-            >
-                {isPending ? (
-                    <LoaderCircle className="size-4 animate-spin" />
-                ) : (
-                    <MessageCircle className="size-4" />
-                )}
+        <div className="relative min-w-0 flex-1 sm:flex-none">
+            <button type="button" onClick={() => void handleClick()} disabled={isPending} aria-label="Написать сообщение" className="flex h-10 w-full cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-green-200 bg-white px-3 text-sm font-medium text-main-green transition-colors hover:bg-green-50 disabled:pointer-events-none disabled:opacity-60 sm:w-auto sm:px-4">
+                {isPending ? <LoaderCircle className="size-4 shrink-0 animate-spin" /> : <MessageCircle className="size-4 shrink-0" />}
 
-                <span className="hidden sm:inline">
-                    Написать
-                </span>
+                <span>Написать</span>
             </button>
 
             {error && (
