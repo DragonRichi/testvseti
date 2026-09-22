@@ -108,7 +108,7 @@ function FollowButton({
                 disabled={
                     isPending
                 }
-                className={`grid h-9 shrink-0 cursor-pointer grid-cols-[16px_auto_16px] items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border px-3 text-xs font-medium leading-none transition-colors disabled:pointer-events-none disabled:opacity-60 ${isFollowing ? "border-green-200 bg-white text-main-green hover:border-red-200 hover:bg-red-50 hover:text-red-500" : "border-main-green bg-main-green text-white hover:bg-hover-green"}`}
+                className={`flex h-9 shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border px-3 text-xs font-medium leading-none transition-colors disabled:pointer-events-none disabled:opacity-60 ${isFollowing ? "border-green-200 bg-white text-main-green hover:border-red-200 hover:bg-red-50 hover:text-red-500" : "border-main-green bg-main-green text-white hover:bg-hover-green"}`}
             >
                 {isFollowing ? (
                     <Check className="size-3.5" />
@@ -116,13 +116,11 @@ function FollowButton({
                     <UserPlus className="size-3.5" />
                 )}
 
-                <span className="text-center">
+                <span>
                     {isFollowing
                         ? "Вы подписаны"
                         : "Подписаться"}
                 </span>
-
-                <span />
             </button>
         )
     }
@@ -136,21 +134,19 @@ function FollowButton({
             disabled={
                 isPending
             }
-            className={`grid h-10 min-w-0 flex-1 cursor-pointer grid-cols-[18px_minmax(0,auto)_18px] items-center justify-center gap-2 whitespace-nowrap rounded-xl border px-3 text-sm font-medium leading-none transition-colors disabled:pointer-events-none disabled:opacity-60 sm:flex-none sm:px-4 ${isFollowing ? "border-green-200 bg-white text-main-green hover:border-red-200 hover:bg-red-50 hover:text-red-500" : "border-main-green bg-main-green text-white hover:bg-hover-green"}`}
+            className={`flex h-10 min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-xl border px-3 text-sm font-medium leading-none transition-colors disabled:pointer-events-none disabled:opacity-60 sm:flex-none sm:px-4 ${isFollowing ? "border-green-200 bg-white text-main-green hover:border-red-200 hover:bg-red-50 hover:text-red-500" : "border-main-green bg-main-green text-white hover:bg-hover-green"}`}
         >
             {isFollowing ? (
-                <Check className="size-4" />
+                <Check className="hidden size-4 sm:block" />
             ) : (
-                <UserPlus className="size-4" />
+                <UserPlus className="hidden size-4 sm:block" />
             )}
 
-            <span className="text-center">
+            <span>
                 {isFollowing
                     ? "Вы подписаны"
                     : "Подписаться"}
             </span>
-
-            <span />
         </button>
     )
 }
