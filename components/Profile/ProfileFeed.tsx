@@ -41,6 +41,7 @@ function ProfileFeed({
                     username={profile.username}
                     displayName={profile.display_name}
                     avatarUrl={profile.avatar_url}
+                    userId={profile.id}
                 />
             )}
 
