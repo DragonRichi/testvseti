@@ -4,6 +4,7 @@ import Link from "next/link"
 import ProfileTabs from "./ProfileTabs"
 import FollowButton from "./FollowButton"
 import ProfileConnectionsStats from "./ProfileConnectionsStats"
+import StartDirectConversationButton from "./StartDirectConversationButton"
 
 type Profile = {
     id: string
@@ -57,7 +58,17 @@ function ProfileHeader({ isOwnProfile, isFollowing, profile, postsCount }: Props
                                 Редактировать профиль
                             </Link>
                         ) : (
-                            <FollowButton profileId={profile.id} username={profile.username} initialFollowing={isFollowing} />
+                            <>
+                                <FollowButton
+                                    profileId={profile.id}
+                                    username={profile.username}
+                                    initialFollowing={isFollowing}
+                                />
+
+                                <StartDirectConversationButton
+                                    profileId={profile.id}
+                                />
+                            </>
                         )}
 
                         <button type="button" aria-label="Ещё" className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-gray-200 bg-white text-main-gray transition-colors hover:bg-gray-50 hover:text-black">
