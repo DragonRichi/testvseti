@@ -1,5 +1,6 @@
 import ProfileFeed from "@/components/Profile/ProfileFeed"
 import ProfileHeader from "@/components/Profile/ProfileHeader"
+import getCurrentViewer from "@/lib/auth/getCurrentViewer"
 import { createClient } from "@/lib/supabase/server"
 import { notFound, redirect } from "next/navigation"
 
@@ -14,29 +15,29 @@ type Props = {
 async function Page({ params }: Props) {
     const { username } = await params
     const supabase = await createClient()
+    const normalizedUsername = username.toLowerCase()
 
-    const {
-        data: { user }
-    } = await supabase.auth.getUser()
-
-    if (!user) redirect("/")
-
-    const [{ data: currentProfile, error: currentProfileError }, { data: profile, error: profileError }] = await Promise.all([
-        supabase.from("profiles").select("id,username,display_name,avatar_url").eq("id", user.id).single(),
-        supabase.from("profiles").select("id,username,display_name,avatar_url,cover_url,bio,birth_date,location_label,website_url,subscriber_count,following_count,is_verified,badge_title,interests").eq("username", username.toLowerCase()).single()
+    const [viewer, profileResult] = await Promise.all([
+        getCurrentViewer(),
+        supabase
+            .from("profiles")
+            .select("id,username,display_name,avatar_url,cover_url,bio,birth_date,location_label,website_url,subscriber_count,following_count,is_verified,badge_title,interests")
+            .eq("username", normalizedUsername)
+            .single()
     ])
 
-    if (currentProfileError || !currentProfile) {
-        console.error("CURRENT PROFILE LOAD ERROR:", currentProfileError)
+    if (!viewer) {
         redirect("/")
     }
+
+    const { data: profile, error: profileError } = profileResult
 
     if (profileError || !profile) {
         console.error("PROFILE LOAD ERROR:", profileError)
         notFound()
     }
 
-    const isOwnProfile = user.id === profile.id
+    const isOwnProfile = viewer.user.id === profile.id
 
     const [postsResult, followResult] = await Promise.all([
         supabase
@@ -46,7 +47,14 @@ async function Page({ params }: Props) {
             .order("created_at", { ascending: false })
             .order("id", { ascending: false })
             .range(0, PROFILE_POSTS_PAGE_SIZE - 1),
-        isOwnProfile ? Promise.resolve({ data: null, error: null }) : supabase.from("follows").select("following_id").eq("follower_id", user.id).eq("following_id", profile.id).maybeSingle()
+        isOwnProfile
+            ? Promise.resolve({ data: null, error: null })
+            : supabase
+                .from("follows")
+                .select("following_id")
+                .eq("follower_id", viewer.user.id)
+                .eq("following_id", profile.id)
+                .maybeSingle()
     ])
 
     if (postsResult.error) {
@@ -60,10 +68,15 @@ async function Page({ params }: Props) {
     const posts = postsResult.data ?? []
     const postsCount = postsResult.count ?? posts.length
     const postIds = posts.map((post) => post.id)
+
     let likedPostIds: string[] = []
 
     if (postIds.length > 0) {
-        const { data: likedPosts, error: likedPostsError } = await supabase.from("post_likes").select("post_id").eq("user_id", user.id).in("post_id", postIds)
+        const { data: likedPosts, error: likedPostsError } = await supabase
+            .from("post_likes")
+            .select("post_id")
+            .eq("user_id", viewer.user.id)
+            .in("post_id", postIds)
 
         if (likedPostsError) {
             console.error("LIKED POSTS LOAD ERROR:", likedPostsError)
@@ -74,9 +87,21 @@ async function Page({ params }: Props) {
 
     return (
         <>
-            <ProfileHeader postsCount={postsCount} profile={profile} isOwnProfile={isOwnProfile} isFollowing={Boolean(followResult.data)} />
+            <ProfileHeader
+                postsCount={postsCount}
+                profile={profile}
+                isOwnProfile={isOwnProfile}
+                isFollowing={Boolean(followResult.data)}
+            />
 
-            <ProfileFeed profile={profile} posts={posts} postsCount={postsCount} isOwnProfile={isOwnProfile} likedPostIds={likedPostIds} currentProfile={currentProfile} />
+            <ProfileFeed
+                profile={profile}
+                posts={posts}
+                postsCount={postsCount}
+                isOwnProfile={isOwnProfile}
+                likedPostIds={likedPostIds}
+                currentProfile={viewer.profile}
+            />
         </>
     )
 }

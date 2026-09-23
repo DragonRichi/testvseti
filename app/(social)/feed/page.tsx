@@ -3,8 +3,8 @@ import GeoFeed from "@/components/Feed/GeoFeed"
 import CreatePostCard from "@/components/Profile/CreatePostCard"
 import RadarFeed from "@/components/Radar/RadarFeed"
 import RadarSelector from "@/components/Radar/RadarSelector"
+import getCurrentViewer from "@/lib/auth/getCurrentViewer"
 import { getUserRadars } from "@/lib/radars/getUserRadars"
-import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 
 type Props = {
@@ -14,30 +14,24 @@ type Props = {
 }
 
 async function Page({ searchParams }: Props) {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) redirect("/")
-
-    const [profileResult, radars, resolvedSearchParams] = await Promise.all([
-        supabase.from("profiles").select("id,username,display_name,avatar_url").eq("id", user.id).single(),
-        getUserRadars(user.id),
+    const [viewer, resolvedSearchParams] = await Promise.all([
+        getCurrentViewer(),
         searchParams
     ])
 
-    const { data: profile, error } = profileResult
-
-    if (error || !profile) {
-        console.error("PROFILE LOAD ERROR:", error)
+    if (!viewer) {
         redirect("/")
     }
 
+    const { profile, user } = viewer
+    const radars = await getUserRadars(user.id)
     const radarId = resolvedSearchParams.radar
     const activeRadarId = radarId && radars.some((radar) => radar.id === radarId) ? radarId : null
 
     return (
         <>
             <FeedHeader profile={profile} />
+
             <div className="flex flex-col gap-4">
                 <RadarSelector radars={radars} activeRadarId={activeRadarId} />
                 <CreatePostCard username={profile.username} displayName={profile.display_name} avatarUrl={profile.avatar_url} userId={profile.id} />

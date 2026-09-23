@@ -1,4 +1,5 @@
 import EnvironmentPage from "@/components/EnvironmentPage/EnvironmentPage"
+import getCurrentViewer from "@/lib/auth/getCurrentViewer"
 import { loadProfileConnections } from "@/lib/follows/loadProfileConnections"
 import { createClient } from "@/lib/supabase/server"
 import type { ProfileConnectionCursor, ProfileConnectionItem } from "@/types/follows"
@@ -15,21 +16,14 @@ const emptyConnectionsPage: ConnectionsPage = {
 }
 
 async function Page() {
-    const supabase = await createClient()
+    const viewer = await getCurrentViewer()
 
-    const {
-        data: { user },
-        error: userError
-    } = await supabase.auth.getUser()
-
-    if (userError || !user) redirect("/")
-
-    const { data: currentProfile, error: currentProfileError } = await supabase.from("profiles").select("id,username,display_name,avatar_url,subscriber_count,following_count").eq("id", user.id).single()
-
-    if (currentProfileError || !currentProfile) {
-        console.error("ENVIRONMENT CURRENT PROFILE LOAD ERROR:", currentProfileError)
+    if (!viewer) {
         redirect("/")
     }
+
+    const supabase = await createClient()
+    const { user, profile } = viewer
 
     const [followersResult, followingResult] = await Promise.allSettled([
         loadProfileConnections({
@@ -56,12 +50,20 @@ async function Page() {
 
     const followersPage: ConnectionsPage = followersResult.status === "fulfilled" ? followersResult.value : emptyConnectionsPage
     const followingPage: ConnectionsPage = followingResult.status === "fulfilled" ? followingResult.value : emptyConnectionsPage
-
-    const followerCount = Math.max(0, currentProfile.subscriber_count ?? followersPage.items.length)
-    const followingCount = Math.max(0, currentProfile.following_count ?? followingPage.items.length)
+    const followerCount = Math.max(0, profile.subscriber_count ?? followersPage.items.length)
+    const followingCount = Math.max(0, profile.following_count ?? followingPage.items.length)
 
     return (
-        <EnvironmentPage key={`${followerCount}:${followingCount}`} profileId={user.id} initialFollowers={followersPage.items} initialFollowing={followingPage.items} followerCount={followerCount} followingCount={followingCount} initialFollowersCursor={followersPage.nextCursor} initialFollowingCursor={followingPage.nextCursor} />
+        <EnvironmentPage
+            key={`${followerCount}:${followingCount}`}
+            profileId={user.id}
+            initialFollowers={followersPage.items}
+            initialFollowing={followingPage.items}
+            followerCount={followerCount}
+            followingCount={followingCount}
+            initialFollowersCursor={followersPage.nextCursor}
+            initialFollowingCursor={followingPage.nextCursor}
+        />
     )
 }
 

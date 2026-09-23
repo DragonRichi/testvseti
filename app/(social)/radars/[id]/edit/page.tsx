@@ -1,7 +1,7 @@
 import EditPublicationsRadar from "@/components/Radar/EditPublicationsRadar"
+import getCurrentViewer from "@/lib/auth/getCurrentViewer"
 import { getPublicationsRadarForEdit } from "@/lib/radars/getPublicationsRadarForEdit"
 import { getSuggestedRadarProfiles } from "@/lib/radars/getSuggestedRadarProfiles"
-import { createClient } from "@/lib/supabase/server"
 import { notFound, redirect } from "next/navigation"
 
 type Props = {
@@ -11,21 +11,23 @@ type Props = {
 }
 
 async function Page({ params }: Props) {
-    const { id } = await params
-    const supabase = await createClient()
+    const [{ id }, viewer] = await Promise.all([
+        params,
+        getCurrentViewer()
+    ])
 
-    const {
-        data: { user }
-    } = await supabase.auth.getUser()
-
-    if (!user) redirect("/")
+    if (!viewer) {
+        redirect("/")
+    }
 
     const [radar, suggestedProfiles] = await Promise.all([
         getPublicationsRadarForEdit(id),
-        getSuggestedRadarProfiles(user.id)
+        getSuggestedRadarProfiles(viewer.user.id)
     ])
 
-    if (!radar) notFound()
+    if (!radar) {
+        notFound()
+    }
 
     return (
         <EditPublicationsRadar radar={radar} suggestedProfiles={suggestedProfiles} />

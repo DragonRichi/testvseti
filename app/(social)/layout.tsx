@@ -1,5 +1,5 @@
 import SocialLayout from "@/components/Layout/SocialLayout"
-import { createClient } from "@/lib/supabase/server"
+import getCurrentViewer from "@/lib/auth/getCurrentViewer"
 import { redirect } from "next/navigation"
 import type { ReactNode } from "react"
 
@@ -7,49 +7,15 @@ type Props = {
     children: ReactNode
 }
 
-export default async function SocialRootLayout({
-    children
-}: Props) {
-    const supabase =
-        await createClient()
+export default async function SocialRootLayout({ children }: Props) {
+    const viewer = await getCurrentViewer()
 
-    const {
-        data: {
-            user
-        }
-    } =
-        await supabase.auth.getUser()
-
-    if (!user) {
-        redirect("/")
-    }
-
-    const {
-        data: profile,
-        error
-    } =
-        await supabase
-            .from("profiles")
-            .select(
-                "id, username, display_name, avatar_url"
-            )
-            .eq(
-                "id",
-                user.id
-            )
-            .single()
-
-    if (
-        error ||
-        !profile
-    ) {
+    if (!viewer) {
         redirect("/")
     }
 
     return (
-        <SocialLayout
-            profile={profile}
-        >
+        <SocialLayout profile={viewer.profile}>
             {children}
         </SocialLayout>
     )

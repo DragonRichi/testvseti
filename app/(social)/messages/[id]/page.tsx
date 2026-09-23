@@ -1,12 +1,9 @@
 import DirectConversationRoom from "@/components/Messages/DirectConversationRoom"
+import getCurrentViewer from "@/lib/auth/getCurrentViewer"
 import { loadDirectConversation } from "@/lib/messages/loadDirectConversation"
 import { loadDirectMessages } from "@/lib/messages/loadDirectMessages"
-import { createClient } from "@/lib/supabase/server"
 import { isUuid } from "@/lib/validation/uuid"
-import {
-    notFound,
-    redirect
-} from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 
 type Props = {
     params: Promise<{
@@ -14,74 +11,20 @@ type Props = {
     }>
 }
 
-async function Page({
-    params
-}: Props) {
-    const {
-        id
-    } =
-        await params
+async function Page({ params }: Props) {
+    const { id } = await params
 
     if (!isUuid(id)) {
         notFound()
     }
 
-    const supabase =
-        await createClient()
+    const [viewer, conversation, messagePage] = await Promise.all([
+        getCurrentViewer(),
+        loadDirectConversation(id),
+        loadDirectMessages(id)
+    ])
 
-    const {
-        data: {
-            user
-        }
-    } =
-        await supabase.auth.getUser()
-
-    if (!user) {
-        redirect("/")
-    }
-
-    const [
-        {
-            data:
-            currentProfile,
-            error:
-            profileError
-        },
-        conversation,
-        messagePage
-    ] =
-        await Promise.all([
-            supabase
-                .from(
-                    "profiles"
-                )
-                .select(
-                    "id,username,display_name,avatar_url"
-                )
-                .eq(
-                    "id",
-                    user.id
-                )
-                .single(),
-
-            loadDirectConversation(
-                id
-            ),
-
-            loadDirectMessages(
-                id
-            )
-        ])
-
-    if (
-        profileError ||
-        !currentProfile
-    ) {
-        console.error(
-            "DIRECT ROOM PROFILE LOAD ERROR:",
-            profileError
-        )
-
+    if (!viewer) {
         redirect("/")
     }
 
@@ -91,18 +34,10 @@ async function Page({
 
     return (
         <DirectConversationRoom
-                conversation={
-                    conversation
-                }
-                initialMessages={
-                    messagePage.messages
-                }
-                initialHasMore={
-                    messagePage.hasMore
-                }
-                currentProfile={
-                    currentProfile
-                }
+            conversation={conversation}
+            initialMessages={messagePage.messages}
+            initialHasMore={messagePage.hasMore}
+            currentProfile={viewer.profile}
         />
     )
 }

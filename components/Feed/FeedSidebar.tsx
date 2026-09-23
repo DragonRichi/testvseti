@@ -6,8 +6,8 @@ import Logo from "../ui/Logo"
 import UserAvatar from "../ui/UserAvatar"
 import { Bell, Home, MapPinned, Menu, MessageCircle, Search, UserRound, X } from "lucide-react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { useEffect, useState } from "react"
+import { usePathname, useRouter } from "next/navigation"
+import { type MouseEvent, useEffect, useState } from "react"
 
 type Profile = {
     id: string
@@ -21,38 +21,28 @@ type Props = {
 }
 
 const menuItems = [
-    {
-        name: "Лента",
-        href: "/feed",
-        icon: Home
-    },
-    {
-        name: "Сообщения",
-        href: "/messages",
-        icon: MessageCircle
-    },
-    {
-        name: "Геочаты",
-        href: "/geochats",
-        icon: MapPinned
-    },
-    {
-        name: "Окружение",
-        href: "/contacts",
-        icon: UserRound
-    },
-    {
-        name: "Поиск",
-        href: "/search",
-        icon: Search
-    }
+    { name: "Лента", href: "/feed", icon: Home },
+    { name: "Сообщения", href: "/messages", icon: MessageCircle },
+    { name: "Геочаты", href: "/geochats", icon: MapPinned },
+    { name: "Окружение", href: "/contacts", icon: UserRound },
+    { name: "Поиск", href: "/search", icon: Search }
 ]
 
 function FeedSidebar({ profile }: Props) {
     const [isOpen, setIsOpen] = useState<boolean>(false)
     const pathName = usePathname()
+    const router = useRouter()
     const profileHref = profile ? `/profile/${profile.username}` : "#"
     const unreadMessagesCount = useUnreadDirectMessagesCount(profile?.id ?? null)
+
+    useEffect(() => {
+        router.prefetch("/feed")
+        router.prefetch("/notifications")
+
+        if (profileHref !== "#") {
+            router.prefetch(profileHref)
+        }
+    }, [profileHref, router])
 
     useEffect(() => {
         if (!isOpen) return
@@ -75,10 +65,39 @@ function FeedSidebar({ profile }: Props) {
             document.body.style.width = ""
             document.body.style.overflow = ""
             document.documentElement.style.overflow = ""
-
             window.scrollTo(0, scrollY)
         }
     }, [isOpen])
+
+    const prefetchMenu = () => {
+        for (const item of menuItems) {
+            router.prefetch(item.href)
+        }
+    }
+
+    const handleOpenMenu = () => {
+        prefetchMenu()
+        setIsOpen(true)
+    }
+
+    const handleLogoClick = (event: MouseEvent<HTMLDivElement>) => {
+        event.preventDefault()
+        event.stopPropagation()
+        setIsOpen(false)
+
+        if (pathName === "/feed") {
+            window.scrollTo({ top: 0, behavior: "smooth" })
+            return
+        }
+
+        router.push("/feed")
+    }
+
+    const renderLogo = () => (
+        <div onClickCapture={handleLogoClick} onPointerEnter={() => router.prefetch("/feed")} className="w-fit cursor-pointer">
+            <Logo />
+        </div>
+    )
 
     const renderMenu = (mobile = false) => (
         <>
@@ -88,9 +107,8 @@ function FeedSidebar({ profile }: Props) {
                     const isActive = pathName === item.href || pathName.startsWith(`${item.href}/`)
 
                     return (
-                        <Link href={item.href} prefetch={true} key={item.href} onClick={() => mobile && setIsOpen(false)} className={`flex h-12 items-center gap-4 rounded-xl px-4 text-[15] font-medium transition-colors ${isActive ? "bg-green-50 text-main-green" : "text-gray-700 hover:bg-green-50 hover:text-main-green"}`}>
+                        <Link href={item.href} prefetch={true} key={item.href} onPointerEnter={() => router.prefetch(item.href)} onTouchStart={() => router.prefetch(item.href)} onClick={() => mobile && setIsOpen(false)} className={`flex h-12 items-center gap-4 rounded-xl px-4 text-[15] font-medium transition-colors ${isActive ? "bg-green-50 text-main-green" : "text-gray-700 hover:bg-green-50 hover:text-main-green"}`}>
                             <Icon className="size-5 shrink-0" strokeWidth={1.8} />
-
                             <span>{item.name}</span>
 
                             {item.href === "/messages" && unreadMessagesCount > 0 && (
@@ -106,17 +124,14 @@ function FeedSidebar({ profile }: Props) {
             {mobile && (
                 <div className="mt-auto pt-6">
                     <div className="border-t border-gray-100 pt-4">
-                        <Link href={profileHref} prefetch={true} onClick={() => setIsOpen(false)} className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-green-50">
+                        <Link href={profileHref} prefetch={true} onPointerEnter={() => profileHref !== "#" && router.prefetch(profileHref)} onTouchStart={() => profileHref !== "#" && router.prefetch(profileHref)} onClick={() => setIsOpen(false)} className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-green-50">
                             <div className="relative size-11 shrink-0 overflow-hidden rounded-full bg-bg-green">
                                 <UserAvatar userId={profile?.id} displayName={profile?.display_name} avatarUrl={profile?.avatar_url} size={44} priority />
                             </div>
 
                             <div className="min-w-0 flex-1">
                                 <div className="truncate text-sm font-bold text-gray-900">{profile?.display_name ?? "Профиль"}</div>
-
-                                {profile?.username && (
-                                    <div className="mt-0.5 truncate text-xs text-main-gray">@{profile.username}</div>
-                                )}
+                                {profile?.username && <div className="mt-0.5 truncate text-xs text-main-gray">@{profile.username}</div>}
                             </div>
                         </Link>
 
@@ -132,19 +147,19 @@ function FeedSidebar({ profile }: Props) {
     return (
         <>
             <aside className="sticky top-0 hidden h-screen flex-col border-r border-green-100 bg-white px-4 py-5 lg:flex">
-                <Logo />
+                {renderLogo()}
                 {renderMenu()}
             </aside>
 
             <div className="fixed left-0 right-0 top-0 z-40 flex h-16 items-center border-b border-black/5 bg-white/95 px-4 backdrop-blur-md lg:hidden">
-                <Logo />
+                {renderLogo()}
 
                 <div className="ml-auto flex items-center gap-1">
-                    <Link href="/notifications" prefetch={true} aria-label="Уведомления" className="flex size-10 items-center justify-center rounded-xl text-gray-700 transition-colors hover:bg-green-50 hover:text-main-green">
+                    <Link href="/notifications" prefetch={true} onPointerEnter={() => router.prefetch("/notifications")} onTouchStart={() => router.prefetch("/notifications")} aria-label="Уведомления" className="flex size-10 items-center justify-center rounded-xl text-gray-700 transition-colors hover:bg-green-50 hover:text-main-green">
                         <Bell className="size-5" strokeWidth={1.8} />
                     </Link>
 
-                    <button type="button" onClick={() => setIsOpen(true)} aria-label="Открыть меню" className="flex size-10 cursor-pointer items-center justify-center rounded-xl text-gray-700 transition-colors hover:bg-green-50 hover:text-main-green">
+                    <button type="button" onPointerEnter={prefetchMenu} onClick={handleOpenMenu} aria-label="Открыть меню" className="flex size-10 cursor-pointer items-center justify-center rounded-xl text-gray-700 transition-colors hover:bg-green-50 hover:text-main-green">
                         <Menu className="size-6" />
                     </button>
                 </div>
@@ -153,7 +168,7 @@ function FeedSidebar({ profile }: Props) {
             <div onClick={() => setIsOpen(false)} className={`fixed inset-0 z-9999 overscroll-none bg-black/25 backdrop-blur-[2px] transition-all duration-300 lg:hidden ${isOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}>
                 <aside onClick={(event) => event.stopPropagation()} className={`absolute left-0 top-0 flex h-full w-[290] flex-col overflow-y-auto overscroll-contain bg-white px-4 py-5 shadow-2xl transition-transform duration-300 ease-out ${isOpen ? "translate-x-0" : "-translate-x-full"}`}>
                     <div className="flex items-center justify-between">
-                        <Logo />
+                        {renderLogo()}
 
                         <button type="button" onClick={() => setIsOpen(false)} aria-label="Закрыть меню" className="flex size-10 cursor-pointer items-center justify-center rounded-xl text-gray-600 transition-colors hover:bg-green-50 hover:text-main-green">
                             <X className="size-5" />

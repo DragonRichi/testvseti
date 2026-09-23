@@ -1,23 +1,23 @@
 import DirectConversationList from "@/components/Messages/DirectConversationList"
+import getCurrentViewer from "@/lib/auth/getCurrentViewer"
 import { loadDirectConversations } from "@/lib/messages/loadDirectConversations"
-import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 
 async function Page() {
-    const supabase = await createClient()
+    const [viewer, conversations] = await Promise.all([
+        getCurrentViewer(),
+        loadDirectConversations()
+    ])
 
-    const {
-        data: { user }
-    } = await supabase.auth.getUser()
-
-    if (!user) {
+    if (!viewer) {
         redirect("/")
     }
 
-    const conversations = await loadDirectConversations()
-
     return (
-        <DirectConversationList initialConversations={conversations} currentProfileId={user.id} />
+        <DirectConversationList
+            initialConversations={conversations}
+            currentProfileId={viewer.user.id}
+        />
     )
 }
 

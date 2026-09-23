@@ -1,25 +1,22 @@
 import CreatePublicationsRadar from "@/components/Radar/CreatePublicationsRadar"
 import RadarTypeSwitch from "@/components/Radar/RadarTypeSwitch"
+import getCurrentViewer from "@/lib/auth/getCurrentViewer"
 import { getSuggestedRadarProfiles } from "@/lib/radars/getSuggestedRadarProfiles"
-import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 
 async function Page() {
-    const supabase = await createClient()
+    const viewer = await getCurrentViewer()
 
-    const {
-        data: { user }
-    } = await supabase.auth.getUser()
+    if (!viewer) {
+        redirect("/")
+    }
 
-    if (!user) redirect("/")
-
-    const suggestedProfiles = await getSuggestedRadarProfiles(user.id)
+    const suggestedProfiles = await getSuggestedRadarProfiles(viewer.user.id)
 
     return (
         <div className="flex flex-col gap-4">
             <RadarTypeSwitch active="publications" />
-
-            <CreatePublicationsRadar currentUserId={user.id} suggestedProfiles={suggestedProfiles} />
+            <CreatePublicationsRadar currentUserId={viewer.user.id} suggestedProfiles={suggestedProfiles} />
         </div>
     )
 }
