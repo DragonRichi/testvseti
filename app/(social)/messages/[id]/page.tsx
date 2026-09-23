@@ -1,4 +1,3 @@
-import SocialLayout from "@/components/Layout/SocialLayout"
 import DirectConversationRoom from "@/components/Messages/DirectConversationRoom"
 import { loadDirectConversation } from "@/lib/messages/loadDirectConversation"
 import { loadDirectMessages } from "@/lib/messages/loadDirectMessages"
@@ -91,12 +90,7 @@ async function Page({
     }
 
     return (
-        <SocialLayout
-            profile={
-                currentProfile
-            }
-        >
-            <DirectConversationRoom
+        <DirectConversationRoom
                 conversation={
                     conversation
                 }
@@ -109,8 +103,7 @@ async function Page({
                 currentProfile={
                     currentProfile
                 }
-            />
-        </SocialLayout>
+        />
     )
 }
 

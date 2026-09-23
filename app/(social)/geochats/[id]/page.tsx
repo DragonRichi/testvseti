@@ -1,5 +1,4 @@
 import GeoChatRoom from "@/components/GeoChat/GeoChatRoom"
-import SocialLayout from "@/components/Layout/SocialLayout"
 import { hasGeoChatAdminMode } from "@/lib/geochats/geoChatAdminMode"
 import { loadGeoChatMessages } from "@/lib/geochats/loadGeoChatMessages"
 import { supabaseAdmin } from "@/lib/supabase/admin"
@@ -124,8 +123,7 @@ async function Page({ params }: Props) {
 
     if (!roomRow) {
         return (
-            <SocialLayout profile={currentProfile}>
-                <div className="flex min-h-[420] items-center justify-center rounded-2xl border border-amber-100 bg-white px-5 text-center">
+            <div className="flex min-h-[420] items-center justify-center rounded-2xl border border-amber-100 bg-white px-5 text-center">
                     <div className="max-w-[420]">
                         <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-amber-50 text-amber-600">
                             <MapPin className="size-6" />
@@ -148,8 +146,7 @@ async function Page({ params }: Props) {
                             Вернуться к геочатам
                         </Link>
                     </div>
-                </div>
-            </SocialLayout>
+            </div>
         )
     }
 
@@ -198,8 +195,7 @@ async function Page({ params }: Props) {
     }
 
     return (
-        <SocialLayout profile={currentProfile}>
-            <GeoChatRoom
+        <GeoChatRoom
                 room={room}
                 initialMessages={
                     initialMessages
@@ -216,8 +212,7 @@ async function Page({ params }: Props) {
                 initialAdminMode={
                     adminMode
                 }
-            />
-        </SocialLayout>
+        />
     )
 }
 

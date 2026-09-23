@@ -1,5 +1,4 @@
 import EnvironmentPage from "@/components/EnvironmentPage/EnvironmentPage"
-import SocialLayout from "@/components/Layout/SocialLayout"
 import { loadProfileConnections } from "@/lib/follows/loadProfileConnections"
 import { createClient } from "@/lib/supabase/server"
 import type { ProfileConnectionCursor, ProfileConnectionItem } from "@/types/follows"
@@ -62,9 +61,7 @@ async function Page() {
     const followingCount = Math.max(0, currentProfile.following_count ?? followingPage.items.length)
 
     return (
-        <SocialLayout profile={currentProfile}>
-            <EnvironmentPage key={`${followerCount}:${followingCount}`} profileId={user.id} initialFollowers={followersPage.items} initialFollowing={followingPage.items} followerCount={followerCount} followingCount={followingCount} initialFollowersCursor={followersPage.nextCursor} initialFollowingCursor={followingPage.nextCursor} />
-        </SocialLayout>
+        <EnvironmentPage key={`${followerCount}:${followingCount}`} profileId={user.id} initialFollowers={followersPage.items} initialFollowing={followingPage.items} followerCount={followerCount} followingCount={followingCount} initialFollowersCursor={followersPage.nextCursor} initialFollowingCursor={followingPage.nextCursor} />
     )
 }
 

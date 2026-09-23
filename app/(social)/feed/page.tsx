@@ -1,6 +1,5 @@
 import FeedHeader from "@/components/Feed/FeedHeader"
 import GeoFeed from "@/components/Feed/GeoFeed"
-import SocialLayout from "@/components/Layout/SocialLayout"
 import CreatePostCard from "@/components/Profile/CreatePostCard"
 import RadarFeed from "@/components/Radar/RadarFeed"
 import RadarSelector from "@/components/Radar/RadarSelector"
@@ -37,14 +36,14 @@ async function Page({ searchParams }: Props) {
     const activeRadarId = radarId && radars.some((radar) => radar.id === radarId) ? radarId : null
 
     return (
-        <SocialLayout profile={profile}>
+        <>
             <FeedHeader profile={profile} />
             <div className="flex flex-col gap-4">
                 <RadarSelector radars={radars} activeRadarId={activeRadarId} />
                 <CreatePostCard username={profile.username} displayName={profile.display_name} avatarUrl={profile.avatar_url} userId={profile.id} />
                 {activeRadarId ? <RadarFeed radarId={activeRadarId} currentProfile={profile} /> : <GeoFeed currentProfile={profile} />}
             </div>
-        </SocialLayout>
+        </>
     )
 }
 

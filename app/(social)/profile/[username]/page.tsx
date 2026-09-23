@@ -1,4 +1,3 @@
-import SocialLayout from "@/components/Layout/SocialLayout"
 import ProfileFeed from "@/components/Profile/ProfileFeed"
 import ProfileHeader from "@/components/Profile/ProfileHeader"
 import { createClient } from "@/lib/supabase/server"
@@ -74,11 +73,11 @@ async function Page({ params }: Props) {
     }
 
     return (
-        <SocialLayout profile={currentProfile}>
+        <>
             <ProfileHeader postsCount={postsCount} profile={profile} isOwnProfile={isOwnProfile} isFollowing={Boolean(followResult.data)} />
 
             <ProfileFeed profile={profile} posts={posts} postsCount={postsCount} isOwnProfile={isOwnProfile} likedPostIds={likedPostIds} currentProfile={currentProfile} />
-        </SocialLayout>
+        </>
     )
 }
 

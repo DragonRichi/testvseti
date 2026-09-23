@@ -1,14 +1,13 @@
 "use client"
 
 import LogoutButton from "../Auth/LogoutButton"
+import useUnreadDirectMessagesCount from "../Messages/useUnreadDirectMessagesCount"
 import Logo from "../ui/Logo"
+import UserAvatar from "../ui/UserAvatar"
 import { Bell, Home, MapPinned, Menu, MessageCircle, Search, UserRound, X } from "lucide-react"
-import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
-import useUnreadDirectMessagesCount from "../Messages/useUnreadDirectMessagesCount"
-import UserAvatar from "../ui/UserAvatar"
 
 type Profile = {
     id: string
@@ -53,10 +52,7 @@ function FeedSidebar({ profile }: Props) {
     const [isOpen, setIsOpen] = useState<boolean>(false)
     const pathName = usePathname()
     const profileHref = profile ? `/profile/${profile.username}` : "#"
-    const unreadMessagesCount =
-        useUnreadDirectMessagesCount(
-            profile?.id ?? null
-        )
+    const unreadMessagesCount = useUnreadDirectMessagesCount(profile?.id ?? null)
 
     useEffect(() => {
         if (!isOpen) return
@@ -92,22 +88,16 @@ function FeedSidebar({ profile }: Props) {
                     const isActive = pathName === item.href || pathName.startsWith(`${item.href}/`)
 
                     return (
-                        <Link href={item.href} key={item.href} onClick={() => mobile && setIsOpen(false)} className={`flex h-12 items-center gap-4 rounded-xl px-4 text-[15] font-medium transition-colors ${isActive ? "bg-green-50 text-main-green" : "text-gray-700 hover:bg-green-50 hover:text-main-green"}`}>
-                            <Icon
-                                className="size-5 shrink-0"
-                                strokeWidth={1.8}
-                            />
+                        <Link href={item.href} prefetch={true} key={item.href} onClick={() => mobile && setIsOpen(false)} className={`flex h-12 items-center gap-4 rounded-xl px-4 text-[15] font-medium transition-colors ${isActive ? "bg-green-50 text-main-green" : "text-gray-700 hover:bg-green-50 hover:text-main-green"}`}>
+                            <Icon className="size-5 shrink-0" strokeWidth={1.8} />
 
                             <span>{item.name}</span>
 
-                            {item.href === "/messages" &&
-                                unreadMessagesCount > 0 && (
-                                    <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-main-green px-1.5 text-[11px] font-bold leading-none text-white">
-                                        {unreadMessagesCount > 99
-                                            ? "99+"
-                                            : unreadMessagesCount}
-                                    </span>
-                                )}
+                            {item.href === "/messages" && unreadMessagesCount > 0 && (
+                                <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-main-green px-1.5 text-[11px] font-bold leading-none text-white">
+                                    {unreadMessagesCount > 99 ? "99+" : unreadMessagesCount}
+                                </span>
+                            )}
                         </Link>
                     )
                 })}
@@ -116,15 +106,10 @@ function FeedSidebar({ profile }: Props) {
             {mobile && (
                 <div className="mt-auto pt-6">
                     <div className="border-t border-gray-100 pt-4">
-                        <Link href={profileHref} onClick={() => setIsOpen(false)} className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-green-50">
+                        <Link href={profileHref} prefetch={true} onClick={() => setIsOpen(false)} className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-green-50">
                             <div className="relative size-11 shrink-0 overflow-hidden rounded-full bg-bg-green">
-                                <UserAvatar
-                                    userId={profile?.id}
-                                    displayName={profile?.display_name}
-                                    avatarUrl={profile?.avatar_url}
-                                    size={44}
-                                    priority
-                                />                            </div>
+                                <UserAvatar userId={profile?.id} displayName={profile?.display_name} avatarUrl={profile?.avatar_url} size={44} priority />
+                            </div>
 
                             <div className="min-w-0 flex-1">
                                 <div className="truncate text-sm font-bold text-gray-900">{profile?.display_name ?? "Профиль"}</div>
@@ -146,16 +131,16 @@ function FeedSidebar({ profile }: Props) {
 
     return (
         <>
-            <aside className="sticky top-0 hidden h-screen flex-col border-r border-green-100 bg-white px-4 py-5 lg:flex ">
+            <aside className="sticky top-0 hidden h-screen flex-col border-r border-green-100 bg-white px-4 py-5 lg:flex">
                 <Logo />
                 {renderMenu()}
             </aside>
 
-            <div className="fixed left-0 right-0 top-0 z-40  flex h-16 items-center border-b border-black/5 bg-white/95 px-4 backdrop-blur-md lg:hidden">
+            <div className="fixed left-0 right-0 top-0 z-40 flex h-16 items-center border-b border-black/5 bg-white/95 px-4 backdrop-blur-md lg:hidden">
                 <Logo />
 
                 <div className="ml-auto flex items-center gap-1">
-                    <Link href="/notifications" aria-label="Уведомления" className="flex size-10 items-center justify-center rounded-xl text-gray-700 transition-colors hover:bg-green-50 hover:text-main-green">
+                    <Link href="/notifications" prefetch={true} aria-label="Уведомления" className="flex size-10 items-center justify-center rounded-xl text-gray-700 transition-colors hover:bg-green-50 hover:text-main-green">
                         <Bell className="size-5" strokeWidth={1.8} />
                     </Link>
 
