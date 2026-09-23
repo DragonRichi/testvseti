@@ -55,12 +55,13 @@ async function Page({ params }: Props) {
     }
 
     const roomPromise: Promise<RoomRow | null> = adminMode
-        ? supabaseAdmin
-            .from("geo_chats")
-            .select("id,creator_id,name,description,radius_m,created_at")
-            .eq("id", id)
-            .maybeSingle()
-            .then(({ data, error }) => {
+        ? Promise.resolve(
+            supabaseAdmin
+                .from("geo_chats")
+                .select("id,creator_id,name,description,radius_m,created_at")
+                .eq("id", id)
+                .maybeSingle()
+        ).then(({ data, error }) => {
                 if (error) {
                     console.error("ADMIN GEO CHAT ROOM LOAD ERROR:", error)
                 }
