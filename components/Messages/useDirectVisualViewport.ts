@@ -1,101 +1,74 @@
 "use client"
 
 import type { CSSProperties } from "react"
-import {
-    useEffect,
-    useState
-} from "react"
+import { useEffect, useRef, useState } from "react"
 
 function useDirectVisualViewport() {
-    const [
-        style,
-        setStyle
-    ] =
-        useState<
-            CSSProperties | undefined
-        >(undefined)
+    const [style, setStyle] = useState<CSSProperties | undefined>(undefined)
+    const lastRef = useRef({
+        top: -1,
+        height: -1
+    })
 
     useEffect(() => {
+        const viewport = window.visualViewport
+        const desktopQuery = window.matchMedia("(min-width: 1024px)")
+
+        if (!viewport) {
+            return
+        }
+
+        let frameId = 0
+
         const update = () => {
-            if (
-                window.innerWidth >=
-                1024
-            ) {
-                setStyle(undefined)
-                return
-            }
+            window.cancelAnimationFrame(frameId)
 
-            const viewport =
-                window.visualViewport
+            frameId = window.requestAnimationFrame(() => {
+                if (desktopQuery.matches) {
+                    lastRef.current = {
+                        top: -1,
+                        height: -1
+                    }
+                    setStyle(undefined)
+                    return
+                }
 
-            if (!viewport) {
-                setStyle(undefined)
-                return
-            }
+                const top = Math.max(0, Math.round(viewport.offsetTop))
+                const height = Math.max(1, Math.round(viewport.height))
 
-            const top =
-                Math.max(
-                    64,
-                    viewport.offsetTop +
-                        64
-                )
+                if (
+                    lastRef.current.top === top &&
+                    lastRef.current.height === height
+                ) {
+                    return
+                }
 
-            const height =
-                Math.max(
-                    220,
-                    viewport.height -
-                        64
-                )
+                lastRef.current = {
+                    top,
+                    height
+                }
 
-            setStyle({
-                top,
-                height,
-                bottom: "auto"
+                setStyle({
+                    top: `${top}px`,
+                    bottom: "auto",
+                    height: `${height}px`
+                })
             })
         }
 
         update()
 
-        window.addEventListener(
-            "resize",
-            update
-        )
-
-        window.addEventListener(
-            "orientationchange",
-            update
-        )
-
-        window.visualViewport?.addEventListener(
-            "resize",
-            update
-        )
-
-        window.visualViewport?.addEventListener(
-            "scroll",
-            update
-        )
+        viewport.addEventListener("resize", update)
+        viewport.addEventListener("scroll", update)
+        desktopQuery.addEventListener("change", update)
+        window.addEventListener("orientationchange", update)
 
         return () => {
-            window.removeEventListener(
-                "resize",
-                update
-            )
-
-            window.removeEventListener(
-                "orientationchange",
-                update
-            )
-
-            window.visualViewport?.removeEventListener(
-                "resize",
-                update
-            )
-
-            window.visualViewport?.removeEventListener(
-                "scroll",
-                update
-            )
+            window.cancelAnimationFrame(frameId)
+            viewport.removeEventListener("resize", update)
+            viewport.removeEventListener("scroll", update)
+            desktopQuery.removeEventListener("change", update)
+            window.removeEventListener("orientationchange", update)
         }
     }, [])
 

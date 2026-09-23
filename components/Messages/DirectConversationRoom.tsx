@@ -172,7 +172,7 @@ function DirectConversationRoom({
     return (
         <div
             style={mobileStyle}
-            className="fixed inset-x-0 bottom-0 top-[64] z-40 flex flex-col overflow-hidden bg-white lg:static lg:z-auto lg:h-[calc(100dvh-32px)] lg:min-h-[520] lg:rounded-3xl lg:border lg:border-green-100"
+            className="fixed inset-x-0 top-0 z-50 flex h-dvh flex-col overflow-hidden bg-white lg:static lg:z-auto lg:h-[calc(100dvh-32px)] lg:min-h-[520] lg:rounded-3xl lg:border lg:border-green-100"
         >
             <div className="flex h-14 shrink-0 items-center gap-3 border-b border-gray-100 bg-white px-3 sm:h-16 sm:px-5">
                 <Link

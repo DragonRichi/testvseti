@@ -36,11 +36,22 @@ function FeedSidebar({ profile }: Props) {
     const unreadMessagesCount = useUnreadDirectMessagesCount(profile?.id ?? null)
 
     useEffect(() => {
+        router.prefetch("/messages")
         router.prefetch("/feed")
-        router.prefetch("/notifications")
 
         if (profileHref !== "#") {
             router.prefetch(profileHref)
+        }
+
+        const timer = window.setTimeout(() => {
+            router.prefetch("/geochats")
+            router.prefetch("/contacts")
+            router.prefetch("/search")
+            router.prefetch("/notifications")
+        }, 250)
+
+        return () => {
+            window.clearTimeout(timer)
         }
     }, [profileHref, router])
 

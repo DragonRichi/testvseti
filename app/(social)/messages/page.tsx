@@ -1,4 +1,5 @@
 import DirectConversationList from "@/components/Messages/DirectConversationList"
+import MessagesNavigationPrefetch from "@/components/Messages/MessagesNavigationPrefetch"
 import getCurrentViewer from "@/lib/auth/getCurrentViewer"
 import { loadDirectConversations } from "@/lib/messages/loadDirectConversations"
 import { redirect } from "next/navigation"
@@ -14,10 +15,12 @@ async function Page() {
     }
 
     return (
-        <DirectConversationList
-            initialConversations={conversations}
-            currentProfileId={viewer.user.id}
-        />
+        <MessagesNavigationPrefetch>
+            <DirectConversationList
+                initialConversations={conversations}
+                currentProfileId={viewer.user.id}
+            />
+        </MessagesNavigationPrefetch>
     )
 }
 
