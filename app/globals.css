@@ -94,3 +94,11 @@ html {
     font-size: 16px !important;
   }
 }
+
+@media (max-width: 1023px) {
+
+  input::placeholder,
+  textarea::placeholder {
+    font-size: 14px !important;
+  }
+}
