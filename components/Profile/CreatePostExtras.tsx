@@ -27,10 +27,10 @@ function CreatePostExtras({ media, location, isPending, isEmojiOpen, maxMediaCou
     return (
         <>
             {media.length > 0 && (
-                <div className="mt-4">
+                <div className="mt-3">
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                         {media.map((item, index) => (
-                            <div key={item.previewUrl} className="group relative aspect-square overflow-hidden rounded-xl bg-[#f4f7f4]">
+                            <div key={item.previewUrl} className="group relative aspect-square overflow-hidden rounded-[10px] bg-[#f1f3f0]">
                                 <Image src={item.previewUrl} alt={`Фото ${index + 1}`} fill sizes="(max-width: 640px) 50vw, 33vw" unoptimized className="object-cover" />
                                 <button type="button" onClick={() => onRemoveMedia(index)} disabled={isPending} className="absolute right-2 top-2 flex size-8 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80 disabled:pointer-events-none disabled:opacity-50">
                                     <X className="size-4" />
@@ -43,7 +43,7 @@ function CreatePostExtras({ media, location, isPending, isEmojiOpen, maxMediaCou
             )}
 
             {location && (
-                <div className="mt-3 flex items-center gap-2 rounded-xl bg-green-50 px-3 py-2">
+                <div className="mt-3 flex items-center gap-2 rounded-[10px] bg-[#edf9ee] px-3 py-2">
                     <MapPin className="size-4 shrink-0 text-main-green" />
                     <div className="min-w-0 flex-1"><div className="truncate text-sm font-medium text-gray-700">{location.name}</div></div>
                     <button type="button" onClick={onRemoveLocation} disabled={isPending} aria-label="Убрать место" title="Убрать место" className="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-main-gray transition-colors hover:bg-white hover:text-red-500 disabled:pointer-events-none disabled:opacity-50">
@@ -52,13 +52,13 @@ function CreatePostExtras({ media, location, isPending, isEmojiOpen, maxMediaCou
                 </div>
             )}
 
-            <div className="mt-4 grid grid-cols-5 gap-1 border-t border-gray-100 pt-3">
-                <button type="button" onClick={onPhotoClick} disabled={isPending || media.length >= maxMediaCount} className={`flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl py-2.5 transition-colors disabled:pointer-events-none disabled:opacity-50 sm:flex-row sm:gap-2 ${media.length > 0 ? "bg-green-50 text-main-green" : "text-main-gray hover:bg-green-50 hover:text-main-green"}`}>
+            <div className="mt-3 flex flex-wrap items-center gap-1 border-t border-[#eef0ed] pt-3">
+                <button type="button" onClick={onPhotoClick} disabled={isPending || media.length >= maxMediaCount} className={`flex cursor-pointer items-center justify-center gap-1.5 rounded-full px-3 py-2 transition-colors disabled:pointer-events-none disabled:opacity-50 ${media.length > 0 ? "bg-green-50 text-main-green" : "text-main-gray hover:bg-green-50 hover:text-main-green"}`}>
                     <ImagePlus className="size-5" />
                     <span className="text-xs sm:text-sm">Фото</span>
                 </button>
 
-                <button type="button" onClick={onToggleEmoji} disabled={isPending} className={`flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl py-2.5 transition-colors disabled:pointer-events-none disabled:opacity-50 sm:flex-row sm:gap-2 ${isEmojiOpen ? "bg-green-50 text-main-green" : "text-main-gray hover:bg-green-50 hover:text-main-green"}`}>
+                <button type="button" onClick={onToggleEmoji} disabled={isPending} className={`flex cursor-pointer items-center justify-center gap-1.5 rounded-full px-3 py-2 transition-colors disabled:pointer-events-none disabled:opacity-50 ${isEmojiOpen ? "bg-green-50 text-main-green" : "text-main-gray hover:bg-green-50 hover:text-main-green"}`}>
                     <Smile className="size-5" />
                     <span className="text-xs sm:text-sm">Эмодзи</span>
                 </button>
@@ -67,7 +67,7 @@ function CreatePostExtras({ media, location, isPending, isEmojiOpen, maxMediaCou
             </div>
 
             {isEmojiOpen && (
-                <div className="mt-2 rounded-2xl border border-green-100 bg-white p-3 shadow-sm">
+                <div className="mt-2 rounded-[14px] border border-[#e7ebe6] bg-white p-3 shadow-sm">
                     <div className="grid grid-cols-8 gap-1 sm:grid-cols-10">
                         {emojis.map((emoji, index) => (
                             <button key={`${emoji}-${index}`} type="button" onClick={() => onEmojiSelect(emoji)} disabled={isPending} className="flex aspect-square cursor-pointer items-center justify-center rounded-lg text-xl transition-colors hover:bg-green-50 disabled:pointer-events-none disabled:opacity-50">{emoji}</button>

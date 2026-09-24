@@ -107,10 +107,10 @@ function ProfilePostPagination({ profile, currentProfile, isOwnProfile, initialP
                 <PostCard key={post.id} profile={profile} post={post} isOwnProfile={isOwnProfile} initialLiked={likedPostIds.includes(post.id)} currentProfile={currentProfile} eagerMedia={false} onDeleted={handlePostDeleted} />
             ))}
 
-            {error && <div className="rounded-2xl border border-red-100 bg-white px-4 py-3 text-center text-sm text-red-600">{error}</div>}
+            {error && <div className="rounded-[16px] border border-red-100 bg-white px-4 py-3 text-center text-sm text-red-600">{error}</div>}
 
             {cursor && (
-                <button type="button" onClick={() => void handleLoadMore()} disabled={isLoading} className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-green-100 bg-white text-sm font-medium text-main-green transition-colors hover:bg-green-50 disabled:cursor-wait disabled:opacity-60">
+                <button type="button" onClick={() => void handleLoadMore()} disabled={isLoading} className="flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-full border border-[#dfe3df] bg-white text-sm font-semibold text-main-green transition-colors hover:bg-[#edf9ee] disabled:cursor-wait disabled:opacity-60">
                     {isLoading && <LoaderCircle className="size-4 animate-spin" />}
                     <span>{isLoading ? "Загружаем..." : "Показать ещё"}</span>
                 </button>

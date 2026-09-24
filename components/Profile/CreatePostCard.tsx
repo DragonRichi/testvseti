@@ -7,10 +7,9 @@ import { useRouter } from "next/navigation"
 import type { ChangeEvent } from "react"
 import { useEffect, useRef, useState } from "react"
 import CreatePostExtras from "./CreatePostExtras"
-import UserAvatar from "../ui/UserAvatar"
+import CreatePostAvatar from "../ui/icons/CreatePostAvatar"
 
 type Props = {
-    userId: string
     username: string
     displayName: string
     avatarUrl: string | null
@@ -20,6 +19,7 @@ type SelectedMedia = {
     file: File
     previewUrl: string
 }
+
 const MAX_MEDIA_COUNT = 10
 const MAX_FILE_SIZE = 10 * 1024 * 1024
 
@@ -41,14 +41,16 @@ const EMOJIS = [
     "📍", "📸", "🎥", "🎵", "🎧", "⚽", "🏀", "🏆", "🎮", "💻"
 ]
 
-function CreatePostCard({ avatarUrl, displayName, username, userId }: Props) {
-    const [content, setContent] = useState<string>("")
+function CreatePostCard({
+    username
+}: Props) {
+    const [content, setContent] = useState("")
     const [selectedMedia, setSelectedMedia] = useState<SelectedMedia[]>([])
     const [selectedLocation, setSelectedLocation] = useState<SelectedPostLocation | null>(null)
-    const [error, setError] = useState<string>("")
-    const [isExpanded, setIsExpanded] = useState<boolean>(false)
-    const [isEmojiOpen, setIsEmojiOpen] = useState<boolean>(false)
-    const [isPending, setIsPending] = useState<boolean>(false)
+    const [error, setError] = useState("")
+    const [isExpanded, setIsExpanded] = useState(false)
+    const [isEmojiOpen, setIsEmojiOpen] = useState(false)
+    const [isPending, setIsPending] = useState(false)
 
     const submitLock = useRef(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
@@ -56,6 +58,14 @@ function CreatePostCard({ avatarUrl, displayName, username, userId }: Props) {
     const textareaRef = useRef<HTMLTextAreaElement>(null)
 
     const router = useRouter()
+
+    const focusComposer = () => {
+        setIsExpanded(true)
+
+        requestAnimationFrame(() => {
+            textareaRef.current?.focus()
+        })
+    }
 
     useEffect(() => {
         if (!isExpanded) return
@@ -114,25 +124,25 @@ function CreatePostCard({ avatarUrl, displayName, username, userId }: Props) {
             }
         }
 
-        const newMedia: SelectedMedia[] = files.map((file) => ({
+        const newMedia = files.map((file) => ({
             file,
             previewUrl: URL.createObjectURL(file)
         }))
 
-        setSelectedMedia((prev) => [...prev, ...newMedia])
+        setSelectedMedia((current) => [...current, ...newMedia])
         setIsExpanded(true)
         event.target.value = ""
     }
 
     const handleRemoveMedia = (index: number) => {
-        setSelectedMedia((prev) => {
-            const item = prev[index]
+        setSelectedMedia((current) => {
+            const item = current[index]
 
             if (item) {
                 URL.revokeObjectURL(item.previewUrl)
             }
 
-            return prev.filter((_, itemIndex) => itemIndex !== index)
+            return current.filter((_, itemIndex) => itemIndex !== index)
         })
     }
 
@@ -192,11 +202,6 @@ function CreatePostCard({ avatarUrl, displayName, username, userId }: Props) {
             return
         }
 
-        if (normalizedContent.length > 5000) {
-            setError("Публикация не должна превышать 5000 символов")
-            return
-        }
-
         submitLock.current = true
         setIsPending(true)
         setError("")
@@ -204,7 +209,9 @@ function CreatePostCard({ avatarUrl, displayName, username, userId }: Props) {
         let uploadedPaths: string[] = []
 
         try {
-            const uploadedMedia = selectedMedia.length > 0 ? await uploadPostMedia(selectedMedia.map((item) => item.file)) : []
+            const uploadedMedia = selectedMedia.length > 0
+                ? await uploadPostMedia(selectedMedia.map((item) => item.file))
+                : []
 
             uploadedPaths = uploadedMedia.map((item) => item.path)
 
@@ -244,60 +251,51 @@ function CreatePostCard({ avatarUrl, displayName, username, userId }: Props) {
         }
     }
 
+    const canPublish = Boolean(content.trim()) || selectedMedia.length > 0
+
     return (
-        <div ref={composerRef} className="rounded-2xl border border-green-100 bg-white p-4">
+        <div ref={composerRef} className="rounded-t-2xl border-b border-[#ededed] bg-white px-5 py-5">
             <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple onChange={handleFilesChange} className="hidden" />
 
             <div className="flex items-start gap-3">
-                <div className="relative size-11 shrink-0 overflow-hidden rounded-full bg-bg-green">
-                    <UserAvatar
-                        userId={userId}
-                        displayName={displayName}
-                        avatarUrl={avatarUrl}
-                        size={44}
-                        priority
-                    />
-                </div>
+                <CreatePostAvatar className="size-11 shrink-0" />
 
                 <div className="min-w-0 flex-1">
                     {isExpanded ? (
-                        <textarea ref={textareaRef} value={content} onChange={(event) => { setContent(event.target.value); setError("") }} placeholder="Что у вас нового?" maxLength={5000} autoFocus className="min-h-[110] w-full resize-none rounded-xl border border-gray-100 bg-[#f8faf8] px-4 py-3 text-sm outline-none transition-colors placeholder:text-main-gray focus:border-main-green/40 focus:bg-white" />
-                    ) : (
-                        <button type="button" onClick={() => setIsExpanded(true)} className="flex h-11 w-full cursor-pointer items-center rounded-xl border border-gray-100 bg-[#f8faf8] px-4 text-left text-sm text-main-gray transition-colors hover:border-green-100 hover:bg-green-50/50">
-                            Что у вас нового?
+                        <textarea ref={textareaRef} value={content} onChange={(event) => { setContent(event.target.value); setError("") }} placeholder="Создайте запись" maxLength={5000} autoFocus rows={4} className="min-h-[110] w-full resize-none border-0 bg-transparent px-0 py-[10] text-[14px] leading-5 text-[#202020] outline-none placeholder:text-[#a3a3a3]" />) : (
+                        <button type="button" onClick={focusComposer} className="flex h-11 w-full cursor-text items-center text-left text-[14px] text-[#a3a3a3]">
+                            Создайте запись
                         </button>
                     )}
-
-                    {isExpanded && (
-                        <div className="mt-2 text-right text-xs text-main-gray">
-                            {content.length}/5000
-                        </div>
-                    )}
                 </div>
+
+                <button type="button" onClick={() => { if (!isExpanded) { focusComposer(); return } void handlePublish() }} disabled={isPending || (isExpanded && !canPublish)} className="flex h-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-[#e7e7e7] bg-white px-4 text-[13px] font-semibold text-[#171717] shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-colors hover:bg-[#f7f7f7] disabled:cursor-default disabled:opacity-45">
+                    {isPending ? "Публикуем..." : "Опубликовать"}
+                </button>
             </div>
 
             {isExpanded && (
-                <CreatePostExtras
-                    media={selectedMedia}
-                    location={selectedLocation}
-                    isPending={isPending}
-                    isEmojiOpen={isEmojiOpen}
-                    maxMediaCount={MAX_MEDIA_COUNT}
-                    emojis={EMOJIS}
-                    onRemoveMedia={handleRemoveMedia}
-                    onRemoveLocation={() => setSelectedLocation(null)}
-                    onPhotoClick={handlePhotoClick}
-                    onToggleEmoji={() => setIsEmojiOpen((prev) => !prev)}
-                    onEmojiSelect={handleEmojiSelect}
-                    onLocationChange={handleLocationChange}
-                />
+                <div className="mt-3 sm:pl-[56]">
+                    <CreatePostExtras
+                        media={selectedMedia}
+                        location={selectedLocation}
+                        isPending={isPending}
+                        isEmojiOpen={isEmojiOpen}
+                        maxMediaCount={MAX_MEDIA_COUNT}
+                        emojis={EMOJIS}
+                        onRemoveMedia={handleRemoveMedia}
+                        onRemoveLocation={() => setSelectedLocation(null)}
+                        onPhotoClick={handlePhotoClick}
+                        onToggleEmoji={() => setIsEmojiOpen((current) => !current)}
+                        onEmojiSelect={handleEmojiSelect}
+                        onLocationChange={handleLocationChange}
+                    />
+                </div>
             )}
 
-            {isExpanded && (
-                <div className="mt-3 flex justify-end">
-                    <button type="button" onClick={handlePublish} disabled={isPending || (!content.trim() && selectedMedia.length === 0)} className="flex h-10 cursor-pointer items-center justify-center rounded-xl bg-main-green px-5 text-sm font-medium text-white transition-colors hover:bg-hover-green disabled:pointer-events-none disabled:opacity-50">
-                        {isPending ? "Публикуем..." : "Опубликовать"}
-                    </button>
+            {error && (
+                <div className="mt-2 text-[12px] text-red-500 sm:pl-[56]">
+                    {error}
                 </div>
             )}
         </div>

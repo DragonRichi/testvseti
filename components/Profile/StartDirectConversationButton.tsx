@@ -9,47 +9,91 @@ type Props = {
     profileId: string
 }
 
-function StartDirectConversationButton({ profileId }: Props) {
+function StartDirectConversationButton({
+    profileId
+}: Props) {
     const router = useRouter()
     const lockRef = useRef(false)
-    const [isPending, setIsPending] = useState(false)
-    const [error, setError] = useState("")
 
-    const handleClick = async () => {
-        if (lockRef.current) return
+    const [
+        isPending,
+        setIsPending
+    ] = useState(false)
 
-        lockRef.current = true
-        setIsPending(true)
-        setError("")
+    const [error, setError] =
+        useState("")
 
-        try {
-            const result = await startDirectConversation(profileId)
-
-            if (result.success === false) {
-                setError(result.error)
+    const handleClick =
+        async () => {
+            if (lockRef.current) {
                 return
             }
 
-            router.push(`/messages/${result.conversationId}`)
-        } catch (error) {
-            console.error("START DIRECT CONVERSATION ERROR:", error)
-            setError("Не удалось открыть диалог")
-        } finally {
-            lockRef.current = false
-            setIsPending(false)
+            lockRef.current = true
+            setIsPending(true)
+            setError("")
+
+            try {
+                const result =
+                    await startDirectConversation(
+                        profileId
+                    )
+
+                if (
+                    result.success ===
+                    false
+                ) {
+                    setError(
+                        result.error
+                    )
+
+                    return
+                }
+
+                router.push(
+                    `/messages/${result.conversationId}`
+                )
+            } catch (error) {
+                console.error(
+                    "START DIRECT CONVERSATION ERROR:",
+                    error
+                )
+
+                setError(
+                    "Не удалось открыть диалог"
+                )
+            } finally {
+                lockRef.current =
+                    false
+
+                setIsPending(false)
+            }
         }
-    }
 
     return (
-        <div className="relative min-w-0 flex-1 sm:flex-none">
-            <button type="button" onClick={() => void handleClick()} disabled={isPending} aria-label="Написать сообщение" className="flex h-10 w-full cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-green-200 bg-white px-3 text-sm font-medium text-main-green transition-colors hover:bg-green-50 disabled:pointer-events-none disabled:opacity-60 sm:w-auto sm:px-4">
-                {isPending ? <LoaderCircle className="size-4 shrink-0 animate-spin" /> : <MessageCircle className="size-4 shrink-0" />}
+        <div className="relative w-full min-w-0">
+            <button
+                type="button"
+                onClick={() =>
+                    void handleClick()
+                }
+                disabled={isPending}
+                aria-label="Сообщение"
+                className="flex h-[42] w-full cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-[10px] bg-[#171717] px-4 text-[14px] font-semibold text-white transition-colors hover:bg-black disabled:pointer-events-none disabled:opacity-60"
+            >
+                {isPending ? (
+                    <LoaderCircle className="size-4 shrink-0 animate-spin" />
+                ) : (
+                    <MessageCircle className="size-[18] shrink-0" strokeWidth={1.7} />
+                )}
 
-                <span>Написать</span>
+                <span>
+                    Сообщение
+                </span>
             </button>
 
             {error && (
-                <div role="status" className="absolute right-0 top-[46] z-30 w-[260] rounded-xl border border-red-100 bg-white px-3 py-2 text-xs leading-5 text-red-600 shadow-lg">
+                <div role="status" className="absolute right-0 top-[48] z-30 w-[260] rounded-xl border border-red-100 bg-white px-3 py-2 text-xs leading-5 text-red-600 shadow-lg">
                     {error}
                 </div>
             )}

@@ -1,13 +1,18 @@
 "use client"
 
-import LogoutButton from "../Auth/LogoutButton"
-import useUnreadDirectMessagesCount from "../Messages/useUnreadDirectMessagesCount"
-import Logo from "../ui/Logo"
-import UserAvatar from "../ui/UserAvatar"
-import { Bell, Home, MapPinned, Menu, MessageCircle, Search, UserRound, X } from "lucide-react"
+import useUnreadDirectMessagesCount from "@/components/Messages/useUnreadDirectMessagesCount"
+import Logo from "@/components/ui/Logo"
+import { MapPinned, Menu, Search, UsersRound, X } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { type MouseEvent, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
+import LogoutButton from "../Auth/LogoutButton"
+import Home from "../ui/icons/Home"
+import Notifications from "../ui/icons/Notifications"
+import Messages from "../ui/icons/Messages"
+import Create from "../ui/icons/Create"
+import ProfileIcon from "../ui/icons/Profile"
+import SidebarMoreMenu from "./SidebarMoreMenu"
 
 type Profile = {
     id: string
@@ -20,20 +25,65 @@ type Props = {
     profile: Profile
 }
 
-const menuItems = [
-    { name: "Лента", href: "/feed", icon: Home },
-    { name: "Сообщения", href: "/messages", icon: MessageCircle },
-    { name: "Геочаты", href: "/geochats", icon: MapPinned },
-    { name: "Окружение", href: "/contacts", icon: UserRound },
-    { name: "Поиск", href: "/search", icon: Search }
-]
+type MenuLinkItem = {
+    name: string
+    href: string
+    icon: React.ComponentType<{
+        className?: string
+    }>
+    messageBadge?: boolean
+}
 
-function FeedSidebar({ profile }: Props) {
-    const [isOpen, setIsOpen] = useState<boolean>(false)
+function FeedSidebar({
+    profile
+}: Props) {
+    const [isOpen, setIsOpen] = useState(false)
+
     const pathName = usePathname()
     const router = useRouter()
-    const profileHref = profile ? `/profile/${profile.username}` : "#"
-    const unreadMessagesCount = useUnreadDirectMessagesCount(profile?.id ?? null)
+
+    const profileHref = profile
+        ? `/profile/${profile.username}`
+        : "#"
+
+    const unreadMessagesCount =
+        useUnreadDirectMessagesCount(
+            profile?.id ?? null
+        )
+
+    const menuItems: MenuLinkItem[] = [
+        {
+            name: "Главная",
+            href: "/feed",
+            icon: Home
+        },
+        {
+            name: "Уведомления",
+            href: "/notifications",
+            icon: Notifications
+        },
+        {
+            name: "Поиск",
+            href: "/search",
+            icon: Search
+        },
+        {
+            name: "Сообщения",
+            href: "/messages",
+            icon: Messages,
+            messageBadge: true
+        },
+        {
+            name: "Геочаты",
+            href: "/geochats",
+            icon: MapPinned
+        },
+        {
+            name: "Окружение",
+            href: "/contacts",
+            icon: UsersRound
+        }
+    ]
 
     useEffect(() => {
         router.prefetch("/messages")
@@ -43,150 +93,302 @@ function FeedSidebar({ profile }: Props) {
             router.prefetch(profileHref)
         }
 
-        const timer = window.setTimeout(() => {
-            router.prefetch("/geochats")
-            router.prefetch("/contacts")
-            router.prefetch("/search")
-            router.prefetch("/notifications")
-        }, 250)
+        const timer =
+            window.setTimeout(() => {
+                router.prefetch(
+                    "/notifications"
+                )
+                router.prefetch(
+                    "/search"
+                )
+                router.prefetch(
+                    "/geochats"
+                )
+                router.prefetch(
+                    "/contacts"
+                )
+            }, 250)
 
-        return () => {
+        return () =>
             window.clearTimeout(timer)
-        }
-    }, [profileHref, router])
+    }, [
+        profileHref,
+        router
+    ])
 
     useEffect(() => {
         if (!isOpen) return
 
-        const scrollY = window.scrollY
+        const scrollY =
+            window.scrollY
 
-        document.body.style.position = "fixed"
-        document.body.style.top = `-${scrollY}px`
-        document.body.style.left = "0"
-        document.body.style.right = "0"
-        document.body.style.width = "100%"
-        document.body.style.overflow = "hidden"
-        document.documentElement.style.overflow = "hidden"
+        document.body.style.position =
+            "fixed"
+
+        document.body.style.top =
+            `-${scrollY}px`
+
+        document.body.style.left =
+            "0"
+
+        document.body.style.right =
+            "0"
+
+        document.body.style.width =
+            "100%"
+
+        document.body.style.overflow =
+            "hidden"
+
+        document.documentElement.style.overflow =
+            "hidden"
 
         return () => {
-            document.body.style.position = ""
-            document.body.style.top = ""
-            document.body.style.left = ""
-            document.body.style.right = ""
-            document.body.style.width = ""
-            document.body.style.overflow = ""
-            document.documentElement.style.overflow = ""
-            window.scrollTo(0, scrollY)
+            document.body.style.position =
+                ""
+
+            document.body.style.top =
+                ""
+
+            document.body.style.left =
+                ""
+
+            document.body.style.right =
+                ""
+
+            document.body.style.width =
+                ""
+
+            document.body.style.overflow =
+                ""
+
+            document.documentElement.style.overflow =
+                ""
+
+            window.scrollTo(
+                0,
+                scrollY
+            )
         }
     }, [isOpen])
 
     const prefetchMenu = () => {
-        for (const item of menuItems) {
-            router.prefetch(item.href)
+        for (
+            const item
+            of menuItems
+        ) {
+            router.prefetch(
+                item.href
+            )
+        }
+
+        if (profileHref !== "#") {
+            router.prefetch(
+                profileHref
+            )
         }
     }
 
-    const handleOpenMenu = () => {
-        prefetchMenu()
-        setIsOpen(true)
-    }
+    const renderLink = (
+        item: MenuLinkItem,
+        mobile: boolean
+    ) => {
+        const Icon =
+            item.icon
 
-    const handleLogoClick = (event: MouseEvent<HTMLDivElement>) => {
-        event.preventDefault()
-        event.stopPropagation()
-        setIsOpen(false)
+        const isActive =
+            pathName === item.href ||
+            pathName.startsWith(
+                `${item.href}/`
+            )
 
-        if (pathName === "/feed") {
-            window.scrollTo({ top: 0, behavior: "smooth" })
-            return
-        }
-
-        router.push("/feed")
-    }
-
-    const renderLogo = () => (
-        <div onClickCapture={handleLogoClick} onPointerEnter={() => router.prefetch("/feed")} className="w-fit cursor-pointer">
-            <Logo />
-        </div>
-    )
-
-    const renderMenu = (mobile = false) => (
-        <>
-            <nav className="mt-7 flex flex-col gap-1">
-                {menuItems.map((item) => {
-                    const Icon = item.icon
-                    const isActive = pathName === item.href || pathName.startsWith(`${item.href}/`)
-
-                    return (
-                        <Link href={item.href} prefetch={true} key={item.href} onPointerEnter={() => router.prefetch(item.href)} onTouchStart={() => router.prefetch(item.href)} onClick={() => mobile && setIsOpen(false)} className={`flex h-12 items-center gap-4 rounded-xl px-4 text-[15] font-medium transition-colors ${isActive ? "bg-green-50 text-main-green" : "text-gray-700 hover:bg-green-50 hover:text-main-green"}`}>
-                            <Icon className="size-5 shrink-0" strokeWidth={1.8} />
-                            <span>{item.name}</span>
-
-                            {item.href === "/messages" && unreadMessagesCount > 0 && (
-                                <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-main-green px-1.5 text-[11px] font-bold leading-none text-white">
-                                    {unreadMessagesCount > 99 ? "99+" : unreadMessagesCount}
-                                </span>
-                            )}
-                        </Link>
+        return (
+            <Link
+                key={item.href}
+                href={item.href}
+                prefetch
+                onPointerEnter={() =>
+                    router.prefetch(
+                        item.href
                     )
-                })}
-            </nav>
+                }
+                onTouchStart={() =>
+                    router.prefetch(
+                        item.href
+                    )
+                }
+                onClick={() => {
+                    if (mobile) {
+                        setIsOpen(false)
+                    }
+                }}
+                className={`flex h-11 w-fit max-w-full items-center gap-3 rounded-[14px] px-3 text-[16px] font-medium transition-colors ${isActive
+                    ? "text-main-green"
+                    : "text-[#616161] hover:bg-[#ededed] hover:text-[#363636]"
+                    }`}
+            >
+                <span className="relative flex size-6 shrink-0 items-center justify-center">
+                    <Icon className="size-6" />
 
-            {mobile && (
-                <div className="mt-auto pt-6">
-                    <div className="border-t border-gray-100 pt-4">
-                        <Link href={profileHref} prefetch={true} onPointerEnter={() => profileHref !== "#" && router.prefetch(profileHref)} onTouchStart={() => profileHref !== "#" && router.prefetch(profileHref)} onClick={() => setIsOpen(false)} className="flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-green-50">
-                            <div className="relative size-11 shrink-0 overflow-hidden rounded-full bg-bg-green">
-                                <UserAvatar userId={profile?.id} displayName={profile?.display_name} avatarUrl={profile?.avatar_url} size={44} priority />
-                            </div>
+                    {item.messageBadge &&
+                        unreadMessagesCount >
+                        0 && (
+                            <span className="absolute -right-2 -top-2 flex h-[16] min-w-[16] items-center justify-center rounded-full bg-[#28b555] px-1 text-[9px] font-semibold leading-none text-white">
+                                {unreadMessagesCount >
+                                    9
+                                    ? "9+"
+                                    : unreadMessagesCount}
+                            </span>
+                        )}
+                </span>
 
-                            <div className="min-w-0 flex-1">
-                                <div className="truncate text-sm font-bold text-gray-900">{profile?.display_name ?? "Профиль"}</div>
-                                {profile?.username && <div className="mt-0.5 truncate text-xs text-main-gray">@{profile.username}</div>}
-                            </div>
-                        </Link>
+                <span className="whitespace-nowrap">
+                    {item.name}
+                </span>
+            </Link>
+        )
+    }
 
-                        <div className="mt-2">
-                            <LogoutButton variant="menu" />
-                        </div>
-                    </div>
-                </div>
+    const renderNavigation = (
+        mobile = false
+    ) => (
+        <nav
+            className={
+                mobile
+                    ? "mt-8 flex w-full flex-col items-start gap-1"
+                    : "absolute left-2 top-1/2 flex w-[196] -translate-y-1/2 flex-col items-start gap-1"
+            }
+        >
+            {menuItems
+                .filter((item) => mobile || item.href !== "/geochats")
+                .map((item) => renderLink(item, mobile))}
+
+            <button
+                type="button"
+                className="flex h-11 w-fit max-w-full cursor-pointer items-center gap-3 rounded-[14px] px-3 text-[16px] font-medium text-[#616161] transition-colors hover:bg-[#ededed] hover:text-[#363636]"
+            >
+                <span className="flex size-6 shrink-0 items-center justify-center">
+                    <Create className="size-6" />
+                </span>
+
+                <span className="whitespace-nowrap">
+                    Создать
+                </span>
+            </button>
+
+            {profileHref !== "#" && (
+                <Link
+                    href={profileHref}
+                    prefetch
+                    onPointerEnter={() =>
+                        router.prefetch(
+                            profileHref
+                        )
+                    }
+                    onTouchStart={() =>
+                        router.prefetch(
+                            profileHref
+                        )
+                    }
+                    onClick={() => {
+                        if (mobile) {
+                            setIsOpen(false)
+                        }
+                    }}
+                    className={`flex h-11 w-fit max-w-full items-center gap-3 rounded-[14px] px-3 text-[16px] font-medium transition-colors ${pathName ===
+                        profileHref ||
+                        pathName.startsWith(
+                            `${profileHref}/`
+                        )
+                        ? "text-main-green"
+                        : "text-[#616161] hover:bg-[#ededed] hover:text-[#363636]"
+                        }`}
+                >
+                    <span className="flex size-6 shrink-0 items-center justify-center">
+                        <ProfileIcon className="size-6" />
+                    </span>
+
+                    <span className="whitespace-nowrap">
+                        Профиль
+                    </span>
+                </Link>
             )}
-        </>
+
+            <SidebarMoreMenu mobile={mobile} />
+        </nav>
     )
 
     return (
         <>
-            <aside className="sticky top-0 hidden h-screen flex-col border-r border-green-100 bg-white px-4 py-5 lg:flex">
-                {renderLogo()}
-                {renderMenu()}
+            <aside className="fixed inset-y-0 left-0 z-30 hidden w-[220] flex-col overflow-visible bg-background px-4 py-4 lg:flex">
+                <div className="shrink-0 px-1">
+                    <Logo />
+                </div>
+
+                {renderNavigation()}
             </aside>
 
-            <div className="fixed left-0 right-0 top-0 z-40 flex h-16 items-center border-b border-black/5 bg-white/95 px-4 backdrop-blur-md lg:hidden">
-                {renderLogo()}
+            <div className="fixed inset-x-0 top-0 z-40 flex h-[60] items-center border-b border-[#e8e8e8] bg-[#f7f7f7]/95 px-4 backdrop-blur-xl lg:hidden">
+                <Logo />
 
-                <div className="ml-auto flex items-center gap-1">
-                    <Link href="/notifications" prefetch={true} onPointerEnter={() => router.prefetch("/notifications")} onTouchStart={() => router.prefetch("/notifications")} aria-label="Уведомления" className="flex size-10 items-center justify-center rounded-xl text-gray-700 transition-colors hover:bg-green-50 hover:text-main-green">
-                        <Bell className="size-5" strokeWidth={1.8} />
-                    </Link>
-
-                    <button type="button" onPointerEnter={prefetchMenu} onClick={handleOpenMenu} aria-label="Открыть меню" className="flex size-10 cursor-pointer items-center justify-center rounded-xl text-gray-700 transition-colors hover:bg-green-50 hover:text-main-green">
-                        <Menu className="size-6" />
-                    </button>
-                </div>
+                <button
+                    type="button"
+                    onPointerEnter={
+                        prefetchMenu
+                    }
+                    onClick={() => {
+                        prefetchMenu()
+                        setIsOpen(true)
+                    }}
+                    aria-label="Открыть меню"
+                    className="ml-auto flex size-10 cursor-pointer items-center justify-center rounded-full text-[#616161] transition-colors hover:bg-[#ededed]"
+                >
+                    <Menu className="size-5" />
+                </button>
             </div>
 
-            <div onClick={() => setIsOpen(false)} className={`fixed inset-0 z-9999 overscroll-none bg-black/25 backdrop-blur-[2px] transition-all duration-300 lg:hidden ${isOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}>
-                <aside onClick={(event) => event.stopPropagation()} className={`absolute left-0 top-0 flex h-full w-[290] flex-col overflow-y-auto overscroll-contain bg-white px-4 py-5 shadow-2xl transition-transform duration-300 ease-out ${isOpen ? "translate-x-0" : "-translate-x-full"}`}>
+            <div
+                onClick={() =>
+                    setIsOpen(false)
+                }
+                className={`fixed inset-0 z-9999 overscroll-none bg-black/20 backdrop-blur-[2px] transition-opacity duration-200 lg:hidden ${isOpen
+                    ? "pointer-events-auto opacity-100"
+                    : "pointer-events-none opacity-0"
+                    }`}
+            >
+                <aside
+                    onClick={(
+                        event
+                    ) =>
+                        event.stopPropagation()
+                    }
+                    className={`absolute left-0 top-0 flex h-full w-[286] flex-col overflow-y-auto overscroll-contain bg-background px-4 py-4 shadow-2xl transition-transform duration-250 ease-out ${isOpen
+                        ? "translate-x-0"
+                        : "-translate-x-full"
+                        }`}
+                >
                     <div className="flex items-center justify-between">
-                        {renderLogo()}
+                        <Logo />
 
-                        <button type="button" onClick={() => setIsOpen(false)} aria-label="Закрыть меню" className="flex size-10 cursor-pointer items-center justify-center rounded-xl text-gray-600 transition-colors hover:bg-green-50 hover:text-main-green">
+                        <button
+                            type="button"
+                            onClick={() =>
+                                setIsOpen(
+                                    false
+                                )
+                            }
+                            aria-label="Закрыть меню"
+                            className="flex size-10 cursor-pointer items-center justify-center rounded-full text-[#616161] transition-colors hover:bg-[#ededed]"
+                        >
                             <X className="size-5" />
                         </button>
                     </div>
 
-                    {renderMenu(true)}
+                    {renderNavigation(true)}
+
+                    <div className="mt-auto pt-6">
+                        <LogoutButton variant="menu" />
+                    </div>
                 </aside>
             </div>
         </>

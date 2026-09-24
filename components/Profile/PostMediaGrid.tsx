@@ -9,44 +9,53 @@ type Props = {
     eager?: boolean
 }
 
-function PostMediaGrid({ mediaUrls, eager = false }: Props) {
+function PostMediaGrid({
+    mediaUrls,
+    eager = false
+}: Props) {
     const [activeIndex, setActiveIndex] = useState<number | null>(null)
+    const [stripIndex, setStripIndex] = useState(0)
     const touchStartX = useRef<number | null>(null)
 
     const isViewerOpen = activeIndex !== null
-
-    const openViewer = (index: number) => {
-        setActiveIndex(index)
-    }
 
     const closeViewer = () => {
         setActiveIndex(null)
     }
 
     const showPrevious = () => {
-        if (activeIndex === null) return
-
-        setActiveIndex((activeIndex - 1 + mediaUrls.length) % mediaUrls.length)
+        setActiveIndex((current) => {
+            if (current === null) return null
+            return (current - 1 + mediaUrls.length) % mediaUrls.length
+        })
     }
 
     const showNext = () => {
-        if (activeIndex === null) return
-
-        setActiveIndex((activeIndex + 1) % mediaUrls.length)
+        setActiveIndex((current) => {
+            if (current === null) return null
+            return (current + 1) % mediaUrls.length
+        })
     }
 
-    const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
-        touchStartX.current = event.touches[0]?.clientX ?? null
+    const handleTouchStart = (
+        event: React.TouchEvent<HTMLDivElement>
+    ) => {
+        touchStartX.current =
+            event.touches[0]?.clientX ?? null
     }
 
-    const handleTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
+    const handleTouchEnd = (
+        event: React.TouchEvent<HTMLDivElement>
+    ) => {
         if (touchStartX.current === null) return
 
-        const touchEndX = event.changedTouches[0]?.clientX
+        const touchEndX =
+            event.changedTouches[0]?.clientX
 
         if (touchEndX === undefined) return
 
-        const difference = touchStartX.current - touchEndX
+        const difference =
+            touchStartX.current - touchEndX
 
         if (Math.abs(difference) > 50) {
             if (difference > 0) {
@@ -59,14 +68,48 @@ function PostMediaGrid({ mediaUrls, eager = false }: Props) {
         touchStartX.current = null
     }
 
+    const handleStripScroll = (
+        event: React.UIEvent<HTMLDivElement>
+    ) => {
+        const container =
+            event.currentTarget
+
+        const firstItem =
+            container.firstElementChild as HTMLElement | null
+
+        if (!firstItem) return
+
+        const gap = 4
+        const step =
+            firstItem.offsetWidth + gap
+
+        if (step <= 0) return
+
+        const nextIndex = Math.min(
+            mediaUrls.length - 1,
+            Math.max(
+                0,
+                Math.round(
+                    container.scrollLeft / step
+                )
+            )
+        )
+
+        setStripIndex(nextIndex)
+    }
+
     useEffect(() => {
         if (!isViewerOpen) return
 
-        const previousOverflow = document.body.style.overflow
+        const previousOverflow =
+            document.body.style.overflow
 
-        document.body.style.overflow = "hidden"
+        document.body.style.overflow =
+            "hidden"
 
-        const handleKeyDown = (event: KeyboardEvent) => {
+        const handleKeyDown = (
+            event: KeyboardEvent
+        ) => {
             if (event.key === "Escape") {
                 closeViewer()
             }
@@ -80,86 +123,129 @@ function PostMediaGrid({ mediaUrls, eager = false }: Props) {
             }
         }
 
-        window.addEventListener("keydown", handleKeyDown)
+        window.addEventListener(
+            "keydown",
+            handleKeyDown
+        )
 
         return () => {
-            document.body.style.overflow = previousOverflow
-            window.removeEventListener("keydown", handleKeyDown)
+            document.body.style.overflow =
+                previousOverflow
+
+            window.removeEventListener(
+                "keydown",
+                handleKeyDown
+            )
         }
-    }, [isViewerOpen, activeIndex])
+    }, [
+        isViewerOpen,
+        mediaUrls.length
+    ])
 
-    if (mediaUrls.length === 0) return null
+    if (mediaUrls.length === 0) {
+        return null
+    }
 
-    const visibleMedia = mediaUrls.slice(0, 4)
-    const remainingCount = mediaUrls.length - 4
+    const renderImage = (
+        url: string,
+        index: number,
+        className: string,
+        sizes: string
+    ) => (
+        <button
+            key={`${url}-${index}`}
+            type="button"
+            onClick={() =>
+                setActiveIndex(index)
+            }
+            className={className}
+        >
+            <Image
+                src={url}
+                alt={`Фото публикации ${index + 1}`}
+                fill
+                sizes={sizes}
+                priority={
+                    eager &&
+                    index === 0
+                }
+                unoptimized={
+                    process.env.NODE_ENV ===
+                    "development"
+                }
+                className="object-cover transition-transform duration-200 hover:scale-[1.015]"
+            />
+        </button>
+    )
 
     const renderMedia = () => {
         if (mediaUrls.length === 1) {
-            return (
-                <button type="button" onClick={() => openViewer(0)} className="relative mt-4 block aspect-16/10 w-full cursor-pointer overflow-hidden rounded-2xl bg-gray-100">
-                    <Image
-                        src={mediaUrls[0]}
-                        alt="Фото публикации"
-                        fill
-                        sizes="(max-width: 768px) 100vw, 800px" unoptimized={process.env.NODE_ENV === "development"}
-                        className="object-cover transition-transform duration-200 hover:scale-[1.01]"
-                        loading={eager ? "eager" : "lazy"}
-                    />
-                </button>
+            return renderImage(
+                mediaUrls[0],
+                0,
+                "relative block aspect-[16/10] w-full cursor-pointer overflow-hidden rounded-[10px] bg-[#eeeeee]",
+                "(max-width: 768px) 100vw, 650px"
             )
         }
 
         if (mediaUrls.length === 2) {
             return (
-                <div className="mt-4 grid grid-cols-2 gap-1 overflow-hidden rounded-2xl">
-                    {mediaUrls.map((url, index) => (
-                        <button key={url} type="button" onClick={() => openViewer(index)} className="relative aspect-square cursor-pointer overflow-hidden bg-gray-100">
-                            <Image
-                                src={url}
-                                alt={`Фото публикации ${index + 1}`}
-                                fill
-                                sizes="(max-width: 768px) 50vw, 400px" unoptimized={process.env.NODE_ENV === "development"}
-                                className="object-cover transition-transform duration-200 hover:scale-[1.02]"
-                                loading={eager && index === 0 ? "eager" : "lazy"}
-
-                            />
-                        </button>
-                    ))}
+                <div className="grid grid-cols-2 gap-1">
+                    {mediaUrls.map(
+                        (url, index) =>
+                            renderImage(
+                                url,
+                                index,
+                                "relative aspect-[3/4] cursor-pointer overflow-hidden rounded-[9px] bg-[#eeeeee]",
+                                "(max-width: 768px) 50vw, 320px"
+                            )
+                    )}
                 </div>
             )
         }
 
         if (mediaUrls.length === 3) {
             return (
-                <div className="mt-4 grid h-[260] grid-cols-2 grid-rows-2 gap-1 overflow-hidden rounded-2xl sm:h-[380]">
-                    <button type="button" onClick={() => openViewer(0)} className="relative row-span-2 cursor-pointer overflow-hidden bg-gray-100">
-                        <Image src={mediaUrls[0]} alt="Фото публикации 1" fill sizes="(max-width: 768px) 50vw, 350px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover transition-transform duration-200 hover:scale-[1.02]" />
-                    </button>
-
-                    <button type="button" onClick={() => openViewer(1)} className="relative cursor-pointer overflow-hidden bg-gray-100">
-                        <Image src={mediaUrls[1]} alt="Фото публикации 2" fill sizes="(max-width: 768px) 50vw, 350px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover transition-transform duration-200 hover:scale-[1.02]" />
-                    </button>
-
-                    <button type="button" onClick={() => openViewer(2)} className="relative cursor-pointer overflow-hidden bg-gray-100">
-                        <Image src={mediaUrls[2]} alt="Фото публикации 3" fill sizes="(max-width: 768px) 50vw, 350px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover transition-transform duration-200 hover:scale-[1.02]" />
-                    </button>
+                <div className="grid grid-cols-3 gap-1">
+                    {mediaUrls.map(
+                        (url, index) =>
+                            renderImage(
+                                url,
+                                index,
+                                "relative aspect-[3/4] cursor-pointer overflow-hidden rounded-[9px] bg-[#eeeeee]",
+                                "(max-width: 768px) 33vw, 220px"
+                            )
+                    )}
                 </div>
             )
         }
 
         return (
-            <div className="mt-4 grid grid-cols-2 gap-1 overflow-hidden rounded-2xl">
-                {visibleMedia.map((url, index) => (
-                    <button key={url} type="button" onClick={() => openViewer(index)} className="relative aspect-square cursor-pointer overflow-hidden bg-gray-100">
-                        <Image src={url} alt={`Фото публикации ${index + 1}`} fill sizes="(max-width: 768px) 50vw, 350px" unoptimized={process.env.NODE_ENV === "development"} className="object-cover transition-transform duration-200 hover:scale-[1.02]" />
+            <div>
+                <div className="mb-2 flex">
+                    <span className="rounded-full bg-[#f3f3f3] px-2 py-0.5 text-[11px] leading-4 text-[#999999]">
+                        {stripIndex + 1}/{mediaUrls.length}
+                    </span>
+                </div>
 
-                        {index === 3 && remainingCount > 0 && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/55 text-2xl font-bold text-white sm:text-3xl">
-                                +{remainingCount}
-                            </div>
-                        )}
-                    </button>
-                ))}
+                <div
+                    onScroll={handleStripScroll}
+                    style={{
+                        gridAutoColumns:
+                            "calc((100% - 12px) / 4)"
+                    }}
+                    className="grid snap-x snap-mandatory grid-flow-col gap-1 overflow-x-auto overscroll-x-contain scroll-smooth [-ms-overflow-style:none] scrollbar-none [&::-webkit-scrollbar]:hidden"
+                >
+                    {mediaUrls.map(
+                        (url, index) =>
+                            renderImage(
+                                url,
+                                index,
+                                "relative aspect-[3/4] w-full snap-start cursor-pointer overflow-hidden rounded-[9px] bg-[#eeeeee]",
+                                "(max-width: 768px) 25vw, 170px"
+                            )
+                    )}
+                </div>
             </div>
         )
     }
@@ -194,12 +280,6 @@ function PostMediaGrid({ mediaUrls, eager = false }: Props) {
                         <button type="button" onClick={showNext} aria-label="Следующее фото" className="absolute right-2 top-1/2 z-20 hidden size-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-black/50 text-white transition-colors hover:bg-white/15 sm:flex">
                             <ChevronRight className="size-7" />
                         </button>
-                    )}
-
-                    {mediaUrls.length > 1 && (
-                        <div className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-white/60 sm:hidden">
-                            Смахните для просмотра
-                        </div>
                     )}
                 </div>
             )}

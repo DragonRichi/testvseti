@@ -1,14 +1,20 @@
 import SocialLayout from "@/components/Layout/SocialLayout"
+
 import getCurrentViewer from "@/lib/auth/getCurrentViewer"
-import { redirect } from "next/navigation"
 import type { ReactNode } from "react"
+import { redirect } from "next/navigation"
+import PageBackButton from "@/components/ui/PageBackButton"
+
 
 type Props = {
     children: ReactNode
 }
 
-export default async function SocialRootLayout({ children }: Props) {
-    const viewer = await getCurrentViewer()
+async function Layout({
+    children
+}: Props) {
+    const viewer =
+        await getCurrentViewer()
 
     if (!viewer) {
         redirect("/")
@@ -16,7 +22,11 @@ export default async function SocialRootLayout({ children }: Props) {
 
     return (
         <SocialLayout profile={viewer.profile}>
+            <PageBackButton />
+
             {children}
         </SocialLayout>
     )
 }
+
+export default Layout

@@ -35,7 +35,7 @@ function ProfileFeed({
             : null
 
     return (
-        <div className="mt-4 flex flex-col gap-4">
+        <div className="mt-3 flex flex-col gap-3">
             {isOwnProfile && (
                 <CreatePostCard
                     username={profile.username}
@@ -46,8 +46,8 @@ function ProfileFeed({
             )}
 
             {posts.length === 0 ? (
-                <div className="flex min-h-[300] flex-col items-center justify-center rounded-2xl border border-green-100 bg-white px-6 py-10 text-center">
-                    <div className="flex size-14 items-center justify-center rounded-full bg-green-50">
+                <div className="flex min-h-[300] flex-col items-center justify-center rounded-[16px] bg-white px-6 py-10 text-center shadow-[0_1px_0_rgba(18,24,18,0.04)]">
+                    <div className="flex size-14 items-center justify-center rounded-full bg-[#edf9ee]">
                         <PenLine className="size-6 text-main-green" />
                     </div>
 

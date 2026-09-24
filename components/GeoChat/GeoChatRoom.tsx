@@ -183,8 +183,7 @@ function GeoChatRoomContent({
         <>
             <div
                 style={mobileViewportStyle}
-                className="fixed inset-x-0 bottom-0 top-[64] z-40 flex flex-col overflow-hidden bg-white lg:static lg:z-auto lg:h-[calc(100dvh-32px)] lg:min-h-[520] lg:rounded-3xl lg:border lg:border-green-100"
-            >
+                className="fixed inset-x-0 bottom-0 top-[64] z-40 flex flex-col overflow-hidden bg-white lg:static lg:z-auto lg:h-[calc(100dvh-32px)] lg:min-h-[520] lg:rounded-3xl"            >
                 <GeoChatHeader
                     room={room}
                     accuracy={accuracy}

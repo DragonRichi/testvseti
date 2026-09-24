@@ -102,7 +102,7 @@ function PostActions({
     return (
         <>
             <div className="relative">
-                <button type="button" onClick={() => setIsOpen((prev) => !prev)} className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-xl text-main-gray transition-colors hover:bg-gray-50 hover:text-black">
+                <button type="button" onClick={() => setIsOpen((prev) => !prev)} className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-[#858b86] transition-colors hover:bg-[#f3f5f2] hover:text-[#202520]">
                     <MoreHorizontal className="size-5" />
                 </button>
 
@@ -110,7 +110,7 @@ function PostActions({
                     <>
                         <button type="button" onClick={() => setIsOpen(false)} className="fixed inset-0 z-40 cursor-default" aria-label="Закрыть меню" />
 
-                        <div className="absolute right-0 top-11 z-50 w-[210] overflow-hidden rounded-xl border border-gray-100 bg-white p-1 shadow-lg">
+                        <div className="absolute right-0 top-11 z-50 w-[210] overflow-hidden rounded-[14px] border border-[#e8ebe7] bg-white p-1 shadow-[0_12px_35px_rgba(20,28,21,0.13)]">
                             <button type="button" onClick={handleEdit} className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-gray-700 transition-colors hover:bg-green-50 hover:text-main-green">
                                 <Pencil className="size-4" />
                                 Редактировать

@@ -6,7 +6,11 @@ import { usePathname, useRouter } from "next/navigation"
 import { useEffect, useRef, useTransition } from "react"
 import type { MouseEvent } from "react"
 
-function Logo() {
+type Props = {
+    compact?: boolean
+}
+
+function Logo({ compact = false }: Props) {
     const pathname = usePathname()
     const router = useRouter()
     const [isPending, startTransition] = useTransition()
@@ -23,7 +27,6 @@ function Logo() {
         if (isPending) return
 
         refreshStartedRef.current = true
-
         window.dispatchEvent(new Event("vseti:navigation-start"))
         window.scrollTo({ top: 0, behavior: "auto" })
 
@@ -40,12 +43,14 @@ function Logo() {
     }, [isPending])
 
     return (
-        <Link href={isHome ? "/" : "/feed"} onClick={handleClick} className="flex shrink-0 items-center gap-2">
-            <Image src="/logo.svg" alt="ВСети" width={36} height={36} priority unoptimized className="size-9" />
+        <Link href={isHome ? "/" : "/feed"} onClick={handleClick} aria-label="ВСети" className={`flex shrink-0 items-center ${compact ? "justify-center" : "gap-2"}`}>
+            <Image src="/logo.svg" alt="ВСети" width={38} height={38} priority unoptimized className={compact ? "size-10" : "size-9"} />
 
-            <span className="text-xl font-bold tracking-tight text-gray-900">
-                ВСети
-            </span>
+            {!compact && (
+                <span className="text-xl font-bold tracking-tight text-[#151915]">
+                    ВСети
+                </span>
+            )}
         </Link>
     )
 }

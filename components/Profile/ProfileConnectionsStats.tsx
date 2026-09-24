@@ -107,19 +107,19 @@ function ProfileConnectionsStats({ profileId, subscriberCount, followingCount }:
 
     return (
         <>
-            <button type="button" onClick={() => void handleOpen("followers")} className="cursor-pointer border-b border-gray-100 px-2 py-4 text-center transition-colors hover:bg-green-50 sm:border-b-0 sm:border-r">
-                <div className="text-lg font-bold">{subscriberCount}</div>
-                <div className="mt-1 text-xs text-main-gray">подписчиков</div>
+            <button type="button" onClick={() => void handleOpen("followers")} className="flex cursor-pointer items-baseline gap-1.5 text-left transition-colors hover:text-main-green">
+                <div className="text-sm font-bold text-[#171b17]">{subscriberCount}</div>
+                <div className="text-xs text-[#8b918c]">подписчиков</div>
             </button>
 
-            <button type="button" onClick={() => void handleOpen("following")} className="cursor-pointer border-r border-gray-100 px-2 py-4 text-center transition-colors hover:bg-green-50">
-                <div className="text-lg font-bold">{followingCount}</div>
-                <div className="mt-1 text-xs text-main-gray">подписок</div>
+            <button type="button" onClick={() => void handleOpen("following")} className="flex cursor-pointer items-baseline gap-1.5 text-left transition-colors hover:text-main-green">
+                <div className="text-sm font-bold text-[#171b17]">{followingCount}</div>
+                <div className="text-xs text-[#8b918c]">подписок</div>
             </button>
 
             {openType && (
                 <div onClick={() => setOpenType(null)} className="fixed inset-0 z-9999 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
-                    <div onClick={(event) => event.stopPropagation()} className="flex max-h-[80vh] w-full max-w-[520] flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+                    <div onClick={(event) => event.stopPropagation()} className="flex max-h-[80vh] w-full max-w-[520] flex-col overflow-hidden rounded-[18px] bg-white shadow-2xl">
                         <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-5 py-4">
                             <div>
                                 <div className="text-base font-bold text-gray-900">{openType === "followers" ? "Подписчики" : "Подписки"}</div>

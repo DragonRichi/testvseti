@@ -1,16 +1,17 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #111827;
+  --background: rgba(247, 247, 247, 1);
+  --background-bg-app: rgba(247, 247, 247, 1);
+  --foreground: #151915;
 
   --main-green: #24c33d;
   --text-green: #36ca36;
-  --hover-green: #2ed62e;
-  --bg-green: #d3f3d3;
+  --hover-green: #20b838;
+  --bg-green: #e1f7e5;
 
-  --main-gray: #808080;
-  --border-gray: #c7c4c4;
+  --main-gray: #858b86;
+  --border-gray: #d8ddd8;
 
   color-scheme: light;
 }
@@ -32,10 +33,27 @@
   --font-sans: var(--font-montserrat);
 }
 
+html {
+  background: var(--background);
+  scrollbar-gutter: stable;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-montserrat);
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: rgba(36, 195, 61, 0.18);
 }
 
 .bg-zoom {
@@ -82,10 +100,6 @@ body {
   display: none;
 }
 
-html {
-  scrollbar-gutter: stable;
-}
-
 @media (max-width: 1023px) {
 
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]):not([type="button"]):not([type="submit"]):not([type="reset"]),
@@ -98,4 +112,14 @@ html {
   textarea::placeholder {
     font-size: 14px !important;
   }
+}
+
+[class~="border-green-100"],
+[class~="border-green-200"] {
+  border-color: #e7e7e7 !important;
+}
+
+[class~="hover:border-green-100"]:hover,
+[class~="hover:border-green-200"]:hover {
+  border-color: #dedede !important;
 }

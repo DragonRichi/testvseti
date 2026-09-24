@@ -16,7 +16,7 @@ async function RadarFeed({ radarId, currentProfile }: Props) {
 
     if (result.success === false) {
         return (
-            <div className="rounded-2xl border border-red-100 bg-white p-5 text-sm text-red-500">
+            <div className="rounded-[16px] border border-red-100 bg-white p-5 text-sm text-red-500">
                 {result.error}
             </div>
         )
@@ -32,7 +32,7 @@ async function RadarFeed({ radarId, currentProfile }: Props) {
             </div>
 
             <div className="flex shrink-0 items-center gap-1">
-                <Link href={radar.type === "tracking" ? `/radars/${radar.id}/edit/tracking` : `/radars/${radar.id}/edit`} aria-label="Редактировать радар" title="Редактировать радар" className="flex size-9 shrink-0 items-center justify-center rounded-xl text-main-gray transition-colors hover:bg-green-50 hover:text-main-green">
+                <Link href={radar.type === "tracking" ? `/radars/${radar.id}/edit/tracking` : `/radars/${radar.id}/edit`} aria-label="Редактировать радар" title="Редактировать радар" className="flex size-9 shrink-0 items-center justify-center rounded-full text-[#858b86] transition-colors hover:bg-[#edf9ee] hover:text-main-green">
                     <Pencil className="size-4" />
                 </Link>
 
@@ -46,7 +46,7 @@ async function RadarFeed({ radarId, currentProfile }: Props) {
             <div>
                 {radarHeader}
 
-                <div className="flex min-h-[300] flex-col items-center justify-center rounded-2xl border border-green-100 bg-white px-5 text-center">
+                <div className="flex min-h-[300] flex-col items-center justify-center rounded-[16px] bg-white px-5 text-center">
                     <div className="text-base font-semibold text-gray-900">Пока нет публикаций</div>
                     <div className="mt-1 text-sm text-main-gray">В радаре «{radar.name}» пока нечего показывать</div>
                 </div>
@@ -61,7 +61,7 @@ async function RadarFeed({ radarId, currentProfile }: Props) {
             <div>
                 {radarHeader}
 
-                <div className="rounded-2xl border border-red-100 bg-white p-5 text-sm text-red-500">
+                <div className="rounded-[16px] border border-red-100 bg-white p-5 text-sm text-red-500">
                     {hydrated.error}
                 </div>
             </div>

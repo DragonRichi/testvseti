@@ -172,13 +172,13 @@ function DirectConversationRoom({
     return (
         <div
             style={mobileStyle}
-            className="fixed inset-x-0 top-0 z-50 flex h-dvh flex-col overflow-hidden bg-white lg:static lg:z-auto lg:h-[calc(100dvh-32px)] lg:min-h-[520] lg:rounded-3xl lg:border lg:border-green-100"
+            className="fixed inset-x-0 top-0 z-50 flex h-dvh flex-col overflow-hidden bg-white lg:static lg:z-auto lg:h-[calc(100dvh-32px)] lg:min-h-[520] lg:rounded-[18px] lg:shadow-[0_1px_0_rgba(18,24,18,0.04)]"
         >
-            <div className="flex h-14 shrink-0 items-center gap-3 border-b border-gray-100 bg-white px-3 sm:h-16 sm:px-5">
+            <div className="flex h-14 shrink-0 items-center gap-3 border-b border-[#ecefec] bg-white px-3 sm:h-16 sm:px-5">
                 <Link
                     href="/messages"
                     aria-label="Назад к сообщениям"
-                    className="flex size-9 shrink-0 items-center justify-center rounded-full text-main-gray transition-colors hover:bg-gray-100 hover:text-gray-900"
+                    className="flex size-9 shrink-0 items-center justify-center rounded-full text-[#8d938e] transition-colors hover:bg-gray-100 hover:text-[#202520]"
                 >
                     <ArrowLeft className="size-5" />
                 </Link>
@@ -197,11 +197,11 @@ function DirectConversationRoom({
                 </Link>
 
                 <div className="min-w-0">
-                    <div className="truncate text-[15px] font-bold text-gray-900 sm:text-base">
+                    <div className="truncate text-[15px] font-bold text-[#202520] sm:text-base">
                         {conversation.displayName}
                     </div>
 
-                    <div className="truncate text-[11px] text-main-gray sm:text-xs">
+                    <div className="truncate text-[11px] text-[#8d938e] sm:text-xs">
                         @{conversation.username}
                     </div>
                 </div>
@@ -210,7 +210,7 @@ function DirectConversationRoom({
             <div className="relative min-h-0 flex-1 overflow-hidden">
                 {isLoadingOlder && (
                     <div className="pointer-events-none absolute inset-x-0 top-2 z-10 flex justify-center">
-                        <div className="flex items-center gap-2 rounded-full border border-gray-100 bg-white/95 px-3 py-1.5 text-xs text-main-gray shadow-sm">
+                        <div className="flex items-center gap-2 rounded-full border border-gray-100 bg-white/95 px-3 py-1.5 text-xs text-[#8d938e] shadow-sm">
                             <LoaderCircle className="size-3.5 animate-spin text-main-green" />
                             Загружаем сообщения
                         </div>
@@ -224,11 +224,11 @@ function DirectConversationRoom({
                     {messages.length === 0 ? (
                         <div className="flex min-h-full items-center justify-center px-6 text-center">
                             <div>
-                                <div className="text-sm font-semibold text-gray-900">
+                                <div className="text-sm font-semibold text-[#202520]">
                                     Начните переписку
                                 </div>
 
-                                <div className="mt-1 text-sm leading-6 text-main-gray">
+                                <div className="mt-1 text-sm leading-6 text-[#8d938e]">
                                     Первое сообщение появится здесь.
                                 </div>
                             </div>

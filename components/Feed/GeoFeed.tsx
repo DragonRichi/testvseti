@@ -17,7 +17,7 @@ async function GeoFeed({
         result.success === false
     ) {
         return (
-            <div className="rounded-2xl border border-red-100 bg-white p-5 text-sm text-red-500">
+            <div className="rounded-[16px] border border-red-100 bg-white p-5 text-sm text-red-500">
                 {result.error}
             </div>
         )
@@ -30,7 +30,7 @@ async function GeoFeed({
 
     if (posts.length === 0) {
         return (
-            <div className="flex min-h-[300] items-center justify-center rounded-2xl border border-green-100 bg-white px-5 text-center text-sm text-main-gray">
+            <div className="flex min-h-[300] items-center justify-center rounded-[16px] bg-white px-5 text-center text-sm text-main-gray">
                 В ленте пока нет публикаций
             </div>
         )
@@ -46,7 +46,7 @@ async function GeoFeed({
         hydrated.success === false
     ) {
         return (
-            <div className="rounded-2xl border border-red-100 bg-white p-5 text-sm text-red-500">
+            <div className="rounded-[16px] border border-red-100 bg-white p-5 text-sm text-red-500">
                 {hydrated.error}
             </div>
         )

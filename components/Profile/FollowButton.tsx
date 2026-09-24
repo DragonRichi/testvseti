@@ -108,7 +108,7 @@ function FollowButton({
                 disabled={
                     isPending
                 }
-                className={`flex h-9 shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border px-3 text-xs font-medium leading-none transition-colors disabled:pointer-events-none disabled:opacity-60 ${isFollowing ? "border-green-200 bg-white text-main-green hover:border-red-200 hover:bg-red-50 hover:text-red-500" : "border-main-green bg-main-green text-white hover:bg-hover-green"}`}
+                className={`flex h-9 shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 text-xs font-semibold leading-none transition-colors disabled:pointer-events-none disabled:opacity-60 ${isFollowing ? "border-green-200 bg-white text-main-green hover:border-red-200 hover:bg-red-50 hover:text-red-500" : "border-main-green bg-main-green text-white hover:bg-hover-green"}`}
             >
                 {isFollowing ? (
                     <Check className="size-3.5" />
@@ -128,18 +128,16 @@ function FollowButton({
     return (
         <button
             type="button"
-            onClick={
-                handleClick
-            }
-            disabled={
-                isPending
-            }
-            className={`flex h-10 min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-xl border px-3 text-sm font-medium leading-none transition-colors disabled:pointer-events-none disabled:opacity-60 sm:flex-none sm:px-4 ${isFollowing ? "border-green-200 bg-white text-main-green hover:border-red-200 hover:bg-red-50 hover:text-red-500" : "border-main-green bg-main-green text-white hover:bg-hover-green"}`}
+            onClick={handleClick}
+            disabled={isPending}
+            className={`flex h-[42] w-full min-w-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-[10px] border px-4 text-[14px] font-semibold leading-none transition-colors disabled:pointer-events-none disabled:opacity-60 ${isFollowing ? "border-[#dedede] bg-white text-[#555555] hover:border-red-200 hover:bg-red-50 hover:text-red-500" : "border-main-green bg-main-green text-white hover:bg-hover-green"}`}
         >
             {isFollowing ? (
-                <Check className="hidden size-4 sm:block" />
+                <Check className="size-4" />
             ) : (
-                <UserPlus className="hidden size-4 sm:block" />
+                <span className="text-[22px] font-light leading-none">
+                    +
+                </span>
             )}
 
             <span>

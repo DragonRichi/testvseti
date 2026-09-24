@@ -76,10 +76,10 @@ function EnvironmentPage({ profileId, initialFollowers, initialFollowing, follow
     }
 
     return (
-        <div className="overflow-hidden rounded-2xl border border-green-100 bg-white">
-            <div className="border-b border-gray-100 px-5 py-5 sm:px-6">
+        <div className="overflow-hidden rounded-[18px] bg-white shadow-[0_1px_0_rgba(18,24,18,0.04)]">
+            <div className="border-b border-[#ecefec] px-5 py-5 sm:px-6">
                 <div className="flex items-center gap-3">
-                    <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-green-50 text-main-green">
+                    <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-[#edf9ee] text-main-green">
                         <UsersRound className="size-5" />
                     </div>
 
@@ -90,23 +90,23 @@ function EnvironmentPage({ profileId, initialFollowers, initialFollowing, follow
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 border-b border-gray-100">
-                <button type="button" onClick={() => handleTabChange("followers")} className={`relative flex cursor-pointer items-center justify-center gap-2 px-4 py-4 text-sm font-medium transition-colors ${activeTab === "followers" ? "text-main-green" : "text-main-gray hover:bg-green-50 hover:text-main-green"}`}>
+            <div className="grid grid-cols-2 border-b border-[#ecefec]">
+                <button type="button" onClick={() => handleTabChange("followers")} className={`relative flex cursor-pointer items-center justify-center gap-2 px-4 py-4 text-sm font-medium transition-colors ${activeTab === "followers" ? "text-main-green" : "text-main-gray hover:bg-[#edf9ee] hover:text-main-green"}`}>
                     <span>Подписчики</span>
-                    <span className={`rounded-full px-2 py-0.5 text-xs ${activeTab === "followers" ? "bg-green-50 text-main-green" : "bg-gray-100 text-main-gray"}`}>{followerCount}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-xs ${activeTab === "followers" ? "bg-[#edf9ee] text-main-green" : "bg-gray-100 text-main-gray"}`}>{followerCount}</span>
                     {activeTab === "followers" && <span className="absolute bottom-0 left-6 right-6 h-0.5 rounded-full bg-main-green" />}
                 </button>
 
-                <button type="button" onClick={() => handleTabChange("following")} className={`relative flex cursor-pointer items-center justify-center gap-2 px-4 py-4 text-sm font-medium transition-colors ${activeTab === "following" ? "text-main-green" : "text-main-gray hover:bg-green-50 hover:text-main-green"}`}>
+                <button type="button" onClick={() => handleTabChange("following")} className={`relative flex cursor-pointer items-center justify-center gap-2 px-4 py-4 text-sm font-medium transition-colors ${activeTab === "following" ? "text-main-green" : "text-main-gray hover:bg-[#edf9ee] hover:text-main-green"}`}>
                     <span>Подписки</span>
-                    <span className={`rounded-full px-2 py-0.5 text-xs ${activeTab === "following" ? "bg-green-50 text-main-green" : "bg-gray-100 text-main-gray"}`}>{followingCount}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-xs ${activeTab === "following" ? "bg-[#edf9ee] text-main-green" : "bg-gray-100 text-main-gray"}`}>{followingCount}</span>
                     {activeTab === "following" && <span className="absolute bottom-0 left-6 right-6 h-0.5 rounded-full bg-main-green" />}
                 </button>
             </div>
 
             {items.length === 0 ? (
                 <div className="flex min-h-[320] flex-col items-center justify-center px-5 text-center">
-                    <div className="flex size-14 items-center justify-center rounded-full bg-green-50 text-main-green">
+                    <div className="flex size-14 items-center justify-center rounded-full bg-[#edf9ee] text-main-green">
                         <UsersRound className="size-6" />
                     </div>
 
@@ -116,7 +116,7 @@ function EnvironmentPage({ profileId, initialFollowers, initialFollowing, follow
                 </div>
             ) : (
                 <div>
-                    <div className="divide-y divide-gray-100">
+                    <div className="divide-y divide-[#eef0ed]">
                         {items.map((item) => (
                             <div key={item.id} className="flex items-center gap-3 px-4 py-3 sm:px-6">
                                 <Link href={`/profile/${item.username}`} className="flex min-w-0 flex-1 items-center gap-3">
@@ -139,11 +139,11 @@ function EnvironmentPage({ profileId, initialFollowers, initialFollowing, follow
                         ))}
                     </div>
 
-                    {error && <div className="border-t border-gray-100 px-5 py-3 text-center text-sm text-red-500">{error}</div>}
+                    {error && <div className="border-t border-[#eef0ed] px-5 py-3 text-center text-sm text-red-500">{error}</div>}
 
                     {hasMore && (
-                        <div className="border-t border-gray-100 p-4">
-                            <button type="button" onClick={() => void handleLoadMore()} disabled={isLoadingMore} className="flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-green-100 text-sm font-medium text-main-green transition-colors hover:bg-green-50 disabled:cursor-wait disabled:opacity-60">
+                        <div className="border-t border-[#eef0ed] p-4">
+                            <button type="button" onClick={() => void handleLoadMore()} disabled={isLoadingMore} className="flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-green-100 text-sm font-medium text-main-green transition-colors hover:bg-[#edf9ee] disabled:cursor-wait disabled:opacity-60">
                                 {isLoadingMore && <LoaderCircle className="size-4 animate-spin" />}
                                 <span>{isLoadingMore ? "Загружаем..." : "Показать ещё"}</span>
                             </button>

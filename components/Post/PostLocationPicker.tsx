@@ -134,7 +134,7 @@ function PostLocationPicker({ value, onChange, variant = "default", disabled = f
     return (
         <>
             {variant === "toolbar" ? (
-                <button type="button" onClick={() => setIsOpen(true)} disabled={disabled} className={`flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl py-2.5 transition-colors disabled:pointer-events-none disabled:opacity-50 sm:flex-row sm:gap-2 ${value ? "bg-green-50 text-main-green" : "text-main-gray hover:bg-green-50 hover:text-main-green"}`}>
+                <button type="button" onClick={() => setIsOpen(true)} disabled={disabled} className={`flex cursor-pointer items-center justify-center gap-1.5 rounded-full px-3 py-2 transition-colors disabled:pointer-events-none disabled:opacity-50 ${value ? "bg-green-50 text-main-green" : "text-main-gray hover:bg-green-50 hover:text-main-green"}`}>
                     <MapPin className="size-5" />
                     <span className="text-xs sm:text-sm">Место</span>
                 </button>

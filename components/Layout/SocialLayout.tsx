@@ -10,18 +10,15 @@ type Props = {
 
 function SocialLayout({ profile, children }: Props) {
     return (
-        <div className="min-h-screen bg-[#f7faf7]">
+        <div className="min-h-screen bg-background">
             <GeoLocationSync userId={profile.id} />
+            <FeedSidebar profile={profile} />
 
-            <div className="mx-auto grid min-h-screen w-full max-w-[1070] lg:grid-cols-[250px_minmax(0,800px)] lg:gap-5">
-                <FeedSidebar profile={profile} />
-
-                <main className="min-w-0 px-4 pb-10 pt-20 sm:px-6 lg:px-0 lg:pt-4">
-                    <div className="mx-auto w-full max-w-[800]">
-                        {children}
-                    </div>
-                </main>
-            </div>
+            <main className="min-w-0 px-0 pb-8 pt-[60] sm:px-4 lg:ml-[220] lg:px-6 lg:pt-4">
+                <div className="mx-auto w-full max-w-[760]">
+                    {children}
+                </div>
+            </main>
         </div>
     )
 }
