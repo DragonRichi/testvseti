@@ -26,8 +26,8 @@ function ProfileFeed({
 
     const initialCursor: ProfilePostsCursor | null =
         lastPost &&
-        posts.length < postsCount &&
-        typeof lastPost.created_at === "string"
+            posts.length < postsCount &&
+            typeof lastPost.created_at === "string"
             ? {
                 createdAt: lastPost.created_at,
                 id: lastPost.id
@@ -41,7 +41,6 @@ function ProfileFeed({
                     username={profile.username}
                     displayName={profile.display_name}
                     avatarUrl={profile.avatar_url}
-                    userId={profile.id}
                 />
             )}
 
