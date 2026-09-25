@@ -1,12 +1,11 @@
 "use client"
 
 import { createComment } from "@/actions/createComment"
+import UserAvatar from "@/components/ui/UserAvatar"
 import type { PagedPostComment } from "@/types/postComments"
 import type { Profile } from "@/types/social"
 import { LoaderCircle, Send } from "lucide-react"
-import Image from "next/image"
-import { useRef, useState } from "react"
-import UserAvatar from "../ui/UserAvatar"
+import { KeyboardEvent, useRef, useState } from "react"
 
 type Props = {
     postId: string
@@ -15,17 +14,45 @@ type Props = {
     onCreated: (comment: PagedPostComment) => void
 }
 
-function PostCommentComposer({ postId, username, currentProfile, onCreated }: Props) {
+function PostCommentComposer({
+    postId,
+    username,
+    currentProfile,
+    onCreated
+}: Props) {
     const [content, setContent] = useState("")
     const [error, setError] = useState("")
     const [isPending, setIsPending] = useState(false)
+
     const submitLockRef = useRef(false)
     const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+    const resizeTextarea = (
+        textarea: HTMLTextAreaElement
+    ) => {
+        textarea.style.height = "40px"
+
+        const nextHeight =
+            Math.min(
+                textarea.scrollHeight,
+                120
+            )
+
+        textarea.style.height =
+            `${nextHeight}px`
+
+        textarea.style.overflowY =
+            textarea.scrollHeight > 120
+                ? "auto"
+                : "hidden"
+    }
 
     const handleSubmit = async () => {
         if (submitLockRef.current) return
 
-        const normalizedContent = content.trim()
+        const normalizedContent =
+            content.trim()
+
         if (!normalizedContent) return
 
         submitLockRef.current = true
@@ -33,7 +60,13 @@ function PostCommentComposer({ postId, username, currentProfile, onCreated }: Pr
         setError("")
 
         try {
-            const result = await createComment({ content: normalizedContent, postId, username })
+            const result =
+                await createComment({
+                    content:
+                        normalizedContent,
+                    postId,
+                    username
+                })
 
             if (result.success === false) {
                 setError(result.error)
@@ -52,38 +85,97 @@ function PostCommentComposer({ postId, username, currentProfile, onCreated }: Pr
             setContent("")
 
             if (textareaRef.current) {
-                textareaRef.current.style.height = "40px"
-                textareaRef.current.style.overflowY = "hidden"
+                textareaRef.current.style.height =
+                    "40px"
+
+                textareaRef.current.style.overflowY =
+                    "hidden"
             }
-        } catch (submitError) {
-            console.error("COMMENT CREATE ERROR:", submitError)
-            setError("Не удалось добавить комментарий")
+        } catch (error) {
+            console.error(
+                "COMMENT CREATE ERROR:",
+                error
+            )
+
+            setError(
+                "Не удалось добавить комментарий"
+            )
         } finally {
             submitLockRef.current = false
             setIsPending(false)
         }
     }
 
+    const handleKeyDown = (
+        event: KeyboardEvent<HTMLTextAreaElement>
+    ) => {
+        if (
+            event.key !== "Enter" ||
+            event.shiftKey
+        ) {
+            return
+        }
+
+        event.preventDefault()
+
+        void handleSubmit()
+    }
+
     return (
         <>
-            <div className="flex items-end gap-2">
-                <div className="relative size-9 shrink-0 overflow-hidden rounded-full bg-bg-green">
-                    <UserAvatar
-                        userId={currentProfile.id}
-                        displayName={currentProfile.display_name}
-                        avatarUrl={currentProfile.avatar_url}
-                        size={36}
+            <div className="flex items-end gap-2.5">
+                <UserAvatar
+                    userId={currentProfile.id}
+                    displayName={currentProfile.display_name}
+                    avatarUrl={currentProfile.avatar_url}
+                    size={36}
+                />
+
+                <div className="flex min-h-10 min-w-0 flex-1 items-end rounded-xl border border-[#e7e7e7] bg-white transition-colors focus-within:border-[#d8d8d8]">
+                    <textarea
+                        ref={textareaRef}
+                        value={content}
+                        onChange={(event) => {
+                            setContent(event.target.value)
+                            setError("")
+                            resizeTextarea(event.currentTarget)
+                        }}
+                        onKeyDown={handleKeyDown}
+                        placeholder="Написать комментарий..."
+                        maxLength={2000}
+                        rows={1}
+                        className="min-h-10 max-h-[120] min-w-0 flex-1 resize-none overflow-y-hidden border-0 bg-transparent px-3.5 py-2.5 text-[14px] leading-5 text-[#303030] outline-none placeholder:text-[#999]"
                     />
                 </div>
 
-                <textarea ref={textareaRef} value={content} onChange={(event) => { setContent(event.target.value); setError(""); event.currentTarget.style.height = "40px"; const nextHeight = Math.min(event.currentTarget.scrollHeight, 120); event.currentTarget.style.height = `${nextHeight}px`; event.currentTarget.style.overflowY = event.currentTarget.scrollHeight > 120 ? "auto" : "hidden" }} placeholder="Комментарий..." maxLength={2000} rows={1} className="min-h-10 max-h-[120] min-w-0 flex-1 resize-none overflow-y-hidden rounded-2xl border border-gray-100 bg-[#f4f7f4] px-3.5 py-2.5 text-sm leading-5 outline-none transition-colors placeholder:text-main-gray focus:border-main-green/30 focus:bg-white" />
-
-                <button type="button" onClick={() => void handleSubmit()} disabled={isPending || !content.trim()} className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-main-green text-white transition-colors hover:bg-hover-green disabled:pointer-events-none disabled:opacity-50">
-                    {isPending ? <LoaderCircle className="size-4 animate-spin" /> : <Send className="size-4" />}
+                <button
+                    type="button"
+                    onClick={() =>
+                        void handleSubmit()
+                    }
+                    disabled={
+                        isPending ||
+                        !content.trim()
+                    }
+                    aria-label="Отправить комментарий"
+                    className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-main-green text-white transition-colors hover:bg-hover-green disabled:pointer-events-none disabled:bg-[#d8d8d8]"
+                >
+                    {isPending ? (
+                        <LoaderCircle className="size-4 animate-spin" />
+                    ) : (
+                        <Send
+                            className="size-[17]"
+                            strokeWidth={1.8}
+                        />
+                    )}
                 </button>
             </div>
 
-            {error && <div className="mt-3 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600">{error}</div>}
+            {error && (
+                <div className="ml-[46] mt-2 rounded-xl bg-red-50 px-3 py-2 text-[12px] text-red-600">
+                    {error}
+                </div>
+            )}
         </>
     )
 }

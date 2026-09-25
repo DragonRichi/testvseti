@@ -45,7 +45,7 @@ function ProfileFeed({
             )}
 
             {posts.length === 0 ? (
-                <div className="flex min-h-[300] flex-col items-center justify-center rounded-[16px] bg-white px-6 py-10 text-center shadow-[0_1px_0_rgba(18,24,18,0.04)]">
+                <div className="flex min-h-[300] flex-col items-center justify-center rounded-2xl bg-white px-6 py-10 text-center shadow-[0_1px_0_rgba(18,24,18,0.04)]">
                     <div className="flex size-14 items-center justify-center rounded-full bg-[#edf9ee]">
                         <PenLine className="size-6 text-main-green" />
                     </div>

@@ -32,8 +32,7 @@ function PageBackButton() {
 
     return (
         <div className="mb-3 flex items-center">
-            <button type="button" onClick={handleBack} aria-label="Назад" className="flex size-10 cursor-pointer items-center justify-center rounded-full text-[#616161] transition-colors hover:bg-[#ededed] hover:text-[#202020]">
-                <ArrowLeft className="size-5" strokeWidth={1.6} />
+            <button type="button" onClick={handleBack} aria-label="Назад" className="flex size-10 cursor-pointer items-center justify-center rounded-full bg-white text-[#616161] shadow-[0_1px_4px_rgba(0,0,0,0.06)] transition-colors hover:bg-[#f5f5f5] hover:text-[#202020]">                <ArrowLeft className="size-5" strokeWidth={1.6} />
             </button>
         </div>
     )

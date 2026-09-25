@@ -1,187 +1,206 @@
 "use client"
 
-import { getProfileConnections } from "@/actions/getProfileConnections"
-import FollowButton from "@/components/Profile/FollowButton"
-import type { ProfileConnectionCursor, ProfileConnectionItem, ProfileConnectionType } from "@/types/follows"
-import { LoaderCircle, X } from "lucide-react"
-import Image from "next/image"
-import Link from "next/link"
-import { useEffect, useRef, useState } from "react"
-import UserAvatar from "../ui/UserAvatar"
+import UserAvatar from "@/components/ui/UserAvatar"
+import type {
+    ProfileConnectionCursor,
+    ProfileConnectionItem,
+    ProfileConnectionType
+} from "@/types/follows"
+import { useState } from "react"
+import ProfileConnectionsPopup from "./ProfileConnectionsPopup"
+
+type ConnectionData = {
+    items: ProfileConnectionItem[]
+    nextCursor: ProfileConnectionCursor | null
+}
 
 type Props = {
     profileId: string
     subscriberCount: number
     followingCount: number
+    initialFollowing: ConnectionData
+    initialFollowers: ConnectionData
 }
 
-function appendUniqueItems(current: ProfileConnectionItem[], next: ProfileConnectionItem[]) {
-    const existingIds = new Set(current.map((item) => item.id))
+function formatCount(
+    value: number
+) {
+    if (value < 1000) {
+        return String(value)
+    }
 
-    return [...current, ...next.filter((item) => !existingIds.has(item.id))]
+    if (value < 1_000_000) {
+        const thousands =
+            value / 1000
+
+        return Number.isInteger(
+            thousands
+        )
+            ? `${thousands} тыс.`
+            : `${thousands
+                .toFixed(1)
+                .replace(".", ",")} тыс.`
+    }
+
+    const millions =
+        value / 1_000_000
+
+    return Number.isInteger(
+        millions
+    )
+        ? `${millions} млн`
+        : `${millions
+            .toFixed(1)
+            .replace(".", ",")} млн`
 }
 
-function ProfileConnectionsStats({ profileId, subscriberCount, followingCount }: Props) {
-    const [openType, setOpenType] = useState<ProfileConnectionType | null>(null)
-    const [items, setItems] = useState<ProfileConnectionItem[]>([])
-    const [nextCursor, setNextCursor] = useState<ProfileConnectionCursor | null>(null)
-    const [isLoading, setIsLoading] = useState(false)
-    const [isLoadingMore, setIsLoadingMore] = useState(false)
-    const [error, setError] = useState("")
-    const loadLockRef = useRef(false)
+function AvatarStack({
+    items
+}: {
+    items: ProfileConnectionItem[]
+}) {
+    const visibleItems =
+        items.slice(0, 4)
 
-    useEffect(() => {
-        if (!openType) return
-
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === "Escape") setOpenType(null)
-        }
-
-        const previousOverflow = document.body.style.overflow
-
-        document.body.style.overflow = "hidden"
-        document.addEventListener("keydown", handleKeyDown)
-
-        return () => {
-            document.body.style.overflow = previousOverflow
-            document.removeEventListener("keydown", handleKeyDown)
-        }
-    }, [openType])
-
-    const handleOpen = async (type: ProfileConnectionType) => {
-        if (loadLockRef.current) return
-
-        setOpenType(type)
-        setItems([])
-        setNextCursor(null)
-        setError("")
-        setIsLoading(true)
-        loadLockRef.current = true
-
-        try {
-            const result = await getProfileConnections(profileId, type, null)
-
-            if (result.success === false) {
-                setError(result.error)
-                return
-            }
-
-            setItems(result.items)
-            setNextCursor(result.nextCursor)
-        } catch (error) {
-            console.error("PROFILE CONNECTIONS ERROR:", error)
-            setError("Не удалось загрузить список")
-        } finally {
-            loadLockRef.current = false
-            setIsLoading(false)
-        }
+    if (
+        visibleItems.length === 0
+    ) {
+        return null
     }
 
-    const handleLoadMore = async () => {
-        if (!openType || loadLockRef.current || !nextCursor) return
+    return (
+        <div className="flex shrink-0 items-center">
+            {visibleItems.map(
+                (item, index) => (
+                    <div
+                        key={item.id}
+                        style={{
+                            zIndex:
+                                visibleItems.length -
+                                index
+                        }}
+                        className="-ml-1.5 first:ml-0"
+                    >
+                        <UserAvatar
+                            userId={
+                                item.id
+                            }
+                            displayName={
+                                item.displayName
+                            }
+                            avatarUrl={
+                                item.avatarUrl
+                            }
+                            sizeClassName="size-6"
+                            textClassName="text-[9px]"
+                            priority
+                            className="border-2 border-white"
+                        />
+                    </div>
+                )
+            )}
+        </div>
+    )
+}
 
-        loadLockRef.current = true
-        setIsLoadingMore(true)
-        setError("")
+function ProfileConnectionsStats({
+    profileId,
+    subscriberCount,
+    followingCount,
+    initialFollowing,
+    initialFollowers
+}: Props) {
+    const [
+        popupType,
+        setPopupType
+    ] =
+        useState<ProfileConnectionType | null>(
+            null
+        )
 
-        try {
-            const result = await getProfileConnections(profileId, openType, nextCursor)
-
-            if (result.success === false) {
-                setError(result.error)
-                return
-            }
-
-            setItems((current) => appendUniqueItems(current, result.items))
-            setNextCursor(result.nextCursor)
-        } catch (error) {
-            console.error("PROFILE CONNECTIONS LOAD MORE ERROR:", error)
-            setError("Не удалось загрузить список")
-        } finally {
-            loadLockRef.current = false
-            setIsLoadingMore(false)
-        }
-    }
-
-    const hasMore = nextCursor !== null
+    const popupData =
+        popupType === "following"
+            ? initialFollowing
+            : initialFollowers
 
     return (
         <>
-            <button type="button" onClick={() => void handleOpen("followers")} className="flex cursor-pointer items-baseline gap-1.5 text-left transition-colors hover:text-main-green">
-                <div className="text-sm font-bold text-[#171b17]">{subscriberCount}</div>
-                <div className="text-xs text-[#8b918c]">подписчиков</div>
-            </button>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px] text-[#777777] sm:text-[13px]">
+                <button
+                    type="button"
+                    onClick={() =>
+                        setPopupType(
+                            "following"
+                        )
+                    }
+                    className="flex cursor-pointer items-center gap-2 transition-opacity hover:opacity-70"
+                >
+                    <AvatarStack
+                        items={
+                            initialFollowing.items
+                        }
+                    />
 
-            <button type="button" onClick={() => void handleOpen("following")} className="flex cursor-pointer items-baseline gap-1.5 text-left transition-colors hover:text-main-green">
-                <div className="text-sm font-bold text-[#171b17]">{followingCount}</div>
-                <div className="text-xs text-[#8b918c]">подписок</div>
-            </button>
-
-            {openType && (
-                <div onClick={() => setOpenType(null)} className="fixed inset-0 z-9999 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]">
-                    <div onClick={(event) => event.stopPropagation()} className="flex max-h-[80vh] w-full max-w-[520] flex-col overflow-hidden rounded-[18px] bg-white shadow-2xl">
-                        <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-5 py-4">
-                            <div>
-                                <div className="text-base font-bold text-gray-900">{openType === "followers" ? "Подписчики" : "Подписки"}</div>
-                                <div className="mt-0.5 text-xs text-main-gray">{openType === "followers" ? `${subscriberCount} подписчиков` : `${followingCount} подписок`}</div>
-                            </div>
-
-                            <button type="button" onClick={() => setOpenType(null)} aria-label="Закрыть" className="flex size-9 cursor-pointer items-center justify-center rounded-xl text-main-gray transition-colors hover:bg-gray-100 hover:text-gray-900">
-                                <X className="size-5" />
-                            </button>
-                        </div>
-
-                        <div className="min-h-0 flex-1 overflow-y-auto">
-                            {isLoading && (
-                                <div className="flex min-h-[260] items-center justify-center">
-                                    <div className="flex items-center gap-2 text-sm text-main-gray">
-                                        <LoaderCircle className="size-5 animate-spin" />
-                                        <span>Загружаем...</span>
-                                    </div>
-                                </div>
+                    <span className="whitespace-nowrap">
+                        <strong className="font-bold text-[#171717]">
+                            {formatCount(
+                                followingCount
                             )}
+                        </strong>{" "}
+                        в читаемых
+                    </span>
+                </button>
 
-                            {!isLoading && !error && items.length === 0 && <div className="flex min-h-[260] items-center justify-center px-5 text-center text-sm text-main-gray">{openType === "followers" ? "Подписчиков пока нет" : "Подписок пока нет"}</div>}
+                <span className="text-[#c7c7c7]">
+                    ·
+                </span>
 
-                            {!isLoading && items.length > 0 && (
-                                <div className="divide-y divide-gray-100">
-                                    {items.map((item) => (
-                                        <div key={item.id} className="flex items-center gap-3 px-5 py-3">
-                                            <Link href={`/profile/${item.username}`} onClick={() => setOpenType(null)} className="flex min-w-0 flex-1 items-center gap-3">
-                                                <div className="relative size-11 shrink-0 overflow-hidden rounded-full bg-bg-green">
-                                                    <UserAvatar
-                                                        userId={item.id}
-                                                        displayName={item.displayName}
-                                                        avatarUrl={item.avatarUrl}
-                                                        size={44}
-                                                    />
-                                                </div>
+                <button
+                    type="button"
+                    onClick={() =>
+                        setPopupType(
+                            "followers"
+                        )
+                    }
+                    className="flex cursor-pointer items-center gap-2 transition-opacity hover:opacity-70"
+                >
+                    <AvatarStack
+                        items={
+                            initialFollowers.items
+                        }
+                    />
 
-                                                <div className="min-w-0">
-                                                    <div className="truncate text-sm font-semibold text-gray-900">{item.displayName}</div>
-                                                    <div className="mt-0.5 truncate text-xs text-main-gray">@{item.username}</div>
-                                                </div>
-                                            </Link>
-
-                                            {item.isCurrentUser ? <div className="shrink-0 rounded-xl bg-gray-50 px-3 py-2 text-xs font-medium text-main-gray">Это вы</div> : <FollowButton profileId={item.id} username={item.username} initialFollowing={item.isFollowing} variant="compact" />}
-                                        </div>
-                                    ))}
-                                </div>
+                    <span className="whitespace-nowrap">
+                        <strong className="font-bold text-[#171717]">
+                            {formatCount(
+                                subscriberCount
                             )}
+                        </strong>{" "}
+                        читателей
+                    </span>
+                </button>
+            </div>
 
-                            {!isLoading && error && <div className="border-t border-gray-100 px-5 py-3 text-center text-sm text-red-500">{error}</div>}
-
-                            {!isLoading && hasMore && (
-                                <div className="border-t border-gray-100 p-4">
-                                    <button type="button" onClick={() => void handleLoadMore()} disabled={isLoadingMore} className="flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-green-100 text-sm font-medium text-main-green transition-colors hover:bg-green-50 disabled:cursor-wait disabled:opacity-60">
-                                        {isLoadingMore && <LoaderCircle className="size-4 animate-spin" />}
-                                        <span>{isLoadingMore ? "Загружаем..." : "Показать ещё"}</span>
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
+            {popupType && (
+                <ProfileConnectionsPopup
+                    profileId={
+                        profileId
+                    }
+                    type={
+                        popupType
+                    }
+                    initialItems={
+                        popupData.items
+                    }
+                    initialNextCursor={
+                        popupData.nextCursor
+                    }
+                    onClose={() =>
+                        setPopupType(
+                            null
+                        )
+                    }
+                />
             )}
         </>
     )
