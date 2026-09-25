@@ -1,6 +1,6 @@
-import type { ProfilePostsCursor } from "@/actions/loadMoreProfilePosts"
+import type { ProfilePostMode, ProfilePostsCursor } from "@/types/profileContent"
 import type { Post, Profile } from "@/types/social"
-import { PenLine } from "lucide-react"
+import { Images, PenLine } from "lucide-react"
 import CreatePostCard from "./CreatePostCard"
 import PostCard from "./PostCard"
 import ProfilePostPagination from "./ProfilePostPagination"
@@ -8,79 +8,121 @@ import ProfilePostPagination from "./ProfilePostPagination"
 type Props = {
     profile: Profile
     posts: Post[]
-    postsCount: number
+    initialCursor: ProfilePostsCursor | null
     isOwnProfile: boolean
     likedPostIds: string[]
     currentProfile: Profile
+    mode: ProfilePostMode
 }
 
 function ProfileFeed({
     profile,
     posts,
-    postsCount,
+    initialCursor,
     isOwnProfile,
     likedPostIds,
-    currentProfile
+    currentProfile,
+    mode
 }: Props) {
-    const lastPost = posts.at(-1)
-
-    const initialCursor: ProfilePostsCursor | null =
-        lastPost &&
-            posts.length < postsCount &&
-            typeof lastPost.created_at === "string"
-            ? {
-                createdAt: lastPost.created_at,
-                id: lastPost.id
-            }
-            : null
+    const isMedia =
+        mode === "media"
 
     return (
-        <div className="mt-3 flex flex-col gap-3">
-            {isOwnProfile && (
-                <CreatePostCard
-                    username={profile.username}
-                    displayName={profile.display_name}
-                    avatarUrl={profile.avatar_url}
-                />
-            )}
+        <div className="flex flex-col">
+            {isOwnProfile &&
+                !isMedia && (
+                    <div className="border-b border-[#e5e5e5] bg-white">
+                        <CreatePostCard
+                            username={
+                                profile.username
+                            }
+                            displayName={
+                                profile.display_name
+                            }
+                            avatarUrl={
+                                profile.avatar_url
+                            }
+                        />
+                    </div>
+                )}
 
-            {posts.length === 0 ? (
-                <div className="flex min-h-[300] flex-col items-center justify-center rounded-2xl bg-white px-6 py-10 text-center shadow-[0_1px_0_rgba(18,24,18,0.04)]">
+            {posts.length === 0 &&
+            !initialCursor ? (
+                <div className="flex min-h-[280] flex-col items-center justify-center bg-white px-6 py-10 text-center">
                     <div className="flex size-14 items-center justify-center rounded-full bg-[#edf9ee]">
-                        <PenLine className="size-6 text-main-green" />
+                        {isMedia ? (
+                            <Images className="size-6 text-main-green" />
+                        ) : (
+                            <PenLine className="size-6 text-main-green" />
+                        )}
                     </div>
 
-                    <h2 className="mt-4 text-lg font-bold">
-                        Публикаций пока нет
+                    <h2 className="mt-4 text-[16px] font-semibold text-[#171717]">
+                        {isMedia
+                            ? "Медиафайлов пока нет"
+                            : "Публикаций пока нет"}
                     </h2>
 
-                    <p className="mt-2 max-w-[360] text-sm leading-6 text-main-gray">
-                        {isOwnProfile
-                            ? "Создайте первую публикацию и поделитесь чем-нибудь интересным."
-                            : `${profile.display_name} пока ничего не опубликовал.`}
+                    <p className="mt-2 max-w-[360] text-[13px] leading-5 text-[#999]">
+                        {isMedia
+                            ? "Публикации с фотографиями будут отображаться здесь."
+                            : isOwnProfile
+                                ? "Создайте первую публикацию."
+                                : `${profile.display_name} пока ничего не опубликовал.`}
                     </p>
                 </div>
             ) : (
                 <>
-                    {posts.map((post, index) => (
-                        <PostCard
-                            key={post.id}
-                            profile={profile}
-                            post={post}
-                            isOwnProfile={isOwnProfile}
-                            initialLiked={likedPostIds.includes(post.id)}
-                            currentProfile={currentProfile}
-                            eagerMedia={index === 0}
-                        />
-                    ))}
+                    {posts.map(
+                        (
+                            post,
+                            index
+                        ) => (
+                            <PostCard
+                                key={
+                                    post.id
+                                }
+                                profile={
+                                    profile
+                                }
+                                post={
+                                    post
+                                }
+                                isOwnProfile={
+                                    isOwnProfile
+                                }
+                                initialLiked={likedPostIds.includes(
+                                    post.id
+                                )}
+                                currentProfile={
+                                    currentProfile
+                                }
+                                eagerMedia={
+                                    index ===
+                                    0
+                                }
+                            />
+                        )
+                    )}
 
                     <ProfilePostPagination
-                        key={profile.id}
-                        profile={profile}
-                        currentProfile={currentProfile}
-                        isOwnProfile={isOwnProfile}
-                        initialPostIds={posts.map((post) => post.id)}
-                        initialCursor={initialCursor}
+                        profile={
+                            profile
+                        }
+                        currentProfile={
+                            currentProfile
+                        }
+                        isOwnProfile={
+                            isOwnProfile
+                        }
+                        initialPostIds={posts.map(
+                            (post) =>
+                                post.id
+                        )}
+                        initialCursor={
+                            initialCursor
+                        }
+                        mode={mode}
                     />
                 </>
             )}

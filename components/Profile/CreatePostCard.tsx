@@ -8,6 +8,13 @@ import type { ChangeEvent } from "react"
 import { useEffect, useRef, useState } from "react"
 import CreatePostExtras from "./CreatePostExtras"
 import CreatePostAvatar from "../ui/icons/CreatePostAvatar"
+import {
+    ALLOWED_TYPES,
+    EMOJIS,
+    MAX_FILE_SIZE,
+    MAX_MEDIA_COUNT
+} from "./createPostConfig"
+import useCreatePostMentionPrefill from "./useCreatePostMentionPrefill"
 
 type Props = {
     username: string
@@ -19,27 +26,6 @@ type SelectedMedia = {
     file: File
     previewUrl: string
 }
-
-const MAX_MEDIA_COUNT = 10
-const MAX_FILE_SIZE = 10 * 1024 * 1024
-
-const ALLOWED_TYPES = [
-    "image/jpeg",
-    "image/png",
-    "image/webp",
-    "image/gif"
-]
-
-const EMOJIS = [
-    "😀", "😃", "😄", "😁", "😂", "🤣", "😊", "😉", "😍", "🥰",
-    "😘", "😋", "😎", "🤩", "🥳", "😅", "🙂", "🙃", "🤔",
-    "😢", "😭", "😡", "😱", "😴", "🤗", "🤭", "❤️",
-    "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "💔", "💕", "💯",
-    "👍", "👎", "👏", "🙏", "💪", "🤝", "✌️", "🤟", "👌", "👀",
-    "🔥", "🎉", "🎊", "✨", "⭐", "💫", "🚀", "✅", "❌", "⚡",
-    "🌍", "☀️", "🌙", "🌧️", "❄️", "🌈", "🌊", "🌳",
-    "📍", "📸", "🎥", "🎵", "🎧", "⚽", "🏀", "🏆", "🎮", "💻"
-]
 
 function CreatePostCard({
     username
@@ -58,6 +44,12 @@ function CreatePostCard({
     const textareaRef = useRef<HTMLTextAreaElement>(null)
 
     const router = useRouter()
+
+    useCreatePostMentionPrefill({
+        textareaRef,
+        setContent,
+        setIsExpanded
+    })
 
     const focusComposer = () => {
         setIsExpanded(true)

@@ -305,8 +305,7 @@ function ProfileMoreMenu({
                 onClick={() => setIsOpen((current) => !current)}
                 aria-label="Ещё"
                 aria-expanded={isOpen}
-                className={`flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-white transition-colors ${isOpen ? "border-[#d5d5d5] bg-[#f5f5f5] text-[#171717]" : "border-[#e3e3e3] text-[#616161] hover:bg-[#f5f5f5]"}`}
-            >
+                className={`flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-xl border bg-white transition-colors sm:size-11 ${isOpen ? "border-[#d5d5d5] bg-[#f5f5f5] text-[#171717]" : "border-[#e3e3e3] text-[#616161] hover:bg-[#f5f5f5]"}`}            >
                 <MoreHorizontal className="size-5" strokeWidth={1.6} />
             </button>
 

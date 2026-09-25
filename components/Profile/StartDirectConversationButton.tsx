@@ -79,15 +79,13 @@ function StartDirectConversationButton({
                 }
                 disabled={isPending}
                 aria-label="Сообщение"
-                className="flex h-[42] w-full cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-[10px] bg-[#171717] px-4 text-[14px] font-semibold text-white transition-colors hover:bg-black disabled:pointer-events-none disabled:opacity-60"
-            >
+                className="flex h-10 w-full min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-[#171717] px-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#2b2b2b] sm:h-11 sm:gap-2 sm:px-4 sm:text-[14px]"            >
                 {isPending ? (
                     <LoaderCircle className="size-4 shrink-0 animate-spin" />
                 ) : (
-                    <MessageCircle className="size-[18] shrink-0" strokeWidth={1.7} />
+                    <MessageCircle className="hidden size-4 shrink-0 sm:block" />
                 )}
-
-                <span>
+                <span className="truncate whitespace-nowrap">
                     Сообщение
                 </span>
             </button>

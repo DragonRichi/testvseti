@@ -61,7 +61,7 @@ function PostCard({
             Math.max(
                 0,
                 previousLikeCount +
-                    (nextLiked ? 1 : -1)
+                (nextLiked ? 1 : -1)
             )
         )
 
@@ -169,12 +169,12 @@ function PostCard({
 
                                 setLikeCount(
                                     updatedPost.like_count ??
-                                        likeCount
+                                    likeCount
                                 )
 
                                 setCommentCount(
                                     updatedPost.comment_count ??
-                                        commentCount
+                                    commentCount
                                 )
 
                                 setIsEditing(
@@ -240,13 +240,7 @@ function PostCard({
 
             {!isEditing &&
                 hasOpenedComments && (
-                    <div
-                        className={
-                            isCommentsOpen
-                                ? "block pl-[52]"
-                                : "hidden"
-                        }
-                    >
+                    <div className={isCommentsOpen ? "block sm:pl-[52]" : "hidden"}>
                         <CommentsSection
                             postId={
                                 displayPost.id

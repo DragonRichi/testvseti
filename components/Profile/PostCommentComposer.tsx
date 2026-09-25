@@ -123,7 +123,7 @@ function PostCommentComposer({
 
     return (
         <>
-            <div className="flex items-end gap-2.5">
+            <div className="flex min-w-0 items-end gap-2">
                 <UserAvatar
                     userId={currentProfile.id}
                     displayName={currentProfile.display_name}

@@ -108,18 +108,15 @@ function FollowButton({
                 disabled={
                     isPending
                 }
-                className={`flex h-9 shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 text-xs font-semibold leading-none transition-colors disabled:pointer-events-none disabled:opacity-60 ${isFollowing ? "border-green-200 bg-white text-main-green hover:border-red-200 hover:bg-red-50 hover:text-red-500" : "border-main-green bg-main-green text-white hover:bg-hover-green"}`}
-            >
+                className="flex h-10 w-full min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-main-green px-2 text-[12px] font-semibold text-white transition-colors hover:bg-hover-green sm:h-11 sm:gap-2 sm:px-4 sm:text-[14px]"            >
                 {isFollowing ? (
                     <Check className="size-3.5" />
                 ) : (
-                    <UserPlus className="size-3.5" />
+                    <UserPlus className="hidden size-4 shrink-0 sm:block" />
                 )}
 
-                <span>
-                    {isFollowing
-                        ? "Вы подписаны"
-                        : "Подписаться"}
+                <span className="truncate whitespace-nowrap">
+                    {isFollowing ? "Вы читаете" : "Подписаться"}
                 </span>
             </button>
         )

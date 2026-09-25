@@ -146,38 +146,45 @@ function CommentItem({
 
                 <div className="min-w-0 flex-1">
                     <div className="min-w-0">
-                        <div className="flex min-w-0 items-center gap-1.5">
-                            {authorUsername ? (
-                                <Link href={`/profile/${authorUsername}`} className="min-w-0 truncate text-sm font-semibold text-[#171717] hover:underline">
-                                    {authorName}
-                                </Link>
-                            ) : (
-                                <span className="min-w-0 truncate text-sm font-semibold text-[#171717]">
-                                    {authorName}
-                                </span>
-                            )}
+                        <div className="flex min-w-0 items-start gap-2">
+                            <div className="min-w-0 flex-1">
+                                <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+                                    {authorUsername ? (
+                                        <Link
+                                            href={`/profile/${authorUsername}`}
+                                            className="max-w-full text-sm font-semibold text-[#171717] hover:underline"
+                                        >
+                                            {authorName}
+                                        </Link>
+                                    ) : (
+                                        <span className="max-w-full text-sm font-semibold text-[#171717]">
+                                            {authorName}
+                                        </span>
+                                    )}
 
-                            {authorUsername && (
-                                <span className="hidden min-w-0 truncate text-xs text-[#999] sm:block">
-                                    @{authorUsername}
-                                </span>
-                            )}
+                                    {authorUsername && (
+                                        <span className="hidden text-xs text-[#999] sm:inline">
+                                            @{authorUsername}
+                                        </span>
+                                    )}
 
-                            <span className="shrink-0 text-xs text-[#aaa]">
-                                · {COMMENT_DATE_FORMATTER.format(new Date(comment.created_at))}
-                            </span>
+                                    <span className="shrink-0 text-[11px] text-[#aaa] sm:text-xs">
+                                        · {COMMENT_DATE_FORMATTER.format(new Date(comment.created_at))}
+                                    </span>
 
-                            {isEdited && (
-                                <span
-                                    title={`Изменено ${EDITED_DATE_FORMATTER.format(new Date(updatedAt))}`}
-                                    className="shrink-0 text-xs text-[#aaa]"
-                                >
-                                    · изменено
-                                </span>
-                            )}
+                                    {isEdited && (
+                                        <span
+                                            title={`Изменено ${EDITED_DATE_FORMATTER.format(new Date(updatedAt))}`}
+                                            className="shrink-0 text-[11px] text-[#aaa] sm:text-xs"
+                                        >
+                                            · изменено
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
 
                             {comment.user_id === currentProfile.id && !isEditing && (
-                                <div className="ml-auto shrink-0">
+                                <div className="shrink-0">
                                     <CommentActions
                                         commentId={comment.id}
                                         postId={postId}
@@ -191,7 +198,6 @@ function CommentItem({
                                 </div>
                             )}
                         </div>
-
                         {replyToUsername && !isEditing && (
                             <div className="mt-1 flex items-center gap-1 text-xs text-[#999]">
                                 <CornerUpLeft className="size-3.5 shrink-0" strokeWidth={1.6} />
